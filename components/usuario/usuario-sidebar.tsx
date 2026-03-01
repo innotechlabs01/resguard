@@ -5,7 +5,6 @@ import {
   Car,
   Receipt,
   Calendar,
-  MessageSquare,
   Bell,
   Settings,
   LogOut,
@@ -33,7 +32,6 @@ const menuItems = [
   { id: 'payments', label: 'Pagos', icon: Receipt },
   { id: 'reservations', label: 'Reservas', icon: Calendar },
   { id: 'notifications', label: 'Notificaciones', icon: Bell },
-  { id: 'concierge', label: 'Asistente Virtual', icon: MessageSquare },
   { id: 'settings', label: 'Mi Cuenta', icon: Settings },
 ]
 

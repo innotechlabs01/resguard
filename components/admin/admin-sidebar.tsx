@@ -8,7 +8,6 @@ import {
   FileText,
   Settings,
   Bell,
-  MessageSquare,
   LogOut,
   Building2,
   Send,
@@ -36,7 +35,6 @@ const navItems = [
   { id: 'comunicaciones', icon: Send, label: 'Comunicaciones' },
   { id: 'alerts', icon: Bell, label: 'Alertas', badge: true },
   { id: 'reports', icon: FileText, label: 'Reportes' },
-  { id: 'concierge', icon: MessageSquare, label: 'AI Concierge' },
   { id: 'settings', icon: Settings, label: 'Configuracion' },
 ]
 

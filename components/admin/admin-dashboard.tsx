@@ -11,7 +11,6 @@ import { ComunicacionesPanel } from './comunicaciones-panel'
 import { ParkingManagementPanel } from './parking-management-panel'
 import { ParkingMap } from '@/components/dashboard/parking-map'
 import { AlertsPanel } from '@/components/dashboard/alerts-panel'
-import { AIConcierge } from '@/components/dashboard/ai-concierge'
 import { ReportsPanel } from '@/components/dashboard/reports-panel'
 import {
   mockParkingSpots,
@@ -30,7 +29,6 @@ const tabTitles: Record<string, string> = {
   comunicaciones: 'Comunicaciones',
   alerts: 'Alertas',
   reports: 'Reportes',
-  concierge: 'AI Concierge',
   settings: 'Configuracion',
 }
 
@@ -119,8 +117,6 @@ export function AdminDashboard() {
         )
       case 'reports':
         return <ReportsPanel />
-      case 'concierge':
-        return <AIConcierge />
       case 'settings':
         return building ? <AdminSettingsPanel building={building} /> : null
       default:

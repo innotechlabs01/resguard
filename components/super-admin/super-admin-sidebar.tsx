@@ -8,7 +8,6 @@ import {
   BarChart3,
   Settings,
   Bell,
-  MessageSquare,
   LogOut,
   Shield,
   Car,
@@ -33,7 +32,6 @@ const navItems = [
   { id: 'users', icon: Users, label: 'Usuarios' },
   { id: 'analytics', icon: BarChart3, label: 'Analiticas' },
   { id: 'alerts', icon: Bell, label: 'Alertas del Sistema', badge: true },
-  { id: 'concierge', icon: MessageSquare, label: 'AI Concierge' },
   { id: 'settings', icon: Settings, label: 'Configuracion' },
 ]
 
