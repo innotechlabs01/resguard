@@ -6,7 +6,6 @@ import {
   Car,
   Users,
   Bell,
-  MessageSquare,
   LayoutDashboard,
   LogOut,
   Shield,
@@ -27,7 +26,6 @@ const navItems = [
   { id: 'visitors', label: 'Registro de Visitas', icon: Users },
   { id: 'inquilinos', label: 'Inquilinos / Vehiculos', icon: KeyRound },
   { id: 'alerts', label: 'Alertas', icon: Bell },
-  { id: 'concierge', label: 'Asistente Virtual', icon: MessageSquare },
   { id: 'reports', label: 'Reportes de Turno', icon: FileText },
 ]
 

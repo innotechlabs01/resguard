@@ -11,7 +11,6 @@ import { UsuarioNotifications } from './usuario-notifications'
 import { UsuarioSettings } from './usuario-settings'
 import { Marketplace } from './marketplace'
 import { AlquilerPanel } from './alquiler-panel'
-import { AIConcierge } from '@/components/dashboard/ai-concierge'
 import { useAuth } from '@/lib/auth-context'
 
 const tabTitles: Record<string, string> = {
@@ -22,7 +21,6 @@ const tabTitles: Record<string, string> = {
   payments: 'Pagos y Estado de Cuenta',
   reservations: 'Reservas de Areas Comunes',
   notifications: 'Notificaciones del Edificio',
-  concierge: 'Asistente Virtual',
   settings: 'Mi Cuenta',
 }
 
@@ -85,8 +83,6 @@ export function UsuarioDashboard() {
         return <UsuarioReservations />
       case 'notifications':
         return <UsuarioNotifications />
-      case 'concierge':
-        return <AIConcierge />
       case 'settings':
         return <UsuarioSettings />
       default:
