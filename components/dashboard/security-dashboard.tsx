@@ -7,7 +7,6 @@ import { Overview } from './overview'
 import { ParkingMap } from './parking-map'
 import { VisitorList } from './visitor-list'
 import { AlertsPanel } from './alerts-panel'
-import { AIConcierge } from './ai-concierge'
 import { ReportsPanel } from './reports-panel'
 import { NewEntryDialog } from './new-entry-dialog'
 import { InquilinosPanel } from './inquilinos-panel'
@@ -24,7 +23,6 @@ const tabTitles: Record<string, string> = {
   visitors: 'Registro de Visitantes',
   inquilinos: 'Inquilinos y Vehiculos Autorizados',
   alerts: 'Alertas y Notificaciones',
-  concierge: 'Asistente Virtual',
   reports: 'Reportes de Turno',
 }
 
@@ -192,8 +190,6 @@ export function SecurityDashboard() {
             onDismiss={handleDismissAlert}
           />
         )
-      case 'concierge':
-        return <AIConcierge />
       case 'reports':
         return <ReportsPanel />
       default:
