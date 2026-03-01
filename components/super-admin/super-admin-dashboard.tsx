@@ -11,7 +11,6 @@ import { AnalyticsPanel } from './analytics-panel'
 import { SystemAlertsPanel } from './system-alerts-panel'
 import { SystemSettingsPanel } from './system-settings-panel'
 import { ParkingConfigPanel } from './parking-config-panel'
-import { AIConcierge } from '@/components/dashboard/ai-concierge'
 import {
   mockBuildingStats,
   mockSystemStats,
@@ -25,7 +24,6 @@ const tabTitles: Record<string, string> = {
   users: 'Gestion de Usuarios',
   analytics: 'Analiticas del Sistema',
   alerts: 'Alertas del Sistema',
-  concierge: 'AI Concierge',
   settings: 'Configuracion del Sistema',
 }
 
@@ -72,8 +70,6 @@ export function SuperAdminDashboard() {
         return <AnalyticsPanel />
       case 'alerts':
         return <SystemAlertsPanel />
-      case 'concierge':
-        return <AIConcierge />
       case 'settings':
         return <SystemSettingsPanel />
       default:
