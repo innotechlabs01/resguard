@@ -36,6 +36,16 @@ async function runTursoMigration() {
         file: '005_add_missing_building_columns.sql',
         verify: "SELECT last_payment_date FROM pragma_table_info('buildings') WHERE name='last_payment_date'",
         description: 'Add last_payment_date and subscription_status to buildings'
+      },
+      {
+        file: '006_add_shift_reports.sql',
+        verify: "SELECT name FROM sqlite_master WHERE type='table' AND name='shift_reports'",
+        description: 'Add shift_reports table'
+      },
+      {
+        file: '007_add_chat_messages.sql',
+        verify: "SELECT name FROM sqlite_master WHERE type='table' AND name='chat_messages'",
+        description: 'Add chat_messages table'
       }
     ];
     

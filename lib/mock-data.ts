@@ -395,15 +395,16 @@ export const mockAlerts: Alert[] = [
 ]
 
 export const mockResidents: Resident[] = [
-  { id: '1', name: 'Roberto Mendez', unit: '301', phone: '+57 300 123 4567', email: 'roberto@email.com', parkingSpots: ['P-301'], balance: 0 },
-  { id: '2', name: 'Elena Torres', unit: '502', phone: '+57 301 234 5678', email: 'elena@email.com', parkingSpots: ['P-502A', 'P-502B'], balance: -25000, hasRentalListing: true },
-  { id: '3', name: 'Carmen Vega', unit: '108', phone: '+57 302 345 6789', email: 'carmen@email.com', parkingSpots: [], balance: 0 },
-  { id: '4', name: 'Miguel Castro', unit: '305', phone: '+57 303 456 7890', email: 'miguel@email.com', parkingSpots: ['P-305'], balance: 0 },
-  { id: '5', name: 'Patricia Herrera', unit: '201', phone: '+57 304 567 8901', email: 'patricia@email.com', parkingSpots: ['P-201'], balance: -15000 },
-  { id: '6', name: 'Fernando Gomez', unit: '401', phone: '+57 305 678 9012', email: 'fernando@email.com', parkingSpots: ['P-401'], balance: 0, hasMarketplaceListing: true },
-  { id: '7', name: 'Isabel Ramirez', unit: '605', phone: '+57 306 789 0123', email: 'isabel@email.com', parkingSpots: ['P-605'], balance: -45000 },
+  { id: '1', buildingId: 'building-1', name: 'Roberto Mendez', unit: '301', phone: '+57 300 123 4567', email: 'roberto@email.com', parkingSpots: ['P-301'], balance: 0 },
+  { id: '2', buildingId: 'building-1', name: 'Elena Torres', unit: '502', phone: '+57 301 234 5678', email: 'elena@email.com', parkingSpots: ['P-502A', 'P-502B'], balance: -25000, hasRentalListing: true },
+  { id: '3', buildingId: 'building-1', name: 'Carmen Vega', unit: '108', phone: '+57 302 345 6789', email: 'carmen@email.com', parkingSpots: [], balance: 0 },
+  { id: '4', buildingId: 'building-1', name: 'Miguel Castro', unit: '305', phone: '+57 303 456 7890', email: 'miguel@email.com', parkingSpots: ['P-305'], balance: 0 },
+  { id: '5', buildingId: 'building-1', name: 'Patricia Herrera', unit: '201', phone: '+57 304 567 8901', email: 'patricia@email.com', parkingSpots: ['P-201'], balance: -15000 },
+  { id: '6', buildingId: 'building-1', name: 'Fernando Gomez', unit: '401', phone: '+57 305 678 9012', email: 'fernando@email.com', parkingSpots: ['P-401'], balance: 0, hasMarketplaceListing: true },
+  { id: '7', buildingId: 'building-1', name: 'Isabel Ramirez', unit: '605', phone: '+57 306 789 0123', email: 'isabel@email.com', parkingSpots: ['P-605'], balance: -45000 },
   {
     id: '8',
+    buildingId: 'building-1',
     name: 'Luis Fernandez',
     unit: '103',
     phone: '+57 307 890 1234',
@@ -415,6 +416,7 @@ export const mockResidents: Resident[] = [
   },
   {
     id: '9',
+    buildingId: 'building-1',
     name: 'Ana Jimenez',
     unit: '405',
     phone: '+57 308 901 2345',

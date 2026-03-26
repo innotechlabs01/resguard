@@ -4,6 +4,7 @@ export type UserRole = 'super_admin' | 'admin' | 'vigilante' | 'usuario'
 
 export interface User {
   id: string
+  clerkUserId?: string
   name: string
   email: string
   role: UserRole
@@ -93,9 +94,10 @@ export interface Alert {
 
 export interface ShiftReport {
   id: string
+  buildingId: string
   guardName: string
   shiftStart: Date
-  shiftEnd: Date
+  shiftEnd?: Date
   incidents: string[]
   notes: string
   audioTranscription?: string
@@ -111,10 +113,15 @@ export interface Building {
   stripeAccountId?: string
   monthlyFee: number
   currency: string
+  outstandingBalance: number
+  lastPaymentDate?: Date
+  subscriptionStatus: 'active' | 'past_due' | 'canceled' | 'trialing'
 }
 
 export interface ChatMessage {
   id: string
+  buildingId: string
+  userId?: string
   role: 'user' | 'assistant'
   content: string
   timestamp: Date
@@ -208,6 +215,7 @@ export interface Communication {
 
 export interface Resident {
   id: string
+  buildingId: string
   name: string
   unit: string
   phone: string

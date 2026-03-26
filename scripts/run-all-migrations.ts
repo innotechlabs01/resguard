@@ -16,7 +16,9 @@ async function runTursoMigration() {
       '002_add_tables.sql', 
       '003_add_missing_tables.sql',
       '004_add_outstanding_balance_to_buildings.sql',
-      '005_add_missing_building_columns.sql'
+      '005_add_missing_building_columns.sql',
+      '006_add_shift_reports.sql',
+      '007_add_chat_messages.sql'
     ];
     
     for (const migrationFile of migrationFiles) {
