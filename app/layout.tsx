@@ -2,7 +2,8 @@ import React from "react"
 import type { Metadata, Viewport } from 'next'
 import { Inter, JetBrains_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
-import { AuthProvider } from '@/lib/auth-context'
+import { AppProviders } from '@/components/providers/app-providers'
+import { AuthWrapper } from '@/components/auth-wrapper'
 import './globals.css'
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
@@ -45,9 +46,9 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased`}>
-        <AuthProvider>
-          {children}
-        </AuthProvider>
+        <AuthWrapper>
+          <AppProviders>{children}</AppProviders>
+        </AuthWrapper>
         <Analytics />
       </body>
     </html>

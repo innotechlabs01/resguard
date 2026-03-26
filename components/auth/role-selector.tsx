@@ -19,7 +19,7 @@ const roleConfig: Record<
   super_admin: {
     icon: Shield,
     title: 'Super Administrador',
-    description: 'Control global del sistema, edificios y facturacion',
+    description: 'Control global del sistema, edificios y facturación',
     accent: 'text-primary',
     bgAccent: 'bg-primary/10',
     borderAccent: 'border-primary/40 hover:border-primary',
@@ -27,7 +27,7 @@ const roleConfig: Record<
   admin: {
     icon: Building2,
     title: 'Administrador',
-    description: 'Gestion del edificio, residentes y comunicaciones',
+    description: 'Gestión del edificio, residentes y comunicaciones',
     accent: 'text-info',
     bgAccent: 'bg-info/10',
     borderAccent: 'border-info/40 hover:border-info',
@@ -43,7 +43,7 @@ const roleConfig: Record<
   usuario: {
     icon: User,
     title: 'Residente',
-    description: 'Pagos, reservas, parqueo de visitas y mas',
+    description: 'Pagos, reservas, parqueo de visitas y más',
     accent: 'text-warning',
     bgAccent: 'bg-warning/10',
     borderAccent: 'border-warning/40 hover:border-warning',
@@ -87,9 +87,9 @@ export function RoleSelector() {
   const cfg = selectedRole ? roleConfig[selectedRole] : null
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex min-h-screen bg-background bg-gradient-to-br from-background via-background to-muted/20">
       {/* Left branding panel */}
-      <div className="hidden lg:flex lg:w-2/5 flex-col justify-between bg-sidebar border-r border-border p-10">
+      <div className="hidden lg:flex lg:w-2/5 flex-col justify-between bg-sidebar/95 border-r border-border p-10 backdrop-blur-sm">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
             <Shield className="h-6 w-6 text-primary" />
@@ -100,11 +100,11 @@ export function RoleSelector() {
         <div className="space-y-6">
           <div>
             <h2 className="text-3xl font-bold text-foreground leading-tight text-balance">
-              Sistema de Gestion de Propiedad Horizontal
+              Sistema de gestión de propiedad horizontal
             </h2>
             <p className="mt-3 text-muted-foreground leading-relaxed">
-              Administracion inteligente de conjuntos residenciales. Control de acceso, parqueaderos,
-              pagos, comunicaciones y mucho mas en una sola plataforma.
+              Administración inteligente de conjuntos residenciales: control de acceso, parqueaderos,
+              pagos, comunicaciones y mucho más en una sola plataforma.
             </p>
           </div>
 
@@ -125,7 +125,7 @@ export function RoleSelector() {
         </div>
 
         <p className="text-xs text-muted-foreground">
-          ResGuard v2.0 &mdash; Propiedad Horizontal Colombia
+          ResGuard — Propiedad horizontal en Colombia
         </p>
       </div>
 
@@ -174,8 +174,8 @@ export function RoleSelector() {
                   )
                 })}
               </div>
-              <p className="text-center text-xs text-muted-foreground">
-                Modo demostracion &mdash; Selecciona un perfil para explorar
+              <p className="text-center text-xs text-muted-foreground rounded-lg border border-dashed border-border/80 bg-muted/30 py-2.5 px-3">
+                Modo demostración: elige un perfil y un usuario de ejemplo para explorar la plataforma sin credenciales reales.
               </p>
             </div>
           )}
@@ -187,7 +187,7 @@ export function RoleSelector() {
                   <ArrowLeft className="h-4 w-4" />
                 </Button>
                 <div>
-                  <h1 className="text-xl font-bold text-foreground">Iniciar sesion</h1>
+                  <h1 className="text-xl font-bold text-foreground">Iniciar sesión</h1>
                   <p className="text-xs text-muted-foreground">Perfil: {cfg.title}</p>
                 </div>
               </div>
@@ -240,7 +240,7 @@ export function RoleSelector() {
               {/* Simulated credentials display */}
               <div className="space-y-3">
                 <div className="space-y-1.5">
-                  <Label className="text-sm text-foreground">Correo electronico</Label>
+                  <Label className="text-sm text-foreground">Correo electrónico</Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
@@ -251,7 +251,7 @@ export function RoleSelector() {
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-sm text-foreground">Contrasena</Label>
+                  <Label className="text-sm text-foreground">Contraseña</Label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input

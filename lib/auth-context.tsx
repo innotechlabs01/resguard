@@ -1,6 +1,12 @@
 'use client'
 
-import { createContext, useContext, useState, type ReactNode } from 'react'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useState,
+  type ReactNode,
+} from 'react'
 import type { User, UserRole } from './types'
 import { mockUsers } from './mock-data'
 
@@ -9,11 +15,18 @@ interface AuthContextType {
   login: (userId: string) => void
   logout: () => void
   switchRole: (role: UserRole) => void
+  hydrateUser: (user: User | null) => void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+type AuthProviderProps = {
+  children: ReactNode
+  /** Ej.: signOut de Clerk cuando hay sesión externa. */
+  onLogoutExtra?: () => void | Promise<void>
+}
+
+export function AuthProvider({ children, onLogoutExtra }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null)
 
   const login = (userId: string) => {
@@ -24,6 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const logout = () => {
+    void onLogoutExtra?.()
     setUser(null)
   }
 
@@ -34,8 +48,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  const hydrateUser = useCallback((next: User | null) => {
+    setUser(next)
+  }, [])
+
   return (
-    <AuthContext.Provider value={{ user, login, logout, switchRole }}>
+    <AuthContext.Provider
+      value={{ user, login, logout, switchRole, hydrateUser }}
+    >
       {children}
     </AuthContext.Provider>
   )
