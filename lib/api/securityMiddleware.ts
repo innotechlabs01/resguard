@@ -1,4 +1,4 @@
-import { clerkAuthMiddleware } from '@/auth/clerk-utils'
+import { clerkAuthMiddleware } from '@lib/auth/clerk-utils'
 import { NextResponse } from 'next/server'
 
 // Simple in-memory rate limiter
