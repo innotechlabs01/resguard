@@ -173,11 +173,17 @@ function TenantRow({ tenant }: { tenant: Tenant }) {
   )
 }
 
-export function InquilinosPanel() {
+interface InquilinosPanelProps {
+  tenants?: Tenant[]
+}
+
+export function InquilinosPanel({ tenants: propTenants }: InquilinosPanelProps = {}) {
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'expiring'>('all')
 
-  const filtered = mockTenants.filter((t) => {
+  const mockTenantsList = propTenants || mockTenants
+
+  const filtered = mockTenantsList.filter((t) => {
     const matchSearch =
       t.name.toLowerCase().includes(search.toLowerCase()) ||
       t.unit.toLowerCase().includes(search.toLowerCase()) ||
@@ -188,8 +194,8 @@ export function InquilinosPanel() {
     return matchSearch
   })
 
-  const totalVehicles = mockTenants.reduce((acc, t) => acc + t.vehicles.length, 0)
-  const expiringSoon = mockTenants.filter((t) => {
+  const totalVehicles = mockTenantsList.reduce((acc, t) => acc + t.vehicles.length, 0)
+  const expiringSoon = mockTenantsList.filter((t) => {
     const d = Math.ceil((t.leaseEnd.getTime() - Date.now()) / 86400000)
     return d <= 60 && d > 0
   }).length
@@ -205,7 +211,7 @@ export function InquilinosPanel() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-foreground">{mockTenants.filter((t) => t.status === 'active').length}</div>
+            <div className="text-2xl font-bold text-foreground">{mockTenantsList.filter((t) => t.status === 'active').length}</div>
             <p className="text-xs text-muted-foreground mt-0.5">En el edificio</p>
           </CardContent>
         </Card>

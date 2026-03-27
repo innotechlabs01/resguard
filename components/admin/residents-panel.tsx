@@ -197,9 +197,9 @@ function ResidentDetailDialog({
   )
 }
 
-export function ResidentsPanel() {
+export function ResidentsPanel({ residents: propResidents }: { residents?: Resident[] } = {}) {
   const [search, setSearch] = useState('')
-  const [residents, setResidents] = useState<Resident[]>(mockResidents)
+  const [residents, setResidents] = useState<Resident[]>(propResidents || mockResidents)
   const [typeFilter, setTypeFilter] = useState<'all' | 'owner' | 'tenant'>('all')
   const [balanceFilter, setBalanceFilter] = useState<'all' | 'debt' | 'paid'>('all')
   const [selectedResident, setSelectedResident] = useState<Resident | null>(null)

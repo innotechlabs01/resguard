@@ -79,9 +79,9 @@ const typeLabels = {
   fine: 'Multa',
 }
 
-export function PaymentsPanel() {
+export function PaymentsPanel({ payments: propPayments }: { payments?: Payment[] } = {}) {
   const [search, setSearch] = useState('')
-  const [payments, setPayments] = useState<Payment[]>(mockPayments)
+  const [payments, setPayments] = useState<Payment[]>(propPayments || mockPayments)
   const [showNewPayment, setShowNewPayment] = useState(false)
   const [newPayment, setNewPayment] = useState({
     description: '',

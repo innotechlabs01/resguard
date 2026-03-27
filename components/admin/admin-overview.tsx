@@ -31,9 +31,13 @@ function formatCurrency(amount: number): string {
 }
 
 export function AdminOverview({ building, parkingSpots, alerts }: AdminOverviewProps) {
-  const occupancyRate = Math.round((building.occupiedUnits / building.totalUnits) * 100)
+  const occupancyRate = building.totalUnits > 0
+    ? Math.round((building.occupiedUnits / building.totalUnits) * 100)
+    : 0
   const parkingOccupied = parkingSpots.filter((s) => s.status !== 'available').length
-  const parkingOccupancyRate = Math.round((parkingOccupied / parkingSpots.length) * 100)
+  const parkingOccupancyRate = parkingSpots.length > 0
+    ? Math.round((parkingOccupied / parkingSpots.length) * 100)
+    : 0
   const overtimeSpots = parkingSpots.filter((s) => s.status === 'overtime').length
   const unreadAlerts = alerts.filter((a) => !a.read).length
   const criticalAlerts = alerts.filter((a) => a.priority === 'critical' && !a.read).length

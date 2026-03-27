@@ -2,8 +2,7 @@
 
 import { useUser } from '@clerk/nextjs'
 import { useAuth } from '@/lib/auth-context'
-import { RoleSelector } from '@/components/auth/role-selector'
-import { ClerkSignInShell } from '@/components/auth/clerk-sign-in-shell'
+import { LandingPage } from '@/components/auth/landing-page'
 import { SecurityDashboard } from '@/components/dashboard/security-dashboard'
 import { AdminDashboard } from '@/components/admin/admin-dashboard'
 import { SuperAdminDashboard } from '@/components/super-admin/super-admin-dashboard'
@@ -27,12 +26,12 @@ function DashboardByRole() {
     case 'usuario':
       return <UsuarioDashboard />
     default:
-      return <RoleSelector />
+      return <LandingPage />
   }
 }
 
-/** Flujo con Clerk: pantalla de inicio de sesión real o paneles según rol. */
-function AppContainerClerk() {
+/** App container with Clerk: show loading, landing page, or dashboard. */
+function AppContainerWithClerk() {
   const { user } = useAuth()
   const { isLoaded, isSignedIn } = useUser()
 
@@ -40,43 +39,45 @@ function AppContainerClerk() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3 text-muted-foreground">
-          <Spinner className="h-8 w-8 text-primary" />
-          <p className="text-sm">Cargando sesión…</p>
+          <Spinner className="h-6 w-6" />
+          <p className="text-sm">Cargando...</p>
         </div>
       </div>
     )
   }
 
-  if (!isSignedIn) {
-    return <ClerkSignInShell />
+  // Show dashboard if user exists (demo mode) OR if Clerk is signed in
+  if (user) {
+    return <DashboardByRole />
   }
 
-  if (!user) {
+  if (isSignedIn) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3 text-muted-foreground">
-          <Spinner className="h-8 w-8 text-primary" />
-          <p className="text-sm">Preparando tu perfil…</p>
+          <Spinner className="h-6 w-6" />
+          <p className="text-sm">Preparando tu perfil...</p>
         </div>
       </div>
     )
   }
 
-  return <DashboardByRole />
+  // Show landing page for not signed in
+  return <LandingPage />
 }
 
-/** Flujo demo: selector de rol y usuarios de ejemplo (sin Clerk). */
-function AppContainerMock() {
+/** App container without Clerk: always show landing page (demo mode). */
+function AppContainerWithoutClerk() {
   const { user } = useAuth()
-  if (!user) {
-    return <RoleSelector />
+  if (user) {
+    return <DashboardByRole />
   }
-  return <DashboardByRole />
+  return <LandingPage />
 }
 
 export function AppContainer() {
   if (hasClerkKey()) {
-    return <AppContainerClerk />
+    return <AppContainerWithClerk />
   }
-  return <AppContainerMock />
+  return <AppContainerWithoutClerk />
 }

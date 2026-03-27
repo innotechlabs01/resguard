@@ -25,6 +25,7 @@ interface UsuarioOverviewProps {
   activeReservations: number
   notifications: number
   onTabChange?: (tab: string) => void
+  communications?: any[]
 }
 
 export function UsuarioOverview({
@@ -35,8 +36,9 @@ export function UsuarioOverview({
   activeReservations,
   notifications,
   onTabChange,
+  communications: propCommunications,
 }: UsuarioOverviewProps) {
-  const latestComms = mockCommunications.slice(0, 2)
+  const latestComms = (propCommunications || mockCommunications).slice(0, 2)
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('es-CO', {
       style: 'currency',

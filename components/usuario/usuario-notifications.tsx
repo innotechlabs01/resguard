@@ -64,8 +64,12 @@ function formatRelativeTime(date: Date) {
 
 const MY_USER_ID = 'usuario-1'
 
-export function UsuarioNotifications() {
-  const [communications, setCommunications] = useState<Communication[]>(mockCommunications)
+interface UsuarioNotificationsProps {
+  communications?: Communication[]
+}
+
+export function UsuarioNotifications({ communications: propCommunications }: UsuarioNotificationsProps = {}) {
+  const [communications, setCommunications] = useState<Communication[]>(propCommunications || mockCommunications)
   const [filter, setFilter] = useState<'all' | 'unread' | 'urgent'>('all')
   const [selectedComm, setSelectedComm] = useState<Communication | null>(null)
 

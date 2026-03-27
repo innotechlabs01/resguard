@@ -54,8 +54,8 @@ import {
 } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import type { User as UserType } from '@/lib/types'
-import { mockUsers, mockBuildingStats } from '@/lib/mock-data'
+import type { User as UserType, BuildingStats } from '@/lib/types'
+import { mockBuildingStats } from '@/lib/mock-data'
 
 const roleConfig: Record<string, { label: string; className: string; icon: typeof Shield }> = {
   admin: { label: 'Administrador', className: 'bg-info/10 text-info border-info/20', icon: Shield },
@@ -67,13 +67,14 @@ const statusColors: Record<string, string> = {
   inactive: 'bg-destructive/10 text-destructive border-destructive/20',
 }
 
-export function UsersPanel() {
+export function UsersPanel({ users: propUsers, buildings: propBuildings }: { users?: UserType[]; buildings?: BuildingStats[] } = {}) {
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'vigilante'>('all')
   const [buildingFilter, setBuildingFilter] = useState('all')
   const [users, setUsers] = useState<UserType[]>(
-    mockUsers.filter((u) => u.role === 'admin' || u.role === 'vigilante')
+    (propUsers || []).filter((u) => u.role === 'admin' || u.role === 'vigilante')
   )
+  const buildings = propBuildings || mockBuildingStats
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [showDetailDialog, setShowDetailDialog] = useState(false)
   const [editMode, setEditMode] = useState(false)
@@ -99,13 +100,13 @@ export function UsersPanel() {
 
   const getBuildingName = (buildingId?: string) => {
     if (!buildingId) return 'Global'
-    const building = mockBuildingStats.find((b) => b.id === buildingId)
+    const building = buildings.find((b) => b.id === buildingId)
     return building?.name || 'Desconocido'
   }
 
   const getBuildingStatus = (buildingId?: string) => {
     if (!buildingId) return null
-    return mockBuildingStats.find((b) => b.id === buildingId)
+    return buildings.find((b) => b.id === buildingId)
   }
 
   const handleCreateUser = () => {
@@ -169,7 +170,7 @@ export function UsersPanel() {
           <CardContent>
             <div className="text-2xl font-bold text-info">{adminCount}</div>
             <p className="text-xs text-muted-foreground mt-1">
-              {mockBuildingStats.length - adminCount} edificios sin admin
+              {buildings.length - adminCount} edificios sin admin
             </p>
           </CardContent>
         </Card>
@@ -190,7 +191,7 @@ export function UsersPanel() {
             <div className="text-2xl font-bold text-primary">
               {new Set(users.map((u) => u.buildingId).filter(Boolean)).size}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">de {mockBuildingStats.length} edificios</p>
+            <p className="text-xs text-muted-foreground mt-1">de {buildings.length} edificios</p>
           </CardContent>
         </Card>
       </div>
@@ -225,7 +226,7 @@ export function UsersPanel() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos los edificios</SelectItem>
-              {mockBuildingStats.map((b) => (
+              {buildings.map((b) => (
                 <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
               ))}
             </SelectContent>
@@ -361,7 +362,7 @@ export function UsersPanel() {
       </Card>
 
       {/* Edificios sin administrador */}
-      {mockBuildingStats.some((b) => !users.find((u) => u.role === 'admin' && u.buildingId === b.id)) && (
+      {buildings.some((b) => !users.find((u) => u.role === 'admin' && u.buildingId === b.id)) && (
         <Card className="bg-card border-border border-warning/30">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold text-warning flex items-center gap-2">
@@ -480,7 +481,7 @@ export function UsersPanel() {
                     <SelectValue placeholder="Selecciona un edificio" />
                   </SelectTrigger>
                   <SelectContent>
-                    {mockBuildingStats.map((b) => (
+                    {buildings.map((b) => (
                       <SelectItem key={b.id} value={b.id}>
                         <div className="flex items-center gap-2">
                           <Building2 className="h-4 w-4 text-muted-foreground" />
@@ -559,7 +560,7 @@ export function UsersPanel() {
                       <SelectValue placeholder="Seleccionar edificio" />
                     </SelectTrigger>
                     <SelectContent>
-                      {mockBuildingStats.map((b) => (
+                      {buildings.map((b) => (
                         <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
                       ))}
                     </SelectContent>

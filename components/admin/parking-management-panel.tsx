@@ -58,9 +58,9 @@ interface AssignedParking {
   monthlyRate: number
 }
 
-export function ParkingManagementPanel() {
-  const [residents] = useState<Resident[]>(mockResidents)
-  const [parkingSpots] = useState<ParkingSpot[]>(mockParkingSpots)
+export function ParkingManagementPanel({ residents: propResidents, parkingSpots: propParkingSpots }: { residents?: Resident[]; parkingSpots?: ParkingSpot[] } = {}) {
+  const [residents] = useState<Resident[]>(propResidents || mockResidents)
+  const [parkingSpots] = useState<ParkingSpot[]>(propParkingSpots || mockParkingSpots)
   const [assignedParkings, setAssignedParkings] = useState<AssignedParking[]>([
     {
       id: '1',

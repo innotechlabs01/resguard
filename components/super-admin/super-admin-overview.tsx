@@ -44,7 +44,9 @@ const subscriptionColors = {
 }
 
 export function SuperAdminOverview({ systemStats, buildings }: SuperAdminOverviewProps) {
-  const activeRate = Math.round((systemStats.activeBuildings / systemStats.totalBuildings) * 100)
+  const activeRate = systemStats.totalBuildings > 0
+    ? Math.round((systemStats.activeBuildings / systemStats.totalBuildings) * 100)
+    : 0
 
   return (
     <div className="space-y-6">

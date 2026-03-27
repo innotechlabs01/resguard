@@ -57,15 +57,20 @@ const vehicleTypeLabel: Record<TenantVehicle['type'], string> = {
   bicycle: 'Bicicleta',
 }
 
-export function AlquilerPanel() {
+interface AlquilerPanelProps {
+  tenants?: Tenant[]
+  listings?: RentalListing[]
+}
+
+export function AlquilerPanel({ tenants: propTenants, listings: propListings }: AlquilerPanelProps = {}) {
   const { user } = useAuth()
   const myId = user?.id ?? 'usuario-1'
 
   const [tenants, setTenants] = useState<Tenant[]>(
-    mockTenants.filter((t) => t.ownerId === myId)
+    (propTenants || mockTenants).filter((t) => t.ownerId === myId)
   )
   const [listings, setListings] = useState<RentalListing[]>(
-    mockRentalListings.filter((l) => l.ownerId === myId)
+    (propListings || mockRentalListings).filter((l) => l.ownerId === myId)
   )
   const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null)
   const [showTenantDetail, setShowTenantDetail] = useState(false)
@@ -380,7 +385,7 @@ export function AlquilerPanel() {
         {/* All listings in building */}
         <TabsContent value="todos" className="mt-4">
           <div className="grid gap-4 sm:grid-cols-2">
-            {mockRentalListings.filter((l) => l.available).map((listing) => (
+            {(propListings || mockRentalListings).filter((l) => l.available).map((listing) => (
               <Card key={listing.id} className="bg-card border-border">
                 <CardContent className="p-4 space-y-3">
                   <div className="flex items-start justify-between">

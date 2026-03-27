@@ -70,8 +70,8 @@ function formatRelativeTime(date: Date) {
   return `Hace ${Math.floor(hrs / 24)} dias`
 }
 
-export function ComunicacionesPanel() {
-  const [communications, setCommunications] = useState<Communication[]>(mockCommunications)
+export function ComunicacionesPanel({ communications: propCommunications }: { communications?: Communication[] } = {}) {
+  const [communications, setCommunications] = useState<Communication[]>(propCommunications || mockCommunications)
   const [showCompose, setShowCompose] = useState(false)
   const [viewComm, setViewComm] = useState<Communication | null>(null)
   const [search, setSearch] = useState('')

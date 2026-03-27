@@ -1,35 +1,72 @@
 'use client'
 
 import { useUser } from '@clerk/nextjs'
-import { useEffect } from 'react'
-import { userFromClerkLike } from '@/lib/auth/clerk-user'
+import { useEffect, useRef } from 'react'
 import { useAuth } from '@/lib/auth-context'
+import type { User, UserRole } from '@/lib/types'
 
 /**
- * Cuando hay sesión de Clerk, refleja el usuario en el contexto compartido con el modo demo.
+ * When Clerk session exists, fetch user profile from database and hydrate auth context.
+ * Falls back to Clerk metadata if DB lookup fails.
  */
 export function ClerkSync() {
   const { user: clerkUser, isLoaded } = useUser()
   const { hydrateUser } = useAuth()
+  const hasFetched = useRef(false)
 
   useEffect(() => {
     if (!isLoaded) return
     if (!clerkUser) {
       hydrateUser(null)
+      hasFetched.current = false
       return
     }
-    const primary = clerkUser.primaryEmailAddress?.emailAddress ?? null
-    hydrateUser(
-      userFromClerkLike({
-        id: clerkUser.id,
-        fullName: clerkUser.fullName,
-        primaryEmail: primary,
-        publicMetadata: (clerkUser.publicMetadata || {}) as Record<
-          string,
-          unknown
-        >,
+
+    // Prevent duplicate fetches
+    if (hasFetched.current) return
+    hasFetched.current = true
+
+    // Fetch user profile from database
+    fetch('/api/user/profile')
+      .then(async (res) => {
+        if (res.ok) {
+          const data = await res.json()
+          const dbUser = data.user
+          // Map DB user to app User type
+          const appUser: User = {
+            id: dbUser.id,
+            clerkUserId: dbUser.clerk_user_id ?? undefined,
+            name: dbUser.name,
+            email: dbUser.email,
+            role: dbUser.role as UserRole,
+            buildingId: dbUser.building_id ?? undefined,
+          }
+          hydrateUser(appUser)
+        } else {
+          // User not found in DB, use Clerk data with default role
+          const appUser: User = {
+            id: clerkUser.id,
+            clerkUserId: clerkUser.id,
+            name: clerkUser.fullName || clerkUser.primaryEmailAddress?.emailAddress?.split('@')[0] || 'Usuario',
+            email: clerkUser.primaryEmailAddress?.emailAddress || '',
+            role: (clerkUser.publicMetadata?.role as UserRole) || 'usuario',
+            buildingId: (clerkUser.publicMetadata?.buildingId as string) || undefined,
+          }
+          hydrateUser(appUser)
+        }
       })
-    )
+      .catch(() => {
+        // Network error, use Clerk data
+        const appUser: User = {
+          id: clerkUser.id,
+          clerkUserId: clerkUser.id,
+          name: clerkUser.fullName || clerkUser.primaryEmailAddress?.emailAddress?.split('@')[0] || 'Usuario',
+          email: clerkUser.primaryEmailAddress?.emailAddress || '',
+          role: (clerkUser.publicMetadata?.role as UserRole) || 'usuario',
+          buildingId: (clerkUser.publicMetadata?.buildingId as string) || undefined,
+        }
+        hydrateUser(appUser)
+      })
   }, [clerkUser, isLoaded, hydrateUser])
 
   return null

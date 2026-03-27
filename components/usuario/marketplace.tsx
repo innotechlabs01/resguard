@@ -57,9 +57,13 @@ const categoryConfig: Record<
 const formatPrice = (price: number) =>
   new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(price)
 
-export function Marketplace() {
+interface MarketplaceProps {
+  products?: MarketplaceProduct[]
+}
+
+export function Marketplace({ products: propProducts }: MarketplaceProps = {}) {
   const { user } = useAuth()
-  const [products, setProducts] = useState<MarketplaceProduct[]>(mockMarketplace)
+  const [products, setProducts] = useState<MarketplaceProduct[]>(propProducts || mockMarketplace)
   const [search, setSearch] = useState('')
   const [catFilter, setCatFilter] = useState<MarketplaceProduct['category'] | 'all'>('all')
   const [showCreate, setShowCreate] = useState(false)

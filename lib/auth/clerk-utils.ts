@@ -38,7 +38,7 @@ export function userFromClerkEnhanced(clerkUser: any): User {
  */
 export async function clerkAuthMiddleware(request: Request) {
   const authHeader = request.headers.get('authorization')
-  const token = getTokenFromHeader(authHeader)
+  const token = getTokenFromHeader(authHeader ?? undefined)
 
   if (!token) {
     return { 
