@@ -3,6 +3,7 @@
 import { useUser } from '@clerk/nextjs'
 import { useEffect, useRef } from 'react'
 import { useAuth } from '@/lib/auth-context'
+import { track } from '@vercel/analytics'
 import type { User, UserRole } from '@/lib/types'
 
 /**
@@ -13,6 +14,26 @@ export function ClerkSync() {
   const { user: clerkUser, isLoaded } = useUser()
   const { hydrateUser } = useAuth()
   const hasFetched = useRef(false)
+
+  const trackUser = (appUser: User) => {
+    track('User Identified', {
+      userId: appUser.id,
+      role: appUser.role,
+      buildingId: appUser.buildingId || '',
+      email: appUser.email,
+      name: appUser.name,
+    })
+
+    if (typeof window !== 'undefined') {
+      (window as any).__userContext__ = {
+        userId: appUser.id,
+        role: appUser.role,
+        buildingId: appUser.buildingId,
+        email: appUser.email,
+        name: appUser.name,
+      }
+    }
+  }
 
   useEffect(() => {
     if (!isLoaded) return
@@ -42,6 +63,7 @@ export function ClerkSync() {
             buildingId: dbUser.building_id ?? undefined,
           }
           hydrateUser(appUser)
+          trackUser(appUser)
         } else {
           // User not found in DB, use Clerk data with default role
           const appUser: User = {
@@ -53,6 +75,7 @@ export function ClerkSync() {
             buildingId: (clerkUser.publicMetadata?.buildingId as string) || undefined,
           }
           hydrateUser(appUser)
+          trackUser(appUser)
         }
       })
       .catch(() => {
@@ -66,6 +89,7 @@ export function ClerkSync() {
           buildingId: (clerkUser.publicMetadata?.buildingId as string) || undefined,
         }
         hydrateUser(appUser)
+        trackUser(appUser)
       })
   }, [clerkUser, isLoaded, hydrateUser])
 

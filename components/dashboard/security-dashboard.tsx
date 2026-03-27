@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/lib/auth-context'
+import { useAnalyticsTrack } from '@/lib/hooks/useAnalytics'
 import { Sidebar } from './sidebar'
 import { Header } from './header'
 import { Overview } from './overview'
@@ -31,6 +32,8 @@ export function SecurityDashboard() {
   const [alerts, setAlerts] = useState<Alert[]>([])
   const [tenants, setTenants] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+
+  useAnalyticsTrack(activeTab, 'security')
 
   // Fetch data from API
   useEffect(() => {

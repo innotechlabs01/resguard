@@ -14,6 +14,7 @@ import { AlertsPanel } from '@/components/dashboard/alerts-panel'
 import { ReportsPanel } from '@/components/dashboard/reports-panel'
 import type { ParkingSpot, Alert, BuildingStats } from '@/lib/types'
 import { useAuth } from '@/lib/auth-context'
+import { useAnalyticsTrack } from '@/lib/hooks/useAnalytics'
 
 const tabTitles: Record<string, string> = {
   overview: 'Dashboard del Edificio',
@@ -37,6 +38,8 @@ export function AdminDashboard() {
   const [payments, setPayments] = useState<any[]>([])
   const [communications, setCommunications] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+
+  useAnalyticsTrack(activeTab, 'admin')
 
   // Fetch data from API
   useEffect(() => {

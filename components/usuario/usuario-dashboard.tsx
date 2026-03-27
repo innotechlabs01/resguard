@@ -12,6 +12,7 @@ import { UsuarioSettings } from './usuario-settings'
 import { Marketplace } from './marketplace'
 import { AlquilerPanel } from './alquiler-panel'
 import { useAuth } from '@/lib/auth-context'
+import { useAnalyticsTrack } from '@/lib/hooks/useAnalytics'
 
 const tabTitles: Record<string, string> = {
   overview: 'Inicio',
@@ -32,6 +33,8 @@ export function UsuarioDashboard() {
   const [tenants, setTenants] = useState<any[]>([])
   const [rentals, setRentals] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+
+  useAnalyticsTrack(activeTab, 'usuario')
 
   // Fetch data from API
   useEffect(() => {

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/lib/auth-context'
+import { useAnalyticsTrack } from '@/lib/hooks/useAnalytics'
 import { SuperAdminSidebar } from './super-admin-sidebar'
 import { SuperAdminHeader } from './super-admin-header'
 import { SuperAdminOverview } from './super-admin-overview'
@@ -32,6 +33,8 @@ export function SuperAdminDashboard() {
   const [systemStats, setSystemStats] = useState<SystemStats | null>(null)
   const [users, setUsers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+
+  useAnalyticsTrack(activeTab, 'super-admin')
 
   // Fetch data from API
   useEffect(() => {
