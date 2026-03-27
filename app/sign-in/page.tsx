@@ -1,9 +1,5 @@
-'use client'
-
-import { ClerkSignInShell } from '@/components/auth/clerk-sign-in-shell'
-
-export const dynamic = 'force-dynamic'
+import SignInContent from '@/components/auth/sign-in-content'
 
 export default function SignInPage() {
-  return <ClerkSignInShell />
+  return <SignInContent />
 }
