@@ -231,3 +231,85 @@ export interface Resident {
   hasRentalListing?: boolean
   hasMarketplaceListing?: boolean
 }
+
+// Bold Payment Types
+
+export type BoldPaymentStatus = 'ACTIVE' | 'PROCESSING' | 'PAID' | 'REJECTED' | 'CANCELLED' | 'EXPIRED'
+export type BoldAmountType = 'OPEN' | 'CLOSE'
+export type BoldPaymentMethod = 'CREDIT_CARD' | 'PSE' | 'BOTON_BANCOLOMBIA' | 'NEQUI'
+
+export interface BoldPaymentLink {
+  id: string
+  boldLinkId: string
+  url: string
+  amount: number
+  amountType: BoldAmountType
+  description: string
+  status: BoldPaymentStatus
+  paymentMethod?: BoldPaymentMethod
+  transactionId?: string
+  createdAt: Date
+  expirationDate?: Date
+}
+
+export interface BoldPaymentMethodsResponse {
+  payload: {
+    payment_methods: {
+      CREDIT_CARD?: { max: number; min: number }
+      PSE?: { max: number; min: number }
+      BOTON_BANCOLOMBIA?: { max: number; min: number }
+      NEQUI?: { max: number; min: number }
+    }
+  }
+  errors: string[]
+}
+
+export interface BoldCreateLinkRequest {
+  amount_type: BoldAmountType
+  amount?: {
+    currency: string
+    total_amount: number
+    tip_amount?: number
+    taxes?: Array<{
+      type: 'VAT' | 'CONSUMPTION'
+      base: number
+      value: number
+    }>
+  }
+  reference?: string
+  description?: string
+  expiration_date?: number
+  payment_methods?: BoldPaymentMethod[]
+  payer_email?: string
+  image_url?: string
+}
+
+export interface BoldCreateLinkResponse {
+  payload: {
+    payment_link: string
+    url: string
+  }
+  errors: string[]
+}
+
+export interface BoldPaymentStatusResponse {
+  api_version: number
+  id: string
+  total: number
+  subtotal: number
+  tip_amount: number
+  taxes: Array<{
+    type: string
+    base: number
+    value: number
+  }>
+  status: BoldPaymentStatus
+  expiration_date: number | null
+  creation_date: number
+  description: string | null
+  payment_method: string | null
+  transaction_id: string | null
+  amount_type: BoldAmountType
+  is_sandbox: boolean
+  reference: string
+}

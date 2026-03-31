@@ -15,6 +15,11 @@ import { ReportsPanel } from '@/components/dashboard/reports-panel'
 import type { ParkingSpot, Alert, BuildingStats } from '@/lib/types'
 import { useAuth } from '@/lib/auth-context'
 import { useAnalyticsTrack } from '@/lib/hooks/useAnalytics'
+import { Sheet, SheetContent } from '@/components/ui/sheet'
+import { Menu, LayoutDashboard, Users, Car, CreditCard, FileText, Settings, Bell, LogOut, Building2, Send, CarFront } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
+import { Badge } from '@/components/ui/badge'
 
 const tabTitles: Record<string, string> = {
   overview: 'Dashboard del Edificio',
@@ -28,6 +33,80 @@ const tabTitles: Record<string, string> = {
   settings: 'Configuracion',
 }
 
+const navItems = [
+  { id: 'overview', icon: LayoutDashboard, label: 'Dashboard' },
+  { id: 'residents', icon: Users, label: 'Residentes' },
+  { id: 'parking', icon: Car, label: 'Parqueaderos' },
+  { id: 'visitorParking', icon: CarFront, label: 'Visitantes' },
+  { id: 'payments', icon: CreditCard, label: 'Pagos' },
+  { id: 'comunicaciones', icon: Send, label: 'Comunicaciones' },
+  { id: 'alerts', icon: Bell, label: 'Alertas', badge: true },
+  { id: 'reports', icon: FileText, label: 'Reportes' },
+  { id: 'settings', icon: Settings, label: 'Configuracion' },
+]
+
+function MobileNav({ activeTab, onTabChange, unreadAlerts }: { activeTab: string; onTabChange: (tab: string) => void; unreadAlerts: number }) {
+  const visibleItems = navItems.slice(0, 5)
+  return (
+    <div className="fixed bottom-0 left-0 right-0 z-40 flex items-center justify-around border-t border-border bg-card px-2 py-2 md:hidden">
+      {visibleItems.map((item) => {
+        const Icon = item.icon
+        const isActive = activeTab === item.id
+        return (
+          <button
+            key={item.id}
+            onClick={() => onTabChange(item.id)}
+            className={cn(
+              'flex flex-col items-center gap-1 rounded-lg px-2 py-1.5 text-xs',
+              isActive ? 'text-primary' : 'text-muted-foreground'
+            )}
+          >
+            <div className="relative">
+              <Icon className="h-5 w-5" />
+              {item.badge && unreadAlerts > 0 && (
+                <Badge variant="destructive" className="absolute -right-2 -top-1 h-4 w-4 p-0 text-[10px]">
+                  {unreadAlerts}
+                </Badge>
+              )}
+            </div>
+            <span className="hidden xs:inline">{item.label.split(' ')[0]}</span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+function MobileHeader({ title, onMenuClick, unreadAlerts }: { title: string; onMenuClick: () => void; unreadAlerts: number }) {
+  const { user, logout } = useAuth()
+  return (
+    <header className="flex h-14 items-center justify-between border-b border-border bg-card px-4 md:hidden">
+      <div className="flex items-center gap-3">
+        <Button variant="ghost" size="icon" onClick={onMenuClick} className="h-8 w-8">
+          <Menu className="h-5 w-5" />
+        </Button>
+        <div className="flex flex-col">
+          <span className="text-xs font-semibold text-foreground">Admin Panel</span>
+          <span className="text-[10px] text-muted-foreground truncate">{title}</span>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <Button variant="ghost" size="icon" className="h-8 w-8 relative">
+          <Bell className="h-4 w-4" />
+          {unreadAlerts > 0 && (
+            <Badge variant="destructive" className="absolute -right-1 -top-1 h-4 w-4 p-0 text-[10px]">
+              {unreadAlerts}
+            </Badge>
+          )}
+        </Button>
+        <Button variant="ghost" size="icon" onClick={logout} className="h-8 w-8">
+          <LogOut className="h-4 w-4" />
+        </Button>
+      </div>
+    </header>
+  )
+}
+
 export function AdminDashboard() {
   const { user } = useAuth()
   const [activeTab, setActiveTab] = useState('overview')
@@ -38,6 +117,7 @@ export function AdminDashboard() {
   const [payments, setPayments] = useState<any[]>([])
   const [communications, setCommunications] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   useAnalyticsTrack(activeTab, 'admin')
 
@@ -218,20 +298,54 @@ export function AdminDashboard() {
 
   return (
     <div className="flex h-screen bg-background">
-      <AdminSidebar
-        activeTab={activeTab}
+      {/* Desktop Sidebar */}
+      <div className="hidden md:block">
+        <AdminSidebar
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          unreadAlerts={unreadAlerts}
+          buildingName={building?.name || 'Cargando...'}
+        />
+      </div>
+
+      {/* Mobile Sheet Sidebar */}
+      <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+        <SheetContent side="left" className="w-64 p-0">
+          <AdminSidebar
+            activeTab={activeTab}
+            onTabChange={(tab) => { setActiveTab(tab); setSidebarOpen(false) }}
+            unreadAlerts={unreadAlerts}
+            buildingName={building?.name || 'Cargando...'}
+          />
+        </SheetContent>
+      </Sheet>
+
+      <div className="flex flex-1 flex-col overflow-hidden">
+        {/* Mobile Header */}
+        <MobileHeader 
+          title={tabTitles[activeTab]} 
+          onMenuClick={() => setSidebarOpen(true)}
+          unreadAlerts={unreadAlerts}
+        />
+
+        {/* Desktop Header */}
+        <div className="hidden md:block">
+          <AdminHeader
+            title={tabTitles[activeTab]}
+            unreadAlerts={unreadAlerts}
+            buildingName={building?.name || ''}
+          />
+        </div>
+
+        <main className="flex-1 overflow-auto p-4 md:p-6 pb-20 md:pb-6">{renderContent()}</main>
+      </div>
+
+      {/* Mobile Bottom Nav */}
+      <MobileNav 
+        activeTab={activeTab} 
         onTabChange={setActiveTab}
         unreadAlerts={unreadAlerts}
-        buildingName={building?.name || 'Cargando...'}
       />
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <AdminHeader
-          title={tabTitles[activeTab]}
-          unreadAlerts={unreadAlerts}
-          buildingName={building?.name || ''}
-        />
-        <main className="flex-1 overflow-auto p-6">{renderContent()}</main>
-      </div>
     </div>
   )
 }

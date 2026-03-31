@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Search,
   CreditCard,
@@ -29,8 +29,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import type { Payment } from '@/lib/types'
-import { mockPayments, mockBuildingStats, mockSystemStats } from '@/lib/mock-data'
+import { useAuth } from '@/lib/auth-context'
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('es-CO', {
@@ -65,13 +64,32 @@ const typeLabels = {
 }
 
 export function GlobalPaymentsPanel() {
+  const { user } = useAuth()
   const [search, setSearch] = useState('')
-  const [payments] = useState<Payment[]>(mockPayments)
+  const [payments, setPayments] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState('all')
 
-  const filteredPayments = payments.filter(
+  useEffect(() => {
+    fetch('/api/payments')
+      .then(res => res.json())
+      .then(data => {
+        if (data.payments) {
+          setPayments(data.payments)
+        }
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false))
+  }, [])
+
+  const tabFilteredPayments = activeTab === 'all' 
+    ? payments 
+    : payments.filter(p => p.status === activeTab)
+
+  const filteredPayments = tabFilteredPayments.filter(
     (p) =>
-      p.description.toLowerCase().includes(search.toLowerCase()) ||
-      p.buildingName.toLowerCase().includes(search.toLowerCase())
+      p.description?.toLowerCase().includes(search.toLowerCase()) ||
+      p.buildingName?.toLowerCase().includes(search.toLowerCase())
   )
 
   const totalSucceeded = payments
@@ -185,7 +203,7 @@ export function GlobalPaymentsPanel() {
           <div className="mt-4 flex gap-2">
             <Button variant="outline" size="sm">
               <ExternalLink className="mr-2 h-4 w-4" />
-              Abrir Stripe Dashboard
+              Panel de Pagos
             </Button>
             <Button variant="outline" size="sm">
               Ver todas las cuentas
@@ -195,12 +213,12 @@ export function GlobalPaymentsPanel() {
       </Card>
 
       {/* Payments Tabs */}
-      <Tabs defaultValue="all" className="w-full">
+      <Tabs defaultValue="all" className="w-full" onValueChange={setActiveTab}>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <TabsList className="bg-muted">
             <TabsTrigger value="all">Todos</TabsTrigger>
-            <TabsTrigger value="subscriptions">Suscripciones</TabsTrigger>
-            <TabsTrigger value="fees">Cargos</TabsTrigger>
+            <TabsTrigger value="pending">Pendientes</TabsTrigger>
+            <TabsTrigger value="succeeded">Exitosos</TabsTrigger>
             <TabsTrigger value="failed">Fallidos</TabsTrigger>
           </TabsList>
           <div className="flex gap-2">

@@ -1,7 +1,5 @@
-'use client'
-
-import { ClerkSignInShell } from '@/components/auth/clerk-sign-in-shell'
+import { redirect } from 'next/navigation'
 
 export default function SignInPage() {
-  return <ClerkSignInShell />
+  redirect('/')
 }

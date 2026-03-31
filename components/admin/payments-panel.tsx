@@ -14,6 +14,10 @@ import {
   Plus,
   ArrowUpRight,
   ArrowDownRight,
+  Link,
+  Copy,
+  ExternalLink,
+  Send,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -44,8 +48,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
 import type { Payment } from '@/lib/types'
 import { mockPayments } from '@/lib/mock-data'
+import { useAuth } from '@/lib/auth-context'
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('es-CO', {
@@ -79,19 +85,52 @@ const typeLabels = {
   fine: 'Multa',
 }
 
+interface PaymentLink {
+  boldLinkId: string
+  url: string
+  paymentId: string
+}
+
 export function PaymentsPanel({ payments: propPayments }: { payments?: Payment[] } = {}) {
+  const { user } = useAuth()
   const [search, setSearch] = useState('')
+  const [dbPayments, setDbPayments] = useState<any[]>([])
+  const [loadingDb, setLoadingDb] = useState(false)
   const [payments, setPayments] = useState<Payment[]>(propPayments || mockPayments)
   const [showNewPayment, setShowNewPayment] = useState(false)
+  const [showSendLinkDialog, setShowSendLinkDialog] = useState(false)
+  const [selectedPaymentForLink, setSelectedPaymentForLink] = useState<any>(null)
+  const [sendingLink, setSendingLink] = useState(false)
+  const [createdLink, setCreatedLink] = useState<PaymentLink | null>(null)
   const [newPayment, setNewPayment] = useState({
     description: '',
     amount: '',
     type: 'subscription' as Payment['type'],
     residentUnit: '',
+    amountType: 'CLOSE' as 'OPEN' | 'CLOSE',
+    sendLink: true,
+    residentEmail: '',
   })
 
-  const buildingPayments = payments.filter(
-    (p) => p.buildingId === 'building-1' // Filter for current building
+  const allPayments = propPayments || (dbPayments.length > 0 ? dbPayments : payments)
+
+  useState(() => {
+    if (user?.buildingId && !propPayments) {
+      setLoadingDb(true)
+      fetch(`/api/payments?buildingId=${user.buildingId}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.payments) {
+            setDbPayments(data.payments)
+          }
+        })
+        .catch(console.error)
+        .finally(() => setLoadingDb(false))
+    }
+  })
+
+  const buildingPayments = allPayments.filter(
+    (p) => p.buildingId === user?.buildingId || p.buildingId === 'building-1'
   )
 
   const handleAddPayment = () => {
@@ -111,8 +150,64 @@ export function PaymentsPanel({ payments: propPayments }: { payments?: Payment[]
     }
     
     setPayments([payment, ...payments])
-    setNewPayment({ description: '', amount: '', type: 'subscription', residentUnit: '' })
+    setNewPayment({ description: '', amount: '', type: 'subscription', residentUnit: '', amountType: 'CLOSE', sendLink: true, residentEmail: '' })
     setShowNewPayment(false)
+  }
+
+  const handleCreatePaymentLink = async () => {
+    if (!newPayment.description || !newPayment.residentUnit || !user?.buildingId) return
+    
+    setSendingLink(true)
+    try {
+      const response = await fetch('/api/payments/create-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: newPayment.amountType === 'CLOSE' ? parseInt(newPayment.amount) || 0 : 0,
+          amountType: newPayment.amountType,
+          description: newPayment.description,
+          residentUnit: newPayment.residentUnit,
+          residentEmail: newPayment.residentEmail || undefined,
+          buildingId: user.buildingId,
+          buildingName: user.buildingId,
+          paymentType: newPayment.type,
+        }),
+      })
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        setCreatedLink({
+          boldLinkId: data.boldLinkId,
+          url: data.url,
+          paymentId: data.paymentId,
+        })
+        
+        setDbPayments(prev => [{
+          id: data.paymentId,
+          buildingId: user.buildingId,
+          buildingName: user.buildingId || 'Edificio',
+          amount: parseInt(newPayment.amount) || 0,
+          currency: 'COP',
+          status: 'pending',
+          type: newPayment.type,
+          description: newPayment.description,
+          residentUnit: newPayment.residentUnit,
+          createdAt: new Date().toISOString(),
+          boldLinkId: data.boldLinkId,
+          boldUrl: data.url,
+          amountType: newPayment.amountType,
+        }, ...prev])
+      }
+    } catch (error) {
+      console.error('Error creating payment link:', error)
+    } finally {
+      setSendingLink(false)
+    }
+  }
+
+  const copyLinkToClipboard = (url: string) => {
+    navigator.clipboard.writeText(url)
   }
 
   const filteredPayments = buildingPayments.filter(
@@ -278,6 +373,18 @@ export function PaymentsPanel({ payments: propPayments }: { payments?: Payment[]
                 className="bg-input border-border text-foreground"
               />
             </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="residentEmail">Correo del residente (opcional)</Label>
+              <Input
+                id="residentEmail"
+                type="email"
+                value={newPayment.residentEmail}
+                onChange={(e) => setNewPayment({ ...newPayment, residentEmail: e.target.value })}
+                placeholder="correo@ejemplo.com"
+                className="bg-input border-border text-foreground"
+              />
+            </div>
             
             <div className="space-y-2">
               <Label htmlFor="description">Descripcion</Label>
@@ -289,26 +396,97 @@ export function PaymentsPanel({ payments: propPayments }: { payments?: Payment[]
                 className="bg-input border-border text-foreground"
               />
             </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="amount">Monto (COP)</Label>
-              <Input
-                id="amount"
-                type="number"
-                value={newPayment.amount}
-                onChange={(e) => setNewPayment({ ...newPayment, amount: e.target.value })}
-                placeholder="450000"
-                className="bg-input border-border text-foreground"
+
+            <div className="flex items-center justify-between space-y-2">
+              <div className="flex flex-col gap-1">
+                <Label htmlFor="amountType">Tipo de monto</Label>
+                <span className="text-xs text-muted-foreground">
+                  {newPayment.amountType === 'CLOSE' ? 'Monto fijo definido' : 'El residente define el monto'}
+                </span>
+              </div>
+              <Switch
+                id="amountType"
+                checked={newPayment.amountType === 'OPEN'}
+                onCheckedChange={(checked) => setNewPayment({ ...newPayment, amountType: checked ? 'OPEN' : 'CLOSE' })}
               />
             </div>
+
+            {newPayment.amountType === 'CLOSE' && (
+              <div className="space-y-2">
+                <Label htmlFor="amount">Monto (COP)</Label>
+                <Input
+                  id="amount"
+                  type="number"
+                  value={newPayment.amount}
+                  onChange={(e) => setNewPayment({ ...newPayment, amount: e.target.value })}
+                  placeholder="450000"
+                  className="bg-input border-border text-foreground"
+                />
+              </div>
+            )}
           </div>
           
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowNewPayment(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleAddPayment} disabled={!newPayment.description || !newPayment.amount || !newPayment.residentUnit}>
-              Crear Cobro
+            {newPayment.sendLink ? (
+              <Button 
+                onClick={handleCreatePaymentLink} 
+                disabled={
+                  sendingLink || 
+                  !newPayment.description || 
+                  !newPayment.residentUnit ||
+                  (newPayment.amountType === 'CLOSE' && !newPayment.amount)
+                }
+              >
+                {sendingLink ? 'Creando...' : 'Crear y Enviar Link'}
+              </Button>
+            ) : (
+              <Button 
+                onClick={handleAddPayment} 
+                disabled={!newPayment.description || !newPayment.amount || !newPayment.residentUnit}
+              >
+                Crear Cobro
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!createdLink} onOpenChange={() => setCreatedLink(null)}>
+        <DialogContent className="bg-card border-border max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Link de Pago Creado</DialogTitle>
+            <DialogDescription className="text-muted-foreground">
+              El link de pago ha sido creado exitosamente
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="p-3 bg-muted rounded-lg">
+              <p className="text-xs text-muted-foreground mb-1">Link de pago:</p>
+              <div className="flex items-center gap-2">
+                <code className="text-xs text-foreground flex-1 truncate">{createdLink?.url}</code>
+                <Button variant="ghost" size="icon" onClick={() => copyLinkToClipboard(createdLink?.url || '')}>
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Comparte este link con el residente para que pueda realizar el pago.
+            </p>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreatedLink(null)}>
+              Cerrar
+            </Button>
+            <Button asChild>
+              <a href={createdLink?.url} target="_blank" rel="noopener noreferrer">
+                <ExternalLink className="mr-2 h-4 w-4" />
+                Abrir en Bold
+              </a>
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -323,14 +501,15 @@ function PaymentsTable({ payments }: { payments: Payment[] }) {
       <CardContent className="p-0">
         <Table>
           <TableHeader>
-            <TableRow className="border-border hover:bg-muted/50">
-              <TableHead className="text-muted-foreground">Fecha</TableHead>
-              <TableHead className="text-muted-foreground">Descripcion</TableHead>
-              <TableHead className="text-muted-foreground">Tipo</TableHead>
-              <TableHead className="text-muted-foreground">Unidad</TableHead>
-              <TableHead className="text-muted-foreground text-right">Monto</TableHead>
-              <TableHead className="text-muted-foreground">Estado</TableHead>
-            </TableRow>
+              <TableRow className="border-border hover:bg-muted/50">
+                <TableHead className="text-muted-foreground">Fecha</TableHead>
+                <TableHead className="text-muted-foreground">Descripcion</TableHead>
+                <TableHead className="text-muted-foreground">Tipo</TableHead>
+                <TableHead className="text-muted-foreground">Unidad</TableHead>
+                <TableHead className="text-muted-foreground text-right">Monto</TableHead>
+                <TableHead className="text-muted-foreground">Estado</TableHead>
+                <TableHead className="text-muted-foreground">Link</TableHead>
+              </TableRow>
           </TableHeader>
           <TableBody>
             {payments.length === 0 ? (
@@ -359,13 +538,24 @@ function PaymentsTable({ payments }: { payments: Payment[] }) {
                       {payment.residentUnit || '-'}
                     </TableCell>
                     <TableCell className="text-right font-medium text-foreground">
-                      {formatCurrency(payment.amount)}
+                      {payment.amountType === 'OPEN' ? 'Monto abierto' : formatCurrency(payment.amount)}
                     </TableCell>
                     <TableCell>
                       <Badge className={status.className}>
                         <StatusIcon className="mr-1 h-3 w-3" />
                         {status.label}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {payment.boldUrl ? (
+                        <Button variant="ghost" size="icon" asChild>
+                          <a href={payment.boldUrl} target="_blank" rel="noopener noreferrer" title="Abrir link de pago">
+                            <Link className="h-4 w-4" />
+                          </a>
+                        </Button>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">-</span>
+                      )}
                     </TableCell>
                   </TableRow>
                 )
