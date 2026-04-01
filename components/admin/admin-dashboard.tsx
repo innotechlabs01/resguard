@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, Suspense, lazy } from 'react'
 import { AdminSidebar } from './admin-sidebar'
 import { AdminHeader } from './admin-header'
 import { AdminOverview } from './admin-overview'
@@ -9,9 +9,6 @@ import { PaymentsPanel } from './payments-panel'
 import { AdminSettingsPanel } from './admin-settings-panel'
 import { ComunicacionesPanel } from './comunicaciones-panel'
 import { ParkingManagementPanel } from './parking-management-panel'
-import { ParkingMap } from '@/components/dashboard/parking-map'
-import { AlertsPanel } from '@/components/dashboard/alerts-panel'
-import { ReportsPanel } from '@/components/dashboard/reports-panel'
 import type { ParkingSpot, Alert, BuildingStats } from '@/lib/types'
 import { useAuth } from '@/lib/auth-context'
 import { useAnalyticsTrack } from '@/lib/hooks/useAnalytics'
@@ -20,6 +17,11 @@ import { Menu, LayoutDashboard, Users, Car, CreditCard, FileText, Settings, Bell
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
+import { SkeletonCard } from '@/components/ui/skeleton-loaders'
+
+const ParkingMap = lazy(() => import('@/components/dashboard/parking-map').then(m => ({ default: m.ParkingMap })))
+const AlertsPanel = lazy(() => import('@/components/dashboard/alerts-panel').then(m => ({ default: m.AlertsPanel })))
+const ReportsPanel = lazy(() => import('@/components/dashboard/reports-panel').then(m => ({ default: m.ReportsPanel })))
 
 const tabTitles: Record<string, string> = {
   overview: 'Dashboard del Edificio',
@@ -132,13 +134,17 @@ export function AdminDashboard() {
           return
         }
 
+        const fetchOptions = { 
+          next: { revalidate: 30, tags: [`building-${buildingId}`, 'buildings'] }
+        }
+
         const [buildingsRes, parkingRes, alertsRes, residentsRes, paymentsRes, commRes] = await Promise.all([
-          fetch('/api/buildings'),
-          fetch(`/api/parking?buildingId=${buildingId}`),
-          fetch(`/api/alerts?buildingId=${buildingId}`),
-          fetch(`/api/residents?buildingId=${buildingId}`),
-          fetch(`/api/payments?buildingId=${buildingId}`),
-          fetch(`/api/communications?buildingId=${buildingId}`),
+          fetch('/api/buildings', fetchOptions),
+          fetch(`/api/parking?buildingId=${buildingId}`, fetchOptions),
+          fetch(`/api/alerts?buildingId=${buildingId}`, fetchOptions),
+          fetch(`/api/residents?buildingId=${buildingId}`, fetchOptions),
+          fetch(`/api/payments?buildingId=${buildingId}`, fetchOptions),
+          fetch(`/api/communications?buildingId=${buildingId}`, fetchOptions),
         ])
 
         if (!cancelled && buildingsRes.ok) {
@@ -273,22 +279,32 @@ export function AdminDashboard() {
       case 'parking':
         return <ParkingManagementPanel residents={residents} parkingSpots={parkingSpots} />
       case 'visitorParking':
-        return <ParkingMap parkingSpots={parkingSpots} onSpotUpdate={handleSpotUpdate} />
+        return (
+          <Suspense fallback={<SkeletonCard className="h-[400px]" />}>
+            <ParkingMap parkingSpots={parkingSpots} onSpotUpdate={handleSpotUpdate} />
+          </Suspense>
+        )
       case 'payments':
         return <PaymentsPanel payments={payments} />
       case 'comunicaciones':
         return <ComunicacionesPanel communications={communications} />
       case 'alerts':
         return (
-          <AlertsPanel
-            alerts={alerts}
-            onMarkAsRead={handleMarkAlertRead}
-            onMarkAllRead={handleMarkAllAlertsRead}
-            onDismiss={handleDismissAlert}
-          />
+          <Suspense fallback={<SkeletonCard className="h-[200px]" />}>
+            <AlertsPanel
+              alerts={alerts}
+              onMarkAsRead={handleMarkAlertRead}
+              onMarkAllRead={handleMarkAllAlertsRead}
+              onDismiss={handleDismissAlert}
+            />
+          </Suspense>
         )
       case 'reports':
-        return <ReportsPanel />
+        return (
+          <Suspense fallback={<SkeletonCard className="h-[400px]" />}>
+            <ReportsPanel />
+          </Suspense>
+        )
       case 'settings':
         return building ? <AdminSettingsPanel building={building} /> : null
       default:

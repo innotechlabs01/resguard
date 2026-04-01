@@ -15,6 +15,7 @@ export default function middleware(
   if (!clerkHandler) {
     return NextResponse.next()
   }
+  
   return clerkHandler(request, event)
 }
 

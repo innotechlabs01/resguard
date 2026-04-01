@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, Suspense, lazy } from 'react'
 import { UsuarioSidebar } from './usuario-sidebar'
 import { UsuarioHeader } from './usuario-header'
 import { UsuarioOverview } from './usuario-overview'
@@ -9,15 +9,17 @@ import { UsuarioPayments } from './usuario-payments'
 import { UsuarioReservations } from './usuario-reservations'
 import { UsuarioNotifications } from './usuario-notifications'
 import { UsuarioSettings } from './usuario-settings'
-import { Marketplace } from './marketplace'
 import { AlquilerPanel } from './alquiler-panel'
 import { useAuth } from '@/lib/auth-context'
 import { useAnalyticsTrack } from '@/lib/hooks/useAnalytics'
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
+import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { Menu, LayoutDashboard, Car, ShoppingBag, KeyRound, Receipt, Calendar, Bell, Settings, LogOut } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
+import { SkeletonCard } from '@/components/ui/skeleton-loaders'
+
+const Marketplace = lazy(() => import('@/components/usuario/marketplace').then(m => ({ default: m.Marketplace })))
 
 const tabTitles: Record<string, string> = {
   overview: 'Inicio',
@@ -122,11 +124,15 @@ export function UsuarioDashboard() {
         const buildingId = user?.buildingId
         if (!buildingId) { if (!cancelled) setLoading(false); return }
 
+        const fetchOptions = { 
+          next: { revalidate: 30, tags: [`building-${buildingId}`, 'communications', 'marketplace', 'tenants'] }
+        }
+
         const [commRes, marketRes, tenantsRes, rentalsRes] = await Promise.all([
-          fetch(`/api/communications?buildingId=${buildingId}`),
-          fetch(`/api/marketplace?buildingId=${buildingId}`),
-          fetch(`/api/tenants?buildingId=${buildingId}`),
-          fetch(`/api/rentals?buildingId=${buildingId}`),
+          fetch(`/api/communications?buildingId=${buildingId}`, fetchOptions),
+          fetch(`/api/marketplace?buildingId=${buildingId}`, fetchOptions),
+          fetch(`/api/tenants?buildingId=${buildingId}`, fetchOptions),
+          fetch(`/api/rentals?buildingId=${buildingId}`, fetchOptions),
         ])
 
         if (!cancelled && commRes.ok) {
@@ -201,7 +207,11 @@ export function UsuarioDashboard() {
       case 'parking':
         return <ParkingRequests />
       case 'marketplace':
-        return <Marketplace products={marketplace} />
+        return (
+          <Suspense fallback={<SkeletonCard className="h-[300px]" />}>
+            <Marketplace products={marketplace} />
+          </Suspense>
+        )
       case 'alquiler':
         return <AlquilerPanel tenants={tenants} listings={rentals} />
       case 'payments':

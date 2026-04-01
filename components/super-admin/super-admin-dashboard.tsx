@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, Suspense, lazy } from 'react'
 import { useAuth } from '@/lib/auth-context'
 import { useAnalyticsTrack } from '@/lib/hooks/useAnalytics'
 import { SuperAdminSidebar } from './super-admin-sidebar'
@@ -9,16 +9,18 @@ import { SuperAdminOverview } from './super-admin-overview'
 import { BuildingsPanel } from './buildings-panel'
 import { GlobalPaymentsPanel } from './global-payments-panel'
 import { UsersPanel } from './users-panel'
-import { AnalyticsPanel } from './analytics-panel'
 import { SystemAlertsPanel } from './system-alerts-panel'
 import { SystemSettingsPanel } from './system-settings-panel'
-import { ParkingConfigPanel } from './parking-config-panel'
 import type { BuildingStats, SystemStats } from '@/lib/types'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { Menu, LayoutGrid, Building2, Car, CreditCard, Users, BarChart3, Bell, Settings, LogOut } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
+import { SkeletonCard } from '@/components/ui/skeleton-loaders'
+
+const AnalyticsPanel = lazy(() => import('@/components/super-admin/analytics-panel').then(m => ({ default: m.AnalyticsPanel })))
+const ParkingConfigPanel = lazy(() => import('@/components/super-admin/parking-config-panel').then(m => ({ default: m.ParkingConfigPanel })))
 
 const tabTitles: Record<string, string> = {
   overview: 'Dashboard Global',
@@ -120,10 +122,14 @@ export function SuperAdminDashboard() {
     let cancelled = false
     async function fetchData() {
       try {
+        const fetchOptions = { 
+          next: { revalidate: 60, tags: ['buildings', 'stats', 'users'] }
+        }
+
         const [buildingsRes, statsRes, usersRes] = await Promise.all([
-          fetch('/api/buildings'),
-          fetch('/api/stats'),
-          fetch('/api/users'),
+          fetch('/api/buildings', fetchOptions),
+          fetch('/api/stats', fetchOptions),
+          fetch('/api/users', fetchOptions),
         ])
         if (!cancelled && buildingsRes.ok) {
           const data = await buildingsRes.json()
@@ -229,13 +235,21 @@ export function SuperAdminDashboard() {
       case 'buildings':
         return <BuildingsPanel buildings={buildings} />
       case 'parking':
-        return <ParkingConfigPanel />
+        return (
+          <Suspense fallback={<SkeletonCard className="h-[400px]" />}>
+            <ParkingConfigPanel />
+          </Suspense>
+        )
       case 'payments':
         return <GlobalPaymentsPanel />
       case 'users':
         return <UsersPanel users={users} buildings={buildings} />
       case 'analytics':
-        return <AnalyticsPanel buildings={buildings} systemStats={systemStats} />
+        return (
+          <Suspense fallback={<SkeletonCard className="h-[400px]" />}>
+            <AnalyticsPanel buildings={buildings} systemStats={systemStats} />
+          </Suspense>
+        )
       case 'alerts':
         return <SystemAlertsPanel />
       case 'settings':
