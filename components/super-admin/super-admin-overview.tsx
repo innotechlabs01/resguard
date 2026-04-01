@@ -51,7 +51,7 @@ export function SuperAdminOverview({ systemStats, buildings }: SuperAdminOvervie
   return (
     <div className="space-y-6">
       {/* System Metrics */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Card className="bg-card border-border">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -60,7 +60,7 @@ export function SuperAdminOverview({ systemStats, buildings }: SuperAdminOvervie
             <Building2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-foreground">{systemStats.totalBuildings}</div>
+            <div className="text-xl sm:text-2xl font-bold text-foreground">{systemStats.totalBuildings}</div>
             <div className="flex items-center gap-2 mt-1">
               <Badge className="bg-success/10 text-success">{systemStats.activeBuildings} activos</Badge>
             </div>
@@ -75,7 +75,7 @@ export function SuperAdminOverview({ systemStats, buildings }: SuperAdminOvervie
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-foreground">{systemStats.totalResidents}</div>
+            <div className="text-xl sm:text-2xl font-bold text-foreground">{systemStats.totalResidents}</div>
             <div className="flex items-center gap-1 text-xs text-success mt-1">
               <ArrowUpRight className="h-3 w-3" />
               +23 este mes
@@ -91,7 +91,7 @@ export function SuperAdminOverview({ systemStats, buildings }: SuperAdminOvervie
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-foreground">
+            <div className="text-xl sm:text-2xl font-bold text-foreground">
               {formatCurrency(systemStats.monthlyRecurringRevenue)}
             </div>
             <div className="flex items-center gap-1 text-xs text-success mt-1">
@@ -109,7 +109,7 @@ export function SuperAdminOverview({ systemStats, buildings }: SuperAdminOvervie
             <AlertTriangle className="h-4 w-4 text-warning" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-warning">
+            <div className="text-xl sm:text-2xl font-bold text-warning">
               {formatCurrency(systemStats.pendingPayments)}
             </div>
             <p className="text-xs text-muted-foreground mt-1">

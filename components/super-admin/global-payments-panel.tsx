@@ -30,6 +30,8 @@ import {
 } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useAuth } from '@/lib/auth-context'
+import { mockSystemStats, mockBuildingStats } from '@/lib/mock-data'
+import type { Payment } from '@/lib/types'
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('es-CO', {
@@ -107,7 +109,7 @@ export function GlobalPaymentsPanel() {
   return (
     <div className="space-y-6">
       {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Card className="bg-card border-border">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -115,7 +117,7 @@ export function GlobalPaymentsPanel() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-foreground">{formatCurrency(totalSucceeded)}</div>
+            <div className="text-xl sm:text-2xl font-bold text-foreground">{formatCurrency(totalSucceeded)}</div>
             <div className="flex items-center gap-1 text-xs text-success">
               <ArrowUpRight className="h-3 w-3" />
               +15% vs mes anterior
@@ -129,7 +131,7 @@ export function GlobalPaymentsPanel() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-foreground">
+            <div className="text-xl sm:text-2xl font-bold text-foreground">
               {formatCurrency(mockSystemStats.monthlyRecurringRevenue)}
             </div>
             <div className="flex items-center gap-1 text-xs text-success">
@@ -145,7 +147,7 @@ export function GlobalPaymentsPanel() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-warning">{formatCurrency(totalPending)}</div>
+            <div className="text-xl sm:text-2xl font-bold text-warning">{formatCurrency(totalPending)}</div>
             <div className="text-xs text-muted-foreground">
               {payments.filter((p) => p.status === 'pending').length} transacciones
             </div>
@@ -262,16 +264,16 @@ export function GlobalPaymentsPanel() {
 function PaymentsTable({ payments }: { payments: Payment[] }) {
   return (
     <Card className="bg-card border-border">
-      <CardContent className="p-0">
+      <CardContent className="p-0 overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow className="border-border hover:bg-muted/50">
-              <TableHead className="text-muted-foreground">Fecha</TableHead>
-              <TableHead className="text-muted-foreground">Edificio</TableHead>
-              <TableHead className="text-muted-foreground">Descripcion</TableHead>
-              <TableHead className="text-muted-foreground">Tipo</TableHead>
-              <TableHead className="text-muted-foreground text-right">Monto</TableHead>
-              <TableHead className="text-muted-foreground">Estado</TableHead>
+              <TableHead className="text-muted-foreground whitespace-nowrap">Fecha</TableHead>
+              <TableHead className="text-muted-foreground whitespace-nowrap">Edificio</TableHead>
+              <TableHead className="text-muted-foreground whitespace-nowrap">Descripcion</TableHead>
+              <TableHead className="text-muted-foreground whitespace-nowrap">Tipo</TableHead>
+              <TableHead className="text-muted-foreground text-right whitespace-nowrap">Monto</TableHead>
+              <TableHead className="text-muted-foreground whitespace-nowrap">Estado</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -283,11 +285,11 @@ function PaymentsTable({ payments }: { payments: Payment[] }) {
               </TableRow>
             ) : (
               payments.map((payment) => {
-                const status = statusConfig[payment.status]
+                const status = statusConfig[payment.status as keyof typeof statusConfig] || statusConfig.pending
                 const StatusIcon = status.icon
                 return (
                   <TableRow key={payment.id} className="border-border hover:bg-muted/50">
-                    <TableCell className="text-foreground text-sm">
+                    <TableCell className="text-foreground text-sm whitespace-nowrap">
                       {formatDate(payment.createdAt)}
                     </TableCell>
                     <TableCell>
@@ -296,14 +298,14 @@ function PaymentsTable({ payments }: { payments: Payment[] }) {
                         <span className="text-foreground">{payment.buildingName}</span>
                       </div>
                     </TableCell>
-                    <TableCell className="text-foreground">{payment.description}</TableCell>
+                    <TableCell className="text-foreground max-w-[150px] truncate">{payment.description}</TableCell>
                     <TableCell>
-                      <Badge variant="outline" className="border-border text-muted-foreground">
+                      <Badge variant="outline" className="border-border text-muted-foreground whitespace-nowrap">
                         <CreditCard className="mr-1 h-3 w-3" />
-                        {typeLabels[payment.type]}
+                        {typeLabels[payment.type as keyof typeof typeLabels] || payment.type}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-right font-medium text-foreground">
+                    <TableCell className="text-right font-medium text-foreground whitespace-nowrap">
                       {formatCurrency(payment.amount)}
                     </TableCell>
                     <TableCell>

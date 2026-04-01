@@ -48,33 +48,34 @@ const navItems = [
 ]
 
 function MobileNav({ activeTab, onTabChange, unreadAlerts }: { activeTab: string; onTabChange: (tab: string) => void; unreadAlerts: number }) {
-  const visibleItems = navItems.slice(0, 5)
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 flex items-center justify-around border-t border-border bg-card px-2 py-2 md:hidden">
-      {visibleItems.map((item) => {
-        const Icon = item.icon
-        const isActive = activeTab === item.id
-        return (
-          <button
-            key={item.id}
-            onClick={() => onTabChange(item.id)}
-            className={cn(
-              'flex flex-col items-center gap-1 rounded-lg px-2 py-1.5 text-xs',
-              isActive ? 'text-primary' : 'text-muted-foreground'
-            )}
-          >
-            <div className="relative">
-              <Icon className="h-5 w-5" />
-              {item.badge && unreadAlerts > 0 && (
-                <Badge variant="destructive" className="absolute -right-2 -top-1 h-4 w-4 p-0 text-[10px]">
-                  {unreadAlerts}
-                </Badge>
+    <div className="fixed bottom-0 left-0 right-0 z-40 flex items-center justify-between border-t border-border bg-card px-1 py-1.5 md:hidden overflow-x-auto">
+      <nav className="flex w-full justify-between gap-1">
+        {navItems.map((item) => {
+          const Icon = item.icon
+          const isActive = activeTab === item.id
+          return (
+            <button
+              key={item.id}
+              onClick={() => onTabChange(item.id)}
+              className={cn(
+                'flex flex-1 flex-col items-center gap-0.5 rounded-md px-1 py-1 text-[10px] min-w-0 transition-colors',
+                isActive ? 'text-primary bg-primary/10' : 'text-muted-foreground'
               )}
-            </div>
-            <span className="hidden xs:inline">{item.label.split(' ')[0]}</span>
-          </button>
-        )
-      })}
+            >
+              <div className="relative">
+                <Icon className="h-4 w-4" />
+                {item.badge && unreadAlerts > 0 && (
+                  <Badge variant="destructive" className="absolute -right-1.5 -top-1 h-3.5 w-3.5 p-0 text-[8px]">
+                    {unreadAlerts > 9 ? '9+' : unreadAlerts}
+                  </Badge>
+                )}
+              </div>
+              <span className="truncate w-full text-center">{item.label}</span>
+            </button>
+          )
+        })}
+      </nav>
     </div>
   )
 }
@@ -82,22 +83,22 @@ function MobileNav({ activeTab, onTabChange, unreadAlerts }: { activeTab: string
 function MobileHeader({ title, onMenuClick, unreadAlerts }: { title: string; onMenuClick: () => void; unreadAlerts: number }) {
   const { user, logout } = useAuth()
   return (
-    <header className="flex h-14 items-center justify-between border-b border-border bg-card px-4 md:hidden">
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={onMenuClick} className="h-8 w-8">
+    <header className="flex h-14 items-center justify-between border-b border-border bg-card px-3 md:hidden">
+      <div className="flex items-center gap-2 min-w-0">
+        <Button variant="ghost" size="icon" onClick={onMenuClick} className="h-8 w-8 flex-shrink-0">
           <Menu className="h-5 w-5" />
         </Button>
-        <div className="flex flex-col">
-          <span className="text-xs font-semibold text-foreground">Admin Panel</span>
-          <span className="text-[10px] text-muted-foreground truncate">{title}</span>
+        <div className="flex flex-col min-w-0">
+          <span className="text-xs font-semibold text-foreground">ResGuard</span>
+          <span className="text-[10px] text-muted-foreground truncate max-w-[120px]" title={title}>{title}</span>
         </div>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1 flex-shrink-0">
         <Button variant="ghost" size="icon" className="h-8 w-8 relative">
           <Bell className="h-4 w-4" />
           {unreadAlerts > 0 && (
-            <Badge variant="destructive" className="absolute -right-1 -top-1 h-4 w-4 p-0 text-[10px]">
-              {unreadAlerts}
+            <Badge variant="destructive" className="absolute -right-0.5 -top-0.5 h-4 w-4 p-0 text-[10px]">
+              {unreadAlerts > 9 ? '9+' : unreadAlerts}
             </Badge>
           )}
         </Button>

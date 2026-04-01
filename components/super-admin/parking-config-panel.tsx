@@ -102,15 +102,15 @@ export function ParkingConfigPanel() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div>
-          <h2 className="text-2xl font-bold text-foreground">Configuracion de Parqueaderos</h2>
-          <p className="text-muted-foreground">Administra las tarifas y reglas de parqueo por edificio</p>
+          <h2 className="text-xl sm:text-2xl font-bold text-foreground">Configuracion de Parqueaderos</h2>
+          <p className="text-sm text-muted-foreground">Administra las tarifas y reglas de parqueo por edificio</p>
         </div>
       </div>
 
       {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Card className="bg-card border-border">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -118,7 +118,7 @@ export function ParkingConfigPanel() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-foreground">{configs.length}</div>
+            <div className="text-xl sm:text-2xl font-bold text-foreground">{configs.length}</div>
             <p className="text-xs text-muted-foreground">con parqueaderos</p>
           </CardContent>
         </Card>
@@ -129,7 +129,7 @@ export function ParkingConfigPanel() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-primary">{totalVisitorSpots}</div>
+            <div className="text-xl sm:text-2xl font-bold text-primary">{totalVisitorSpots}</div>
             <p className="text-xs text-muted-foreground">disponibles</p>
           </CardContent>
         </Card>
@@ -140,7 +140,7 @@ export function ParkingConfigPanel() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-info">{totalResidentSpots}</div>
+            <div className="text-xl sm:text-2xl font-bold text-info">{totalResidentSpots}</div>
             <p className="text-xs text-muted-foreground">asignables</p>
           </CardContent>
         </Card>
@@ -151,7 +151,7 @@ export function ParkingConfigPanel() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-foreground">
+            <div className="text-xl sm:text-2xl font-bold text-foreground">
               ${Math.round(configs.reduce((sum, c) => sum + c.hourlyRate, 0) / configs.length).toLocaleString()}/hr
             </div>
             <p className="text-xs text-muted-foreground">por hora</p>
