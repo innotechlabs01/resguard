@@ -12,9 +12,10 @@ import { AlertsPanel } from './alerts-panel'
 import { ReportsPanel } from './reports-panel'
 import { NewEntryDialog } from './new-entry-dialog'
 import { InquilinosPanel } from './inquilinos-panel'
+import { IntercomPanel } from './intercom-panel'
 import type { ParkingSpot, Visitor, Alert } from '@/lib/types'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
-import { Menu, LayoutDashboard, Car, Users, Bell, FileText, LogOut, UserPlus } from 'lucide-react'
+import { Menu, LayoutDashboard, Car, Users, Bell, FileText, LogOut, UserPlus, Phone } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
@@ -24,6 +25,7 @@ const tabTitles: Record<string, string> = {
   parking: 'Mapa de Parqueaderos',
   visitors: 'Registro de Visitantes',
   inquilinos: 'Inquilinos y Vehiculos',
+  intercom: 'Citofono',
   alerts: 'Alertas y Notificaciones',
   reports: 'Reportes de Turno',
 }
@@ -33,15 +35,15 @@ const navItems = [
   { id: 'parking', icon: Car, label: 'Parqueadero' },
   { id: 'visitors', icon: UserPlus, label: 'Visitantes' },
   { id: 'inquilinos', icon: Users, label: 'Inquilinos' },
+  { id: 'intercom', icon: Phone, label: 'Citofono' },
   { id: 'alerts', icon: Bell, label: 'Alertas', badge: true },
   { id: 'reports', icon: FileText, label: 'Reportes' },
 ]
 
 function MobileNav({ activeTab, onTabChange, unreadAlerts }: { activeTab: string; onTabChange: (tab: string) => void; unreadAlerts: number }) {
-  const visibleItems = navItems.slice(0, 5)
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 flex items-center justify-around border-t border-border bg-card px-2 py-2 md:hidden">
-      {visibleItems.map((item) => {
+    <div className="fixed bottom-0 left-0 right-0 z-40 flex items-center justify-around border-t border-border bg-card px-2 py-2 md:hidden overflow-x-auto">
+      {navItems.map((item) => {
         const Icon = item.icon
         const isActive = activeTab === item.id
         return (
@@ -321,6 +323,8 @@ export function SecurityDashboard() {
         return <VisitorList visitors={visitors} onVisitorExit={handleVisitorExit} />
       case 'inquilinos':
         return <InquilinosPanel tenants={tenants} />
+      case 'intercom':
+        return <IntercomPanel />
       case 'alerts':
         return (
           <AlertsPanel

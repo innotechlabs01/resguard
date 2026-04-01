@@ -11,6 +11,7 @@ import {
   Shield,
   FileText,
   KeyRound,
+  Phone,
 } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
 
@@ -25,6 +26,7 @@ const navItems = [
   { id: 'parking', label: 'Mapa de Parqueos', icon: Car },
   { id: 'visitors', label: 'Registro de Visitas', icon: Users },
   { id: 'inquilinos', label: 'Inquilinos / Vehiculos', icon: KeyRound },
+  { id: 'intercom', label: 'Citofono', icon: Phone },
   { id: 'alerts', label: 'Alertas', icon: Bell },
   { id: 'reports', label: 'Reportes de Turno', icon: FileText },
 ]

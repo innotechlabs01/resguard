@@ -313,3 +313,89 @@ export interface BoldPaymentStatusResponse {
   is_sandbox: boolean
   reference: string
 }
+
+// Assembly and Voting Types
+export interface Assembly {
+  id: string
+  buildingId: string
+  title: string
+  description: string
+  date: Date
+  time: string
+  location: string
+  status: 'scheduled' | 'active' | 'completed' | 'cancelled'
+  createdAt: Date
+  createdBy: string
+}
+
+export interface AssemblyVote {
+  id: string
+  assemblyId: string
+  title: string
+  description: string
+  options: VoteOption[]
+  status: 'pending' | 'active' | 'closed'
+  requiredQuorum?: number
+  createdAt: Date
+  createdBy: string
+}
+
+export interface VoteOption {
+  id: string
+  label: string
+  votes: number
+}
+
+export interface VoteResponse {
+  id: string
+  voteId: string
+  userId: string
+  userName: string
+  unit: string
+  optionId: string
+  votedAt: Date
+}
+
+// Intercom (Citofono) Types
+export interface IntercomUnit {
+  id: string
+  buildingId: string
+  unitNumber: string
+  ownerId?: string
+  ownerName?: string
+  ownerPhone?: string
+  ownerEmail?: string
+  tenantId?: string
+  tenantName?: string
+  tenantPhone?: string
+  tenantEmail?: string
+}
+
+export interface IntercomCall {
+  id: string
+  buildingId: string
+  unitId: string
+  unitNumber: string
+  callerType: 'visitor' | 'delivery' | 'other'
+  callerName?: string
+  callerMessage?: string
+  status: 'pending' | 'approved' | 'rejected' | 'expired'
+  createdAt: Date
+  respondedAt?: Date
+  respondedBy?: string
+  responseNote?: string
+}
+
+export interface IntercomNotification {
+  id: string
+  callId: string
+  userId: string
+  userName: string
+  buildingId: string
+  unitId: string
+  unitNumber: string
+  title: string
+  body: string
+  status: 'pending' | 'read' | 'action_taken'
+  createdAt: Date
+}
