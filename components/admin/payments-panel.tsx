@@ -227,7 +227,7 @@ export function PaymentsPanel({ payments: propPayments }: { payments?: Payment[]
   return (
     <div className="space-y-6">
       {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Card className="bg-card border-border">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -235,7 +235,7 @@ export function PaymentsPanel({ payments: propPayments }: { payments?: Payment[]
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-foreground">{formatCurrency(totalSucceeded)}</div>
+            <div className="text-xl sm:text-2xl font-bold text-foreground">{formatCurrency(totalSucceeded)}</div>
             <div className="flex items-center gap-1 text-xs text-success">
               <ArrowUpRight className="h-3 w-3" />
               +12% vs mes anterior
@@ -249,7 +249,7 @@ export function PaymentsPanel({ payments: propPayments }: { payments?: Payment[]
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-warning">{formatCurrency(totalPending)}</div>
+            <div className="text-xl sm:text-2xl font-bold text-warning">{formatCurrency(totalPending)}</div>
             <div className="text-xs text-muted-foreground">
               {buildingPayments.filter((p) => p.status === 'pending').length} transacciones
             </div>
@@ -262,7 +262,7 @@ export function PaymentsPanel({ payments: propPayments }: { payments?: Payment[]
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-foreground">94%</div>
+            <div className="text-xl sm:text-2xl font-bold text-foreground">94%</div>
             <div className="flex items-center gap-1 text-xs text-success">
               <TrendingUp className="h-3 w-3" />
               Meta: 95%
@@ -276,7 +276,7 @@ export function PaymentsPanel({ payments: propPayments }: { payments?: Payment[]
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-destructive">
+            <div className="text-xl sm:text-2xl font-bold text-destructive">
               {buildingPayments.filter((p) => p.status === 'failed').length}
             </div>
             <div className="flex items-center gap-1 text-xs text-destructive">

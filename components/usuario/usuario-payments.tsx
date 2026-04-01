@@ -123,12 +123,12 @@ export function UsuarioPayments() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-foreground">Pagos y Estado de Cuenta</h2>
-        <p className="text-muted-foreground">Consulta y realiza tus pagos de administracion</p>
+        <h2 className="text-xl sm:text-2xl font-bold text-foreground">Pagos y Estado de Cuenta</h2>
+        <p className="text-sm text-muted-foreground">Consulta y realiza tus pagos de administracion</p>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-3">
         <Card className="border-border bg-card">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -136,7 +136,7 @@ export function UsuarioPayments() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${totalPending > 0 ? 'text-warning' : 'text-success'}`}>
+            <div className={`text-xl sm:text-2xl font-bold ${totalPending > 0 ? 'text-warning' : 'text-success'}`}>
               {formatCurrency(totalPending)}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -152,7 +152,7 @@ export function UsuarioPayments() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-foreground">{formatCurrency(450000)}</div>
+            <div className="text-xl sm:text-2xl font-bold text-foreground">{formatCurrency(450000)}</div>
             <p className="text-xs text-muted-foreground">Vence: 1 Abr 2026</p>
           </CardContent>
         </Card>
@@ -164,7 +164,7 @@ export function UsuarioPayments() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-foreground">{formatCurrency(totalPaid)}</div>
+            <div className="text-xl sm:text-2xl font-bold text-foreground">{formatCurrency(totalPaid)}</div>
             <p className="text-xs text-muted-foreground">{payments.filter(p => p.status === 'paid').length} cuota(s) este ano</p>
           </CardContent>
         </Card>
