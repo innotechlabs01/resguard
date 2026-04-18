@@ -48,6 +48,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog'
+import { useResidentApi } from '@/hooks/useApiMutations'
 import {
   Select,
   SelectContent,
@@ -59,7 +60,7 @@ import { Label } from '@/components/ui/label'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Checkbox } from '@/components/ui/checkbox'
 import type { Resident } from '@/lib/types'
-import { mockResidents, mockTenants } from '@/lib/mock-data'
+// import { mockResidents, mockTenants } from '@/lib/mock-data' // Removed - use real data only
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('es-CO', {
@@ -80,10 +81,6 @@ function ResidentDetailDialog({
 }) {
   if (!resident) return null
 
-  const tenant = resident.isTenant
-    ? mockTenants.find((t) => t.unit === resident.unit)
-    : null
-
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="bg-card border-border max-w-lg">
@@ -103,7 +100,6 @@ function ResidentDetailDialog({
           <TabsList className="w-full bg-muted">
             <TabsTrigger value="info" className="flex-1">Informacion</TabsTrigger>
             <TabsTrigger value="financial" className="flex-1">Financiero</TabsTrigger>
-            {resident.isTenant && <TabsTrigger value="contrato" className="flex-1">Contrato</TabsTrigger>}
           </TabsList>
 
           <TabsContent value="info" className="mt-4 space-y-3">
@@ -154,43 +150,6 @@ function ResidentDetailDialog({
               </div>
             </div>
           </TabsContent>
-
-          {tenant && (
-            <TabsContent value="contrato" className="mt-4 space-y-3">
-              <div className="space-y-2 text-sm rounded-lg border border-border p-3 bg-muted/20">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Propietario</span>
-                  <span className="text-foreground font-medium">{tenant.ownerName}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Apto propietario</span>
-                  <span className="text-foreground">{tenant.ownerUnit}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Inicio contrato</span>
-                  <span className="text-foreground">{tenant.leaseStart.toLocaleDateString('es-CO')}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Fin contrato</span>
-                  <span className="text-foreground">{tenant.leaseEnd.toLocaleDateString('es-CO')}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Canon mensual</span>
-                  <span className="text-foreground font-semibold">{formatCurrency(tenant.monthlyRent)}</span>
-                </div>
-              </div>
-              <div className="text-xs text-muted-foreground rounded-lg border border-border px-3 py-2">
-                <p className="font-medium text-foreground mb-1">Vehiculos del inquilino</p>
-                {tenant.vehicles.length === 0 ? (
-                  <p className="italic">Sin vehiculos registrados</p>
-                ) : (
-                  tenant.vehicles.map((v) => (
-                    <span key={v.id} className="font-mono text-primary font-bold mr-3">{v.plate}</span>
-                  ))
-                )}
-              </div>
-            </TabsContent>
-          )}
         </Tabs>
       </DialogContent>
     </Dialog>
@@ -199,12 +158,13 @@ function ResidentDetailDialog({
 
 export function ResidentsPanel({ residents: propResidents }: { residents?: Resident[] } = {}) {
   const [search, setSearch] = useState('')
-  const [residents, setResidents] = useState<Resident[]>(propResidents || mockResidents)
+  const [residents, setResidents] = useState<Resident[]>(propResidents || [])
   const [typeFilter, setTypeFilter] = useState<'all' | 'owner' | 'tenant'>('all')
   const [balanceFilter, setBalanceFilter] = useState<'all' | 'debt' | 'paid'>('all')
   const [selectedResident, setSelectedResident] = useState<Resident | null>(null)
   const [showDetail, setShowDetail] = useState(false)
   const [showNewResident, setShowNewResident] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [newResident, setNewResident] = useState({
     name: '',
     unit: '',
@@ -212,24 +172,41 @@ export function ResidentsPanel({ residents: propResidents }: { residents?: Resid
     email: '',
     isTenant: false,
   })
+  const { createResident } = useResidentApi()
 
-  const handleAddResident = () => {
+  const handleAddResident = async () => {
     if (!newResident.name || !newResident.unit || !newResident.email) return
     
-    const resident: Resident = {
-      id: Math.random().toString(36).slice(2),
-      name: newResident.name,
-      unit: newResident.unit,
-      phone: newResident.phone,
-      email: newResident.email,
-      parkingSpots: [],
-      balance: 0,
-      isTenant: newResident.isTenant,
+    setSaving(true)
+    try {
+      await createResident({
+        building_id: 'default',
+        name: newResident.name,
+        unit: newResident.unit,
+        phone: newResident.phone,
+        email: newResident.email,
+      })
+      
+      const resident: Resident = {
+        id: Math.random().toString(36).slice(2),
+        buildingId: 'default',
+        name: newResident.name,
+        unit: newResident.unit,
+        phone: newResident.phone,
+        email: newResident.email,
+        parkingSpots: [],
+        balance: 0,
+        isTenant: newResident.isTenant,
+      }
+      
+      setResidents([resident, ...residents])
+      setNewResident({ name: '', unit: '', phone: '', email: '', isTenant: false })
+      setShowNewResident(false)
+    } catch (error) {
+      console.error('Error creating resident:', error)
+    } finally {
+      setSaving(false)
     }
-    
-    setResidents([resident, ...residents])
-    setNewResident({ name: '', unit: '', phone: '', email: '', isTenant: false })
-    setShowNewResident(false)
   }
 
   const filteredResidents = residents.filter((r) => {
@@ -566,11 +543,11 @@ export function ResidentsPanel({ residents: propResidents }: { residents?: Resid
           </div>
           
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowNewResident(false)}>
+            <Button variant="outline" onClick={() => setShowNewResident(false)} disabled={saving}>
               Cancelar
             </Button>
-            <Button onClick={handleAddResident} disabled={!newResident.name || !newResident.unit || !newResident.email}>
-              Agregar Residente
+            <Button onClick={handleAddResident} disabled={saving || !newResident.name || !newResident.unit || !newResident.email}>
+              {saving ? 'Guardando...' : 'Agregar Residente'}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -13,8 +13,9 @@ import type { ParkingSpot, Alert, BuildingStats } from '@/lib/types'
 import { useAuth } from '@/lib/auth-context'
 import { useAnalyticsTrack } from '@/lib/hooks/useAnalytics'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
-import { Menu, LayoutDashboard, Users, Car, CreditCard, FileText, Settings, Bell, LogOut, Building2, Send, CarFront, CalendarDays } from 'lucide-react'
+import { Menu, LayoutDashboard, Users, Car, CreditCard, FileText, Settings, Bell, LogOut, Building2, Send, CarFront, CalendarDays, Building } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { SkeletonCard } from '@/components/ui/skeleton-loaders'
@@ -114,7 +115,7 @@ function MobileHeader({ title, onMenuClick, unreadAlerts }: { title: string; onM
 }
 
 export function AdminDashboard() {
-  const { user } = useAuth()
+  const { user, isAuthenticated, isDemoMode, isLoaded } = useAuth()
   const [activeTab, setActiveTab] = useState('overview')
   const [parkingSpots, setParkingSpots] = useState<ParkingSpot[]>([])
   const [alerts, setAlerts] = useState<Alert[]>([])
@@ -126,6 +127,61 @@ export function AdminDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   useAnalyticsTrack(activeTab, 'admin')
+
+  // Show empty state if not logged in
+  if (!isLoaded) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <SkeletonCard className="h-64 w-64" />
+      </div>
+    )
+  }
+
+  if (isDemoMode || !user) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <Card className="max-w-md mx-4 bg-card border-border">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-foreground">
+              <Building className="h-6 w-6" />
+              Modo Demo
+            </CardTitle>
+            <CardDescription className="text-muted-foreground">
+              Inicia sesión con Clerk para ver los datos de tu edificio.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Currently showing demo data. Please sign in with Clerk to access real building data.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  if (isAuthenticated && !user.buildingId) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <Card className="max-w-md mx-4 bg-card border-border">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-foreground">
+              <Building2 className="h-6 w-6" />
+              Edificio no asignado
+            </CardTitle>
+            <CardDescription className="text-muted-foreground">
+              Tu cuenta no tiene un edificio asignado.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-4">
+              Contacta al administrador del sistema para que asigne tu usuario a un edificio.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   // Fetch data from API
   useEffect(() => {

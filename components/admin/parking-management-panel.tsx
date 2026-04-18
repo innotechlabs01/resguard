@@ -43,7 +43,6 @@ import {
   AlertCircle,
 } from 'lucide-react'
 import type { Resident, ParkingSpot } from '@/lib/types'
-import { mockResidents, mockParkingSpots } from '@/lib/mock-data'
 
 interface AssignedParking {
   id: string
@@ -59,46 +58,9 @@ interface AssignedParking {
 }
 
 export function ParkingManagementPanel({ residents: propResidents, parkingSpots: propParkingSpots }: { residents?: Resident[]; parkingSpots?: ParkingSpot[] } = {}) {
-  const [residents] = useState<Resident[]>(propResidents || mockResidents)
-  const [parkingSpots] = useState<ParkingSpot[]>(propParkingSpots || mockParkingSpots)
-  const [assignedParkings, setAssignedParkings] = useState<AssignedParking[]>([
-    {
-      id: '1',
-      spotCode: 'R-01',
-      residentId: '1',
-      residentName: 'Maria Garcia',
-      residentUnit: '101',
-      vehiclePlate: 'ABC-123',
-      vehicleBrand: 'Toyota Corolla',
-      assignedDate: '2026-01-15',
-      status: 'active',
-      monthlyRate: 50000,
-    },
-    {
-      id: '2',
-      spotCode: 'R-02',
-      residentId: '2',
-      residentName: 'Carlos Lopez',
-      residentUnit: '102',
-      vehiclePlate: 'XYZ-789',
-      vehicleBrand: 'Honda Civic',
-      assignedDate: '2026-01-20',
-      status: 'active',
-      monthlyRate: 50000,
-    },
-    {
-      id: '3',
-      spotCode: 'R-03',
-      residentId: '3',
-      residentName: 'Ana Martinez',
-      residentUnit: '201',
-      vehiclePlate: 'DEF-456',
-      vehicleBrand: 'Nissan Sentra',
-      assignedDate: '2026-02-01',
-      status: 'active',
-      monthlyRate: 50000,
-    },
-  ])
+  const [residents] = useState<Resident[]>(propResidents || [])
+  const [parkingSpots] = useState<ParkingSpot[]>(propParkingSpots || [])
+  const [assignedParkings, setAssignedParkings] = useState<AssignedParking[]>([])
   
   const [search, setSearch] = useState('')
   const [assignDialogOpen, setAssignDialogOpen] = useState(false)

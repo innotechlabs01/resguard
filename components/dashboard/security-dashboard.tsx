@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/lib/auth-context'
 import { useAnalyticsTrack } from '@/lib/hooks/useAnalytics'
+import { useGuardNotificationStore } from '@/lib/notification-store'
+import { usePushNotifications } from '@/hooks/use-push-notifications'
 import { Sidebar } from './sidebar'
 import { Header } from './header'
 import { Overview } from './overview'
@@ -71,7 +73,7 @@ function MobileNav({ activeTab, onTabChange, unreadAlerts }: { activeTab: string
   )
 }
 
-function MobileHeader({ title, onMenuClick, onNewEntry, unreadAlerts }: { title: string; onMenuClick: () => void; onNewEntry: () => void; unreadAlerts: number }) {
+function MobileHeader({ title, onMenuClick, onNewEntry, unreadAlerts, onNotificationsClick }: { title: string; onMenuClick: () => void; onNewEntry: () => void; unreadAlerts: number; onNotificationsClick?: () => void }) {
   const { logout } = useAuth()
   return (
     <header className="flex h-14 items-center justify-between border-b border-border bg-card px-4 md:hidden">
@@ -88,7 +90,7 @@ function MobileHeader({ title, onMenuClick, onNewEntry, unreadAlerts }: { title:
         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onNewEntry}>
           <UserPlus className="h-4 w-4" />
         </Button>
-        <Button variant="ghost" size="icon" className="h-8 w-8 relative">
+        <Button variant="ghost" size="icon" className="h-8 w-8 relative" onClick={onNotificationsClick}>
           <Bell className="h-4 w-4" />
           {unreadAlerts > 0 && (
             <Badge variant="destructive" className="absolute -right-1 -top-1 h-4 w-4 p-0 text-[10px]">
@@ -115,7 +117,14 @@ export function SecurityDashboard() {
   const [loading, setLoading] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
+  const { notifications, addNotification, getUnreadCount } = useGuardNotificationStore()
+  usePushNotifications()
+  
   useAnalyticsTrack(activeTab, 'security')
+
+  const handleNotificationsClick = useCallback(() => {
+    setActiveTab('visitors')
+  }, [])
 
   // Fetch data from API
   useEffect(() => {
@@ -192,6 +201,8 @@ export function SecurityDashboard() {
   }, [user])
 
   const unreadAlerts = alerts.filter((a) => !a.read).length
+  const pushUnreadCount = getUnreadCount()
+  const totalUnread = unreadAlerts + pushUnreadCount
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === 'F1') { e.preventDefault(); setNewEntryOpen(true) }
@@ -348,7 +359,7 @@ export function SecurityDashboard() {
         <Sidebar
           activeTab={activeTab}
           onTabChange={setActiveTab}
-          unreadAlerts={unreadAlerts}
+          unreadAlerts={totalUnread}
         />
       </div>
 
@@ -358,7 +369,7 @@ export function SecurityDashboard() {
           <Sidebar
             activeTab={activeTab}
             onTabChange={(tab) => { setActiveTab(tab); setSidebarOpen(false) }}
-            unreadAlerts={unreadAlerts}
+            unreadAlerts={totalUnread}
           />
         </SheetContent>
       </Sheet>
@@ -369,7 +380,8 @@ export function SecurityDashboard() {
           title={tabTitles[activeTab]} 
           onMenuClick={() => setSidebarOpen(true)}
           onNewEntry={() => setNewEntryOpen(true)}
-          unreadAlerts={unreadAlerts}
+          unreadAlerts={totalUnread}
+          onNotificationsClick={handleNotificationsClick}
         />
 
         {/* Desktop Header */}
@@ -377,7 +389,8 @@ export function SecurityDashboard() {
           <Header
             title={tabTitles[activeTab]}
             onNewEntry={() => setNewEntryOpen(true)}
-            unreadAlerts={unreadAlerts}
+            unreadAlerts={totalUnread}
+            onNotificationsClick={handleNotificationsClick}
           />
         </div>
 
@@ -388,7 +401,7 @@ export function SecurityDashboard() {
       <MobileNav 
         activeTab={activeTab} 
         onTabChange={setActiveTab}
-        unreadAlerts={unreadAlerts}
+        unreadAlerts={totalUnread}
       />
 
       <NewEntryDialog

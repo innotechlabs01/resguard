@@ -9,6 +9,8 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    console.log('User ID:', userId);
+
     const user = await getUserByClerkId(userId)
     if (!user) {
       return NextResponse.json({ error: 'User not found in database. Please contact administrator.' }, { status: 404 })

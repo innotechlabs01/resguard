@@ -15,6 +15,7 @@ import {
   ArrowUpRight,
   RefreshCw,
   ExternalLink,
+  Loader2,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -30,8 +31,7 @@ import {
 } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useAuth } from '@/lib/auth-context'
-import { mockSystemStats, mockBuildingStats } from '@/lib/mock-data'
-import type { Payment } from '@/lib/types'
+import type { Payment, BuildingStats } from '@/lib/types'
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('es-CO', {
@@ -41,14 +41,15 @@ function formatCurrency(amount: number): string {
   }).format(amount)
 }
 
-function formatDate(date: Date): string {
+function formatDate(date: Date | string): string {
+  const d = typeof date === 'string' ? new Date(date) : date
   return new Intl.DateTimeFormat('es-CO', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-  }).format(date)
+  }).format(d)
 }
 
 const statusConfig = {
@@ -65,27 +66,82 @@ const typeLabels = {
   fine: 'Multa',
 }
 
+interface BuildingDisplay {
+  id: string
+  name: string
+  subscriptionStatus: string
+}
+
 export function GlobalPaymentsPanel() {
-  const { user } = useAuth()
+  const { user, isAuthenticated, isLoaded } = useAuth()
   const [search, setSearch] = useState('')
   const [payments, setPayments] = useState<any[]>([])
+  const [buildings, setBuildings] = useState<BuildingDisplay[]>([])
+  const [stats, setStats] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('all')
 
   useEffect(() => {
-    fetch('/api/payments')
-      .then(res => res.json())
-      .then(data => {
-        if (data.payments) {
-          setPayments(data.payments)
-        }
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false))
-  }, [])
+    if (!isLoaded || !isAuthenticated) {
+      setLoading(false)
+      return
+    }
 
-  const tabFilteredPayments = activeTab === 'all' 
-    ? payments 
+    async function fetchData() {
+      try {
+        console.log('[GlobalPaymentsPanel] Fetching data...')
+        
+        const [buildingsRes, statsRes, paymentsRes] = await Promise.all([
+          fetch('/api/buildings').then(r => r.json()).catch(e => {
+            console.error('[GlobalPaymentsPanel] Buildings fetch error:', e)
+            return []
+          }),
+          fetch('/api/stats').then(r => r.json()).catch(e => {
+            console.error('[GlobalPaymentsPanel] Stats fetch error:', e)
+            return { stats: null }
+          }),
+          fetch('/api/payments').then(r => r.json()).catch(e => {
+            console.error('[GlobalPaymentsPanel] Payments fetch error:', e)
+            return { payments: [] }
+          }),
+        ])
+
+        console.log('[GlobalPaymentsPanel] Buildings response:', buildingsRes)
+        console.log('[GlobalPaymentsPanel] Stats response:', statsRes)
+        console.log('[GlobalPaymentsPanel] Payments response:', paymentsRes)
+
+        // Handle buildings - API returns array directly
+        const buildingsData = Array.isArray(buildingsRes) ? buildingsRes : (buildingsRes.buildings || [])
+        setBuildings(buildingsData.map((b: any) => ({
+          id: b.id,
+          name: b.name,
+          subscriptionStatus: b.subscriptionStatus || b.subscription_status || 'inactive',
+        })))
+
+        // Handle stats
+        if (statsRes && statsRes.stats) {
+          setStats(statsRes.stats)
+        } else if (statsRes && !statsRes.error) {
+          // Stats might be returned directly without wrapper
+          setStats(statsRes)
+        }
+
+        // Handle payments
+        if (paymentsRes && paymentsRes.payments) {
+          setPayments(paymentsRes.payments)
+        }
+      } catch (error) {
+        console.error('[GlobalPaymentsPanel] Error fetching payments data:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [isAuthenticated, isLoaded])
+
+  const tabFilteredPayments = activeTab === 'all'
+    ? payments
     : payments.filter(p => p.status === activeTab)
 
   const filteredPayments = tabFilteredPayments.filter(
@@ -96,15 +152,26 @@ export function GlobalPaymentsPanel() {
 
   const totalSucceeded = payments
     .filter((p) => p.status === 'succeeded')
-    .reduce((sum, p) => sum + p.amount, 0)
+    .reduce((sum, p) => sum + (p.amount || 0), 0)
 
   const totalPending = payments
     .filter((p) => p.status === 'pending')
-    .reduce((sum, p) => sum + p.amount, 0)
+    .reduce((sum, p) => sum + (p.amount || 0), 0)
 
   const totalFailed = payments
     .filter((p) => p.status === 'failed')
-    .reduce((sum, p) => sum + p.amount, 0)
+    .reduce((sum, p) => sum + (p.amount || 0), 0)
+
+  const displayStats = stats
+  const displayBuildings = buildings
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -118,10 +185,12 @@ export function GlobalPaymentsPanel() {
           </CardHeader>
           <CardContent>
             <div className="text-xl sm:text-2xl font-bold text-foreground">{formatCurrency(totalSucceeded)}</div>
-            <div className="flex items-center gap-1 text-xs text-success">
-              <ArrowUpRight className="h-3 w-3" />
-              +15% vs mes anterior
-            </div>
+            {totalSucceeded > 0 && (
+              <div className="flex items-center gap-1 text-xs text-success">
+                <ArrowUpRight className="h-3 w-3" />
+                Transacciones exitosas
+              </div>
+            )}
           </CardContent>
         </Card>
         <Card className="bg-card border-border">
@@ -132,11 +201,11 @@ export function GlobalPaymentsPanel() {
           </CardHeader>
           <CardContent>
             <div className="text-xl sm:text-2xl font-bold text-foreground">
-              {formatCurrency(mockSystemStats.monthlyRecurringRevenue)}
+              {formatCurrency(displayStats.monthlyRecurringRevenue || displayStats.monthly_recurring_revenue || 0)}
             </div>
             <div className="flex items-center gap-1 text-xs text-success">
               <TrendingUp className="h-3 w-3" />
-              5 edificios activos
+              {displayBuildings.filter((b) => b.subscriptionStatus === 'active').length} edificios activos
             </div>
           </CardContent>
         </Card>
@@ -169,20 +238,20 @@ export function GlobalPaymentsPanel() {
         </Card>
       </div>
 
-      {/* Stripe Connect Section */}
+      {/* Bold Collect Section */}
       <Card className="bg-card border-border">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-foreground">
             <CreditCard className="h-5 w-5" />
-            Stripe Connect
+            Bold Collect
           </CardTitle>
           <CardDescription>
-            Gestion de cuentas conectadas y pagos divididos
+            Gestion de pagos con Bold
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {mockBuildingStats.slice(0, 3).map((building) => (
+            {displayBuildings.slice(0, 6).map((building) => (
               <div
                 key={building.id}
                 className="flex items-center gap-3 rounded-lg border border-border p-4"
@@ -193,7 +262,7 @@ export function GlobalPaymentsPanel() {
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-foreground truncate">{building.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    {building.subscriptionStatus === 'active' ? 'Cuenta conectada' : 'Pendiente'}
+                    {building.subscriptionStatus === 'active' ? 'Pagos activos' : 'Pendiente'}
                   </p>
                 </div>
                 <Badge className={building.subscriptionStatus === 'active' ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'}>
@@ -203,9 +272,9 @@ export function GlobalPaymentsPanel() {
             ))}
           </div>
           <div className="mt-4 flex gap-2">
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={() => window.open('https://plataforma.bold.co/', '_blank')}>
               <ExternalLink className="mr-2 h-4 w-4" />
-              Panel de Pagos
+              Panel de Pagos Bold
             </Button>
             <Button variant="outline" size="sm">
               Ver todas las cuentas
@@ -280,7 +349,7 @@ function PaymentsTable({ payments }: { payments: Payment[] }) {
             {payments.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                  No se encontraron pagos
+                  No se encontraron pagos en la base de datos
                 </TableCell>
               </TableRow>
             ) : (
@@ -295,18 +364,18 @@ function PaymentsTable({ payments }: { payments: Payment[] }) {
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Building2 className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-foreground">{payment.buildingName}</span>
+                        <span className="text-foreground">{(payment as any).building_name || payment.buildingName || 'N/A'}</span>
                       </div>
                     </TableCell>
-                    <TableCell className="text-foreground max-w-[150px] truncate">{payment.description}</TableCell>
+                    <TableCell className="text-foreground max-w-[150px] truncate">{(payment as any).descripcion || payment.description || 'Sin descripcion'}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className="border-border text-muted-foreground whitespace-nowrap">
                         <CreditCard className="mr-1 h-3 w-3" />
-                        {typeLabels[payment.type as keyof typeof typeLabels] || payment.type}
+                        {typeLabels[payment.type as keyof typeof typeLabels] || payment.type || 'Otro'}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right font-medium text-foreground whitespace-nowrap">
-                      {formatCurrency(payment.amount)}
+                      {formatCurrency((payment as any).monto || payment.amount || 0)}
                     </TableCell>
                     <TableCell>
                       <Badge className={status.className}>

@@ -50,7 +50,7 @@ import {
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import type { Payment } from '@/lib/types'
-import { mockPayments } from '@/lib/mock-data'
+// import { mockPayments } from '@/lib/mock-data' // Removed - use real data only
 import { useAuth } from '@/lib/auth-context'
 
 function formatCurrency(amount: number): string {
@@ -92,11 +92,10 @@ interface PaymentLink {
 }
 
 export function PaymentsPanel({ payments: propPayments }: { payments?: Payment[] } = {}) {
-  const { user } = useAuth()
+  const { user, isAuthenticated } = useAuth()
   const [search, setSearch] = useState('')
   const [dbPayments, setDbPayments] = useState<any[]>([])
   const [loadingDb, setLoadingDb] = useState(false)
-  const [payments, setPayments] = useState<Payment[]>(propPayments || mockPayments)
   const [showNewPayment, setShowNewPayment] = useState(false)
   const [showSendLinkDialog, setShowSendLinkDialog] = useState(false)
   const [selectedPaymentForLink, setSelectedPaymentForLink] = useState<any>(null)
@@ -112,7 +111,7 @@ export function PaymentsPanel({ payments: propPayments }: { payments?: Payment[]
     residentEmail: '',
   })
 
-  const allPayments = propPayments || (dbPayments.length > 0 ? dbPayments : payments)
+  const allPayments = propPayments || dbPayments
 
   useState(() => {
     if (user?.buildingId && !propPayments) {
@@ -149,7 +148,7 @@ export function PaymentsPanel({ payments: propPayments }: { payments?: Payment[]
       createdAt: new Date(),
     }
     
-    setPayments([payment, ...payments])
+    setDbPayments([payment, ...dbPayments])
     setNewPayment({ description: '', amount: '', type: 'subscription', residentUnit: '', amountType: 'CLOSE', sendLink: true, residentEmail: '' })
     setShowNewPayment(false)
   }
@@ -538,7 +537,7 @@ function PaymentsTable({ payments }: { payments: Payment[] }) {
                       {payment.residentUnit || '-'}
                     </TableCell>
                     <TableCell className="text-right font-medium text-foreground">
-                      {payment.amountType === 'OPEN' ? 'Monto abierto' : formatCurrency(payment.amount)}
+                      {(payment as any).amountType === 'OPEN' ? 'Monto abierto' : formatCurrency(payment.amount)}
                     </TableCell>
                     <TableCell>
                       <Badge className={status.className}>
@@ -547,9 +546,9 @@ function PaymentsTable({ payments }: { payments: Payment[] }) {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {payment.boldUrl ? (
+                      {(payment as any).boldUrl ? (
                         <Button variant="ghost" size="icon" asChild>
-                          <a href={payment.boldUrl} target="_blank" rel="noopener noreferrer" title="Abrir link de pago">
+                          <a href={(payment as any).boldUrl} target="_blank" rel="noopener noreferrer" title="Abrir link de pago">
                             <Link className="h-4 w-4" />
                           </a>
                         </Button>

@@ -10,9 +10,10 @@ interface HeaderProps {
   title: string
   onNewEntry: () => void
   unreadAlerts: number
+  onNotificationsClick?: () => void
 }
 
-export function Header({ title, onNewEntry, unreadAlerts }: HeaderProps) {
+export function Header({ title, onNewEntry, unreadAlerts, onNotificationsClick }: HeaderProps) {
   const [currentTime, setCurrentTime] = useState(new Date())
 
   useEffect(() => {
@@ -75,7 +76,7 @@ export function Header({ title, onNewEntry, unreadAlerts }: HeaderProps) {
 
         {/* Notifications & New Entry */}
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" className="relative bg-transparent">
+          <Button variant="outline" size="icon" className="relative bg-transparent" onClick={onNotificationsClick}>
             <Bell className="h-5 w-5" />
             {unreadAlerts > 0 && (
               <Badge

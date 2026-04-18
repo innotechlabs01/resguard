@@ -34,22 +34,14 @@ export interface DbIntercomCall {
 export async function getIntercomUnits(buildingId: string): Promise<DbIntercomUnit[]> {
   return queryMany<DbIntercomUnit>(
     'SELECT * FROM intercom_units WHERE building_id = ? ORDER BY unit_number',
-    [buildingId],
-    async (client: any) => {
-      const { data, error } = await client.from('intercom_units').select('*').eq('building_id', buildingId).order('unit_number', { ascending: true })
-      return { data: data as DbIntercomUnit[] | null, error }
-    }
+    [buildingId]
   )
 }
 
 export async function getIntercomUnitById(id: string): Promise<DbIntercomUnit | null> {
   return queryOne<DbIntercomUnit>(
     'SELECT * FROM intercom_units WHERE id = ?',
-    [id],
-    async (client: any) => {
-      const { data, error } = await client.from('intercom_units').select('*').eq('id', id).single()
-      return { data: data as DbIntercomUnit | null, error }
-    }
+    [id]
   )
 }
 
@@ -59,21 +51,7 @@ export async function createIntercomCall(call: { building_id: string; unit_id: s
   
   await executeInsert(
     'INSERT INTO intercom_calls (id, building_id, unit_id, unit_number, caller_type, caller_name, caller_message, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-    [id, call.building_id, call.unit_id, call.unit_number, call.caller_type, call.caller_name ?? null, call.caller_message ?? null, 'pending', createdAt] as InValue[],
-    async (client: any) => {
-      const { error } = await client.from('intercom_calls').insert({
-        id,
-        building_id: call.building_id,
-        unit_id: call.unit_id,
-        unit_number: call.unit_number,
-        caller_type: call.caller_type,
-        caller_name: call.caller_name,
-        caller_message: call.caller_message,
-        status: 'pending',
-        created_at: createdAt,
-      })
-      return { error }
-    }
+    [id, call.building_id, call.unit_id, call.unit_number, call.caller_type, call.caller_name ?? null, call.caller_message ?? null, 'pending', createdAt] as InValue[]
   )
   
   return id
@@ -82,22 +60,14 @@ export async function createIntercomCall(call: { building_id: string; unit_id: s
 export async function getIntercomCalls(buildingId: string, limit = 50): Promise<DbIntercomCall[]> {
   return queryMany<DbIntercomCall>(
     'SELECT * FROM intercom_calls WHERE building_id = ? ORDER BY created_at DESC LIMIT ?',
-    [buildingId, limit],
-    async (client: any) => {
-      const { data, error } = await client.from('intercom_calls').select('*').eq('building_id', buildingId).order('created_at', { ascending: false }).limit(limit)
-      return { data: data as DbIntercomCall[] | null, error }
-    }
+    [buildingId, limit]
   )
 }
 
 export async function getActiveCalls(buildingId: string): Promise<DbIntercomCall[]> {
   return queryMany<DbIntercomCall>(
     'SELECT * FROM intercom_calls WHERE building_id = ? AND status = ? ORDER BY created_at DESC',
-    [buildingId, 'pending'],
-    async (client: any) => {
-      const { data, error } = await client.from('intercom_calls').select('*').eq('building_id', buildingId).eq('status', 'pending').order('created_at', { ascending: false })
-      return { data: data as DbIntercomCall[] | null, error }
-    }
+    [buildingId, 'pending']
   )
 }
 
@@ -106,25 +76,13 @@ export async function respondToCall(callId: string, response: 'approved' | 'reje
   
   await executeInsert(
     'UPDATE intercom_calls SET status = ?, responded_at = ?, response_note = ? WHERE id = ?',
-    [response, respondedAt, note ?? null, callId] as InValue[],
-    async (client: any) => {
-      const { error } = await client.from('intercom_calls').update({
-        status: response,
-        responded_at: respondedAt,
-        response_note: note,
-      }).eq('id', callId)
-      return { error }
-    }
+    [response, respondedAt, note ?? null, callId] as InValue[]
   )
 }
 
 export async function getCallById(callId: string): Promise<DbIntercomCall | null> {
   return queryOne<DbIntercomCall>(
     'SELECT * FROM intercom_calls WHERE id = ?',
-    [callId],
-    async (client: any) => {
-      const { data, error } = await client.from('intercom_calls').select('*').eq('id', callId).single()
-      return { data: data as DbIntercomCall | null, error }
-    }
+    [callId]
   )
 }

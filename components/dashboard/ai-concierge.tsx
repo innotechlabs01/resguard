@@ -1,6 +1,6 @@
 'use client'
 
-import React from "react"
+import React, { useState } from "react"
 
 import { useRef, useEffect } from 'react'
 import { useChat } from '@ai-sdk/react'
@@ -31,10 +31,8 @@ const suggestedQuestions = [
 ]
 
 export function AIConcierge() {
-  const { messages, input, handleInputChange, handleSubmit, isLoading, reload, setMessages } =
-    useChat({
-      api: '/api/chat',
-    })
+  const [input, setInput] = useState('')
+  const { messages, sendMessage, status, setMessages } = useChat()
   
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -45,8 +43,17 @@ export function AIConcierge() {
   }, [messages])
 
   const handleSuggestedQuestion = (question: string) => {
-    handleInputChange({ target: { value: question } } as React.ChangeEvent<HTMLInputElement>)
+    setInput(question)
   }
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!input.trim()) return
+    sendMessage({ text: input })
+    setInput('')
+  }
+
+  const isStreaming = status === 'streaming'
 
   return (
     <Card className="flex h-[calc(100vh-12rem)] flex-col border-border bg-card">
@@ -77,7 +84,6 @@ export function AIConcierge() {
       </CardHeader>
 
       <CardContent className="flex flex-1 flex-col overflow-hidden p-0">
-        {/* Messages Area */}
         <ScrollArea className="flex-1 p-4" ref={scrollRef}>
           {messages.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center text-center">
@@ -92,7 +98,6 @@ export function AIConcierge() {
                 areas comunes, pagos y mucho mas.
               </p>
               
-              {/* Suggested Questions */}
               <div className="w-full max-w-md space-y-2">
                 <p className="mb-3 flex items-center justify-center gap-2 text-xs text-muted-foreground">
                   <BookOpen className="h-3 w-3" />
@@ -147,13 +152,13 @@ export function AIConcierge() {
                     )}
                   >
                     <p className="whitespace-pre-wrap text-sm leading-relaxed">
-                      {message.content}
+                      {(message as any).content}
                     </p>
                   </div>
                 </div>
               ))}
               
-              {isLoading && (
+              {isStreaming && (
                 <div className="flex gap-3">
                   <Avatar className="h-8 w-8 shrink-0">
                     <AvatarFallback className="bg-primary text-primary-foreground">
@@ -170,18 +175,17 @@ export function AIConcierge() {
           )}
         </ScrollArea>
 
-        {/* Input Area */}
         <div className="shrink-0 border-t border-border p-4">
           <form onSubmit={handleSubmit} className="flex gap-2">
             <Input
               value={input}
-              onChange={handleInputChange}
+              onChange={(e) => setInput(e.target.value)}
               placeholder="Escribe tu consulta sobre el reglamento..."
               className="flex-1 bg-secondary"
-              disabled={isLoading}
+              disabled={isStreaming}
             />
-            <Button type="submit" disabled={isLoading || !input.trim()}>
-              {isLoading ? (
+            <Button type="submit" disabled={isStreaming || !input.trim()}>
+              {isStreaming ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <Send className="h-4 w-4" />

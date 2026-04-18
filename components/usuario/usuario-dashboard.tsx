@@ -13,8 +13,9 @@ import { AlquilerPanel } from './alquiler-panel'
 import { useAuth } from '@/lib/auth-context'
 import { useAnalyticsTrack } from '@/lib/hooks/useAnalytics'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
-import { Menu, LayoutDashboard, Car, ShoppingBag, KeyRound, Receipt, Calendar, Bell, Settings, LogOut } from 'lucide-react'
+import { Menu, LayoutDashboard, Car, ShoppingBag, KeyRound, Receipt, Calendar, Bell, Settings, LogOut, User } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { SkeletonCard } from '@/components/ui/skeleton-loaders'
@@ -107,7 +108,7 @@ function MobileHeader({ title, onMenuClick, unreadNotifications }: { title: stri
 }
 
 export function UsuarioDashboard() {
-  const { user } = useAuth()
+  const { user, isAuthenticated, isDemoMode, isLoaded } = useAuth()
   const [activeTab, setActiveTab] = useState('overview')
   const [notifications, setNotifications] = useState<any[]>([])
   const [marketplace, setMarketplace] = useState<any[]>([])
@@ -118,8 +119,46 @@ export function UsuarioDashboard() {
 
   useAnalyticsTrack(activeTab, 'usuario')
 
-  // Fetch data from API
+  // Show loading state
+  if (!isLoaded) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <SkeletonCard className="h-64 w-64" />
+      </div>
+    )
+  }
+
+  // Show empty state for demo mode
+  if (isDemoMode || !user) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <Card className="max-w-md mx-4 bg-card border-border">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-foreground">
+              <User className="h-6 w-6" />
+              Modo Demo
+            </CardTitle>
+            <CardDescription className="text-muted-foreground">
+              Inicia sesión para acceder a tu cuenta de residente.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-4">
+              Este panel solo está disponible para usuarios autenticados con Clerk.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Contacta al administrador si necesitas acceso.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  // Fetch data from API only when authenticated
   useEffect(() => {
+    if (!isAuthenticated) return
+    
     let cancelled = false
     async function fetchData() {
       try {
@@ -159,16 +198,16 @@ export function UsuarioDashboard() {
         if (!cancelled) setLoading(false)
       }
     }
-    if (user) fetchData()
+    fetchData()
     return () => { cancelled = true }
-  }, [user])
+  }, [user, isAuthenticated])
 
   const residentData = {
     name: user?.name || 'Residente',
-    unit: '301',
-    balance: -25000,
-    pendingRequests: 1,
-    activeReservations: 2,
+    unit: user?.buildingId ? 'N/A' : '-',
+    balance: 0,
+    pendingRequests: 0,
+    activeReservations: 0,
     notifications: notifications.length,
   }
 

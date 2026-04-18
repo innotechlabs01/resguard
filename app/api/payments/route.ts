@@ -2,11 +2,17 @@ import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { getPayments } from '@/lib/db/queries/payments'
 
+const hasClerk = Boolean(process.env.CLERK_SECRET_KEY?.trim())
+
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: Request) {
   try {
-    const { userId } = await auth()
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (hasClerk) {
+      const { userId } = await auth()
+      if (!userId) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
     }
 
     const { searchParams } = new URL(request.url)

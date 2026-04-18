@@ -16,36 +16,21 @@ export interface DbTenantVehicle {
 export async function getTenantVehicleById(id: string): Promise<DbTenantVehicle | null> {
   return queryOne<DbTenantVehicle>(
     'SELECT * FROM tenant_vehicles WHERE id = ?',
-    [id],
-    async (client) => {
-      const { data, error } = await client!.from('tenant_vehicles').select('*').eq('id', id).single()
-      return { data: data as DbTenantVehicle | null, error }
-    }
+    [id]
   )
 }
 
 export async function getTenantVehicles(tenantId: string): Promise<DbTenantVehicle[]> {
   return queryMany<DbTenantVehicle>(
     'SELECT * FROM tenant_vehicles WHERE tenant_id = ?',
-    [tenantId],
-    async (client) => {
-      const { data, error } = await client!.from('tenant_vehicles').select('*').eq('tenant_id', tenantId)
-      return { data: data as DbTenantVehicle[] | null, error }
-    }
+    [tenantId]
   )
 }
 
 export async function getTenantVehiclesByBuilding(buildingId: string): Promise<DbTenantVehicle[]> {
   return queryMany<DbTenantVehicle>(
     `SELECT tv.* FROM tenant_vehicles tv JOIN tenants t ON tv.tenant_id = t.id WHERE t.building_id = ?`,
-    [buildingId],
-    async (client) => {
-      const { data, error } = await client!
-        .from('tenant_vehicles')
-        .select('*, tenants!inner(building_id)')
-        .eq('tenants.building_id', buildingId)
-      return { data: data as DbTenantVehicle[] | null, error }
-    }
+    [buildingId]
   )
 }
 
@@ -53,20 +38,7 @@ export async function createTenantVehicle(vehicle: Omit<DbTenantVehicle, 'id'> &
   const id = vehicle.id ?? crypto.randomUUID()
   await executeInsert(
     'INSERT INTO tenant_vehicles (id, tenant_id, plate, brand, model, color, parking_spot, type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-    [id, vehicle.tenant_id, vehicle.plate, vehicle.brand, vehicle.model, vehicle.color, vehicle.parking_spot, vehicle.type] as InValue[],
-    async (client) => {
-      const { error } = await client!.from('tenant_vehicles').insert({
-        id,
-        tenant_id: vehicle.tenant_id,
-        plate: vehicle.plate,
-        brand: vehicle.brand,
-        model: vehicle.model,
-        color: vehicle.color,
-        parking_spot: vehicle.parking_spot,
-        type: vehicle.type,
-      })
-      return { error }
-    }
+    [id, vehicle.tenant_id, vehicle.plate, vehicle.brand, vehicle.model, vehicle.color, vehicle.parking_spot, vehicle.type] as InValue[]
   )
 }
 
@@ -82,27 +54,13 @@ export async function updateTenantVehicle(id: string, updates: Partial<DbTenantV
   values.push(id)
   await executeInsert(
     `UPDATE tenant_vehicles SET ${fields.join(', ')} WHERE id = ?`,
-    values,
-    async (client) => {
-      const supabaseUpdates: Record<string, unknown> = {}
-      if (updates.plate !== undefined) supabaseUpdates.plate = updates.plate
-      if (updates.brand !== undefined) supabaseUpdates.brand = updates.brand
-      if (updates.model !== undefined) supabaseUpdates.model = updates.model
-      if (updates.color !== undefined) supabaseUpdates.color = updates.color
-      if (updates.parking_spot !== undefined) supabaseUpdates.parking_spot = updates.parking_spot
-      const { error } = await client!.from('tenant_vehicles').update(supabaseUpdates).eq('id', id)
-      return { error }
-    }
+    values
   )
 }
 
 export async function deleteTenantVehicle(id: string): Promise<void> {
   await executeInsert(
     'DELETE FROM tenant_vehicles WHERE id = ?',
-    [id],
-    async (client) => {
-      const { error } = await client!.from('tenant_vehicles').delete().eq('id', id)
-      return { error }
-    }
+    [id]
   )
 }

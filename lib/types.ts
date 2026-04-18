@@ -8,7 +8,8 @@ export interface User {
   name: string
   email: string
   role: UserRole
-  buildingId?: string // For admin and vigilante - which building they belong to
+  buildingId?: string
+  buildingName?: string
   avatar?: string
 }
 

@@ -148,7 +148,7 @@ const emptyIncident = (): Incident => ({
 
 export function ReportsPanel() {
   const { user } = useAuth()
-  const [reports, setReports] = useState<ShiftReport[]>(mockReports)
+  const [reports, setReports] = useState<ShiftReport[]>([])
   const [reportText, setReportText] = useState('')
   const [isRecording, setIsRecording] = useState(false)
   const [incidents, setIncidents] = useState<Incident[]>([])

@@ -40,7 +40,6 @@ import {
 import { Switch } from '@/components/ui/switch'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
-import { mockCommunications } from '@/lib/mock-data'
 import type { Communication } from '@/lib/types'
 
 const typeConfig: Record<
@@ -71,7 +70,7 @@ function formatRelativeTime(date: Date) {
 }
 
 export function ComunicacionesPanel({ communications: propCommunications }: { communications?: Communication[] } = {}) {
-  const [communications, setCommunications] = useState<Communication[]>(propCommunications || mockCommunications)
+  const [communications, setCommunications] = useState<Communication[]>(propCommunications || [])
   const [showCompose, setShowCompose] = useState(false)
   const [viewComm, setViewComm] = useState<Communication | null>(null)
   const [search, setSearch] = useState('')

@@ -15,7 +15,6 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { mockCommunications } from '@/lib/mock-data'
 
 interface UsuarioOverviewProps {
   residentName: string
@@ -38,7 +37,7 @@ export function UsuarioOverview({
   onTabChange,
   communications: propCommunications,
 }: UsuarioOverviewProps) {
-  const latestComms = (propCommunications || mockCommunications).slice(0, 2)
+  const latestComms = (propCommunications || []).slice(0, 2)
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('es-CO', {
       style: 'currency',

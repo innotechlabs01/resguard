@@ -5,13 +5,17 @@ import {
   useCallback,
   useContext,
   useState,
+  useEffect,
   type ReactNode,
 } from 'react'
+import { useUser, useClerk } from '@clerk/nextjs'
 import type { User, UserRole } from './types'
-import { mockUsers } from './mock-data'
 
 interface AuthContextType {
   user: User | null
+  isLoaded: boolean
+  isAuthenticated: boolean
+  isDemoMode: boolean
   login: (userId: string) => void
   logout: () => void
   switchRole: (role: UserRole) => void
@@ -22,30 +26,52 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 type AuthProviderProps = {
   children: ReactNode
-  /** Ej.: signOut de Clerk cuando hay sesión externa. */
   onLogoutExtra?: () => void | Promise<void>
 }
 
 export function AuthProvider({ children, onLogoutExtra }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null)
+  const [isLoaded, setIsLoaded] = useState(false)
+  
+  const { user: clerkUser, isLoaded: clerkLoaded } = useUser()
+  const { signOut } = useClerk()
+
+  useEffect(() => {
+    if (!clerkLoaded) return
+    
+    setIsLoaded(true)
+
+    if (clerkUser) {
+      const role = clerkUser.publicMetadata?.role as UserRole || 'usuario'
+      const buildingId = clerkUser.publicMetadata?.buildingId as string | undefined
+      
+      const realUser: User = {
+        id: clerkUser.id,
+        name: clerkUser.fullName || clerkUser.emailAddresses[0]?.emailAddress || 'Usuario',
+        email: clerkUser.emailAddresses[0]?.emailAddress || '',
+        role,
+        buildingId,
+        buildingName: clerkUser.publicMetadata?.buildingName as string | undefined,
+      }
+      
+      setUser(realUser)
+    } else {
+      setUser(null)
+    }
+  }, [clerkUser, clerkLoaded])
 
   const login = (userId: string) => {
-    const foundUser = mockUsers.find((u) => u.id === userId)
-    if (foundUser) {
-      setUser(foundUser)
-    }
+    // Not used in Clerk mode
   }
 
-  const logout = () => {
-    void onLogoutExtra?.()
+  const logout = async () => {
+    await signOut()
+    await onLogoutExtra?.()
     setUser(null)
   }
 
   const switchRole = (role: UserRole) => {
-    const userWithRole = mockUsers.find((u) => u.role === role)
-    if (userWithRole) {
-      setUser(userWithRole)
-    }
+    // Not used in Clerk mode
   }
 
   const hydrateUser = useCallback((next: User | null) => {
@@ -54,7 +80,16 @@ export function AuthProvider({ children, onLogoutExtra }: AuthProviderProps) {
 
   return (
     <AuthContext.Provider
-      value={{ user, login, logout, switchRole, hydrateUser }}
+      value={{ 
+        user, 
+        isLoaded: isLoaded && clerkLoaded, 
+        isAuthenticated: !!clerkUser,
+        isDemoMode: !clerkUser,
+        login, 
+        logout, 
+        switchRole, 
+        hydrateUser 
+      }}
     >
       {children}
     </AuthContext.Provider>

@@ -1,11 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useAuth } from '@/lib/auth-context'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
   Dialog,
   DialogContent,
@@ -50,40 +52,36 @@ interface ParkingConfig {
   reservationHours: number
 }
 
-const mockParkingConfig: ParkingConfig[] = [
-  {
-    id: '1',
-    buildingId: 'building-1',
-    buildingName: 'Torres del Parque',
-    visitorSpots: 20,
-    residentSpots: 50,
-    freeMinutes: 120,
-    hourlyRate: 2000,
-    overtimeMultiplier: 2,
-    maxOvertimeHours: 4,
-    allowReservations: true,
-    reservationHours: 24,
-  },
-  {
-    id: '2',
-    buildingId: 'building-2',
-    buildingName: 'Ciudadela Real',
-    visitorSpots: 15,
-    residentSpots: 40,
-    freeMinutes: 60,
-    hourlyRate: 1500,
-    overtimeMultiplier: 1.5,
-    maxOvertimeHours: 3,
-    allowReservations: true,
-    reservationHours: 12,
-  },
-]
-
 export function ParkingConfigPanel() {
-  const [configs, setConfigs] = useState<ParkingConfig[]>(mockParkingConfig)
+  const { user, isAuthenticated, isDemoMode, isLoaded } = useAuth()
+  const [configs, setConfigs] = useState<ParkingConfig[]>([])
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [selectedConfig, setSelectedConfig] = useState<ParkingConfig | null>(null)
   const [editForm, setEditForm] = useState<ParkingConfig | null>(null)
+
+  useEffect(() => {
+    if (!isAuthenticated || !isLoaded) return
+    fetch('/api/buildings')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setConfigs(data.map((b: { id: string; name: string; visitor_parking_spots?: number; total_parking_spots?: number; }) => ({
+            id: b.id,
+            buildingId: b.id,
+            buildingName: b.name,
+            visitorSpots: b.visitor_parking_spots || 0,
+            residentSpots: (b.total_parking_spots || 0) - (b.visitor_parking_spots || 0),
+            freeMinutes: 60,
+            hourlyRate: 1500,
+            overtimeMultiplier: 1.5,
+            maxOvertimeHours: 3,
+            allowReservations: true,
+            reservationHours: 24,
+          })))
+        }
+      })
+      .catch(() => setConfigs([]))
+  }, [isAuthenticated, isLoaded])
 
   const handleEdit = (config: ParkingConfig) => {
     setSelectedConfig(config)
@@ -99,6 +97,54 @@ export function ParkingConfigPanel() {
 
   const totalVisitorSpots = configs.reduce((sum, c) => sum + c.visitorSpots, 0)
   const totalResidentSpots = configs.reduce((sum, c) => sum + c.residentSpots, 0)
+
+  if (!isLoaded) {
+    return (
+      <div className="space-y-6">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => (
+            <Card key={i} className="bg-card border-border">
+              <CardHeader className="pb-2">
+                <Skeleton className="h-4 w-24" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-6 w-16" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <Card className="bg-card border-border">
+          <CardContent className="p-6">
+            <Skeleton className="h-48 w-full" />
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  if (isDemoMode || !user) {
+    return (
+      <div className="space-y-6">
+        <Card className="bg-card border-border">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
+              <Car className="h-5 w-5 text-primary" />
+              Modo Demo
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-4">
+              Inicia sesion con tu cuenta para ver la configuracion de parqueaderos.
+            </p>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Settings className="h-4 w-4" />
+              <span>Acceso restringido a usuarios autenticados</span>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">

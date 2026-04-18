@@ -36,11 +36,11 @@ function isSandbox(): boolean {
   return process.env.APP_SCOPE !== 'PRODUCTION'
 }
 
-export function generateIntegrityHash(
+export async function generateIntegrityHash(
   orderId: string,
   amount: number,
   currency: string
-): string {
+): Promise<string> {
   const secretKey = getBoldSecretKey()
   if (!secretKey) {
     throw new Error('Bold secret key no configurada')
@@ -51,10 +51,9 @@ export function generateIntegrityHash(
   const encoder = new TextEncoder()
   const data = encoder.encode(cadena)
   
-  return crypto.subtle.digest('SHA-256', data).then(hashBuffer => {
-    const hashArray = Array.from(new Uint8Array(hashBuffer))
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
-  })
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+  const hashArray = Array.from(new Uint8Array(hashBuffer))
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
 }
 
 export function generateIntegrityHashSync(

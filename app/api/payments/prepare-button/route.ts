@@ -67,7 +67,6 @@ export async function POST(request: Request) {
 
     if (!existingPayment) {
       await createPayment({
-        id: paymentId,
         building_id: body.buildingId || 'unknown',
         building_name: body.buildingName || 'Edificio',
         amount: paymentAmount,

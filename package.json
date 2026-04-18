@@ -8,7 +8,7 @@
     "dev": "dotenv -e .env.development -- next dev",
     "lint": "eslint .",
     "start": "next start",
-    "start:dev": "dotenv -e .env.development -- next start",
+    "start:dev": " rm -rf .next && pnpm build:dev && dotenv -e .env.development -- next start",
     "start:prod": "dotenv -e .env.productive -- next start"
   },
   "dependencies": {
@@ -52,6 +52,7 @@
     "cmdk": "1.0.4",
     "date-fns": "4.1.0",
     "embla-carousel-react": "8.5.1",
+    "firebase": "^12.11.0",
     "geist": "^1.7.0",
     "helmet": "^8.1.0",
     "input-otp": "1.4.1",

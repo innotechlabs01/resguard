@@ -17,12 +17,12 @@ export function getAppEnv(): AppEnv {
 }
 
 export function getDatabaseProvider(): DatabaseProvider {
-  const env = getAppEnv()
-  if (env === 'production') {
-    if (process.env.DATABASE_URL_SUPABASE) return 'supabase'
-    return 'none'
-  }
+  // Always check Turso first if available
   if (process.env.DATABASE_URL_TURSO) return 'turso'
+  
+  // Check for Supabase
+  if (process.env.DATABASE_URL_SUPABASE) return 'supabase'
+  
   return 'none'
 }
 

@@ -48,10 +48,12 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
+import { BuildingForm } from '@/components/forms/building-form'
 import type { BuildingStats } from '@/lib/types'
 
 interface BuildingsPanelProps {
   buildings: BuildingStats[]
+  onRefresh?: () => void
 }
 
 function formatCurrency(amount: number): string {
@@ -76,9 +78,9 @@ const subscriptionConfig = {
   trialing: { label: 'Prueba', className: 'bg-info/10 text-info' },
 }
 
-export function BuildingsPanel({ buildings }: BuildingsPanelProps) {
+export function BuildingsPanel({ buildings, onRefresh }: BuildingsPanelProps) {
   const [search, setSearch] = useState('')
-  const [addDialogOpen, setAddDialogOpen] = useState(false)
+  const [showBuildingForm, setShowBuildingForm] = useState(false)
   const [selectedBuilding, setSelectedBuilding] = useState<BuildingStats | null>(null)
   const [showDetailDialog, setShowDetailDialog] = useState(false)
   const [showEditDialog, setShowEditDialog] = useState(false)
@@ -113,6 +115,10 @@ export function BuildingsPanel({ buildings }: BuildingsPanelProps) {
   const handleManageUsers = (building: BuildingStats) => {
     setSelectedBuilding(building)
     setShowUsersDialog(true)
+  }
+
+  const handleBuildingCreated = () => {
+    onRefresh?.()
   }
 
   return (
@@ -189,54 +195,10 @@ export function BuildingsPanel({ buildings }: BuildingsPanelProps) {
             <Download className="mr-2 h-4 w-4" />
             Exportar
           </Button>
-          <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm">
-                <Plus className="mr-2 h-4 w-4" />
-                Nuevo Edificio
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px]">
-              <DialogHeader>
-                <DialogTitle>Agregar Nuevo Edificio</DialogTitle>
-                <DialogDescription>
-                  Complete la informacion para registrar un nuevo edificio en el sistema.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Nombre del Edificio</Label>
-                  <Input id="name" placeholder="Torres del Parque" className="bg-input" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="address">Direccion</Label>
-                  <Input id="address" placeholder="Calle 26 #5-21, Bogota" className="bg-input" />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="units">Total Unidades</Label>
-                    <Input id="units" type="number" placeholder="120" className="bg-input" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="parking">Parqueaderos Visitantes</Label>
-                    <Input id="parking" type="number" placeholder="20" className="bg-input" />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="adminEmail">Email del Administrador</Label>
-                  <Input id="adminEmail" type="email" placeholder="admin@edificio.com" className="bg-input" />
-                </div>
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setAddDialogOpen(false)}>
-                  Cancelar
-                </Button>
-                <Button onClick={() => setAddDialogOpen(false)}>
-                  Crear Edificio
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+          <Button size="sm" onClick={() => setShowBuildingForm(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Nuevo Edificio
+          </Button>
         </div>
       </div>
 
@@ -542,6 +504,12 @@ export function BuildingsPanel({ buildings }: BuildingsPanelProps) {
           </div>
         </DialogContent>
       </Dialog>
+
+      <BuildingForm
+        open={showBuildingForm}
+        onOpenChange={setShowBuildingForm}
+        onSuccess={handleBuildingCreated}
+      />
     </div>
   )
 }

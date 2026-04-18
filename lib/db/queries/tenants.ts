@@ -23,22 +23,14 @@ export interface DbTenant {
 export async function getTenantById(id: string): Promise<DbTenant | null> {
   return queryOne<DbTenant>(
     'SELECT * FROM tenants WHERE id = ?',
-    [id],
-    async (client) => {
-      const { data, error } = await client!.from('tenants').select('*').eq('id', id).single()
-      return { data: data as DbTenant | null, error }
-    }
+    [id]
   )
 }
 
 export async function getTenants(buildingId: string): Promise<DbTenant[]> {
   return queryMany<DbTenant>(
     'SELECT * FROM tenants WHERE building_id = ? ORDER BY name',
-    [buildingId],
-    async (client) => {
-      const { data, error } = await client!.from('tenants').select('*').eq('building_id', buildingId).order('name')
-      return { data: data as DbTenant[] | null, error }
-    }
+    [buildingId]
   )
 }
 
@@ -46,27 +38,7 @@ export async function createTenant(tenant: Omit<DbTenant, 'id'> & { id?: string 
   const id = tenant.id ?? crypto.randomUUID()
   await executeInsert(
     'INSERT INTO tenants (id, building_id, name, document_id, phone, email, unit, owner_id, owner_name, owner_unit, lease_start, lease_end, monthly_rent, deposit_paid, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-    [id, tenant.building_id, tenant.name, tenant.document_id, tenant.phone, tenant.email, tenant.unit, tenant.owner_id, tenant.owner_name, tenant.owner_unit, tenant.lease_start, tenant.lease_end, tenant.monthly_rent, tenant.deposit_paid, tenant.status] as InValue[],
-    async (client) => {
-      const { error } = await client!.from('tenants').insert({
-        id,
-        building_id: tenant.building_id,
-        name: tenant.name,
-        document_id: tenant.document_id,
-        phone: tenant.phone,
-        email: tenant.email,
-        unit: tenant.unit,
-        owner_id: tenant.owner_id,
-        owner_name: tenant.owner_name,
-        owner_unit: tenant.owner_unit,
-        lease_start: tenant.lease_start,
-        lease_end: tenant.lease_end,
-        monthly_rent: tenant.monthly_rent,
-        deposit_paid: tenant.deposit_paid,
-        status: tenant.status,
-      })
-      return { error }
-    }
+    [id, tenant.building_id, tenant.name, tenant.document_id, tenant.phone, tenant.email, tenant.unit, tenant.owner_id, tenant.owner_name, tenant.owner_unit, tenant.lease_start, tenant.lease_end, tenant.monthly_rent, tenant.deposit_paid, tenant.status] as InValue[]
   )
 }
 
@@ -83,28 +55,13 @@ export async function updateTenant(id: string, updates: Partial<DbTenant>): Prom
   values.push(id)
   await executeInsert(
     `UPDATE tenants SET ${fields.join(', ')} WHERE id = ?`,
-    values,
-    async (client) => {
-      const supabaseUpdates: Record<string, unknown> = {}
-      if (updates.name !== undefined) supabaseUpdates.name = updates.name
-      if (updates.status !== undefined) supabaseUpdates.status = updates.status
-      if (updates.monthly_rent !== undefined) supabaseUpdates.monthly_rent = updates.monthly_rent
-      if (updates.lease_end !== undefined) supabaseUpdates.lease_end = updates.lease_end
-      if (updates.phone !== undefined) supabaseUpdates.phone = updates.phone
-      if (updates.email !== undefined) supabaseUpdates.email = updates.email
-      const { error } = await client!.from('tenants').update(supabaseUpdates).eq('id', id)
-      return { error }
-    }
+    values
   )
 }
 
 export async function deleteTenant(id: string): Promise<void> {
   await executeInsert(
     'DELETE FROM tenants WHERE id = ?',
-    [id],
-    async (client) => {
-      const { error } = await client!.from('tenants').delete().eq('id', id)
-      return { error }
-    }
+    [id]
   )
 }

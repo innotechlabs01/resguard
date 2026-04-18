@@ -60,19 +60,19 @@ export function SystemSettingsPanel() {
         </CardContent>
       </Card>
 
-      {/* Stripe Settings */}
+      {/* Bold Payments Settings */}
       <Card className="bg-card border-border">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-foreground">
             <CreditCard className="h-5 w-5" />
-            Configuracion de Pagos (Stripe)
+            Configuracion de Pagos (Bold)
           </CardTitle>
-          <CardDescription>Gestion de Stripe Connect y tarifas de plataforma</CardDescription>
+          <CardDescription>Gestion de pagos con Bold y tarifas de plataforma</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between rounded-lg border border-border p-4">
             <div>
-              <p className="font-medium text-foreground">Stripe Connect</p>
+              <p className="font-medium text-foreground">Bold Collect</p>
               <p className="text-sm text-muted-foreground">Estado de la integracion</p>
             </div>
             <div className="flex items-center gap-2">
@@ -102,6 +102,27 @@ export function SystemSettingsPanel() {
             </div>
           </div>
 
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="boldApiKey">API Key Bold</Label>
+              <Input
+                id="boldApiKey"
+                type="password"
+                placeholder="Ingrese su API Key de Bold"
+                className="bg-input border-border"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="boldSecretKey">Secret Key Bold</Label>
+              <Input
+                id="boldSecretKey"
+                type="password"
+                placeholder="Ingrese su Secret Key de Bold"
+                className="bg-input border-border"
+              />
+            </div>
+          </div>
+
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
               <Label>Cobros Automaticos</Label>
@@ -114,7 +135,7 @@ export function SystemSettingsPanel() {
 
           <Button variant="outline" size="sm">
             <ExternalLink className="mr-2 h-4 w-4" />
-            Abrir Stripe Dashboard
+            Abrir Panel Bold
           </Button>
         </CardContent>
       </Card>

@@ -13,8 +13,9 @@ import { SystemAlertsPanel } from './system-alerts-panel'
 import { SystemSettingsPanel } from './system-settings-panel'
 import type { BuildingStats, SystemStats } from '@/lib/types'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
-import { Menu, LayoutGrid, Building2, Car, CreditCard, Users, BarChart3, Bell, Settings, LogOut } from 'lucide-react'
+import { Menu, LayoutGrid, Building2, Car, CreditCard, Users, BarChart3, Bell, Settings, LogOut, Shield } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { SkeletonCard } from '@/components/ui/skeleton-loaders'
@@ -108,69 +109,114 @@ function MobileHeader({ title, onMenuClick, systemAlerts }: { title: string; onM
 }
 
 export function SuperAdminDashboard() {
-  const { user } = useAuth()
+  const { user, isAuthenticated, isDemoMode, isLoaded } = useAuth()
   const [activeTab, setActiveTab] = useState('overview')
   const [buildings, setBuildings] = useState<BuildingStats[]>([])
   const [systemStats, setSystemStats] = useState<SystemStats | null>(null)
   const [users, setUsers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0)
 
   useAnalyticsTrack(activeTab, 'super-admin')
 
-  // Fetch data from API
+  // Show loading state
+  if (!isLoaded) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <SkeletonCard className="h-64 w-64" />
+      </div>
+    )
+  }
+
+  // Show empty state for demo mode
+  if (isDemoMode || !user) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <Card className="max-w-md mx-4 bg-card border-border">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-foreground">
+              <Shield className="h-6 w-6" />
+              Modo Demo
+            </CardTitle>
+            <CardDescription className="text-muted-foreground">
+              Inicia sesión para acceder al panel de Super Admin.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-4">
+              Este panel solo está disponible para usuarios con rol de Super Admin autenticados con Clerk.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Contacta al administrador si necesitas acceso.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  // Fetch data from API only when authenticated
   useEffect(() => {
+    if (!isAuthenticated) return
+    
     let cancelled = false
     async function fetchData() {
       try {
-        const fetchOptions = { 
-          next: { revalidate: 60, tags: ['buildings', 'stats', 'users'] }
-        }
+        // Use cache: 'no-store' to always get fresh data
+        const fetchOptions = { cache: 'no-store' as RequestCache }
 
         const [buildingsRes, statsRes, usersRes] = await Promise.all([
           fetch('/api/buildings', fetchOptions),
           fetch('/api/stats', fetchOptions),
           fetch('/api/users', fetchOptions),
         ])
+
         if (!cancelled && buildingsRes.ok) {
           const data = await buildingsRes.json()
-          // Map DB buildings to BuildingStats type
-          const mapped: BuildingStats[] = (data.buildings || []).map((b: any) => ({
+          // API returns array directly
+          const buildingsData = Array.isArray(data) ? data : (data.buildings || [])
+          const mapped: BuildingStats[] = buildingsData.map((b: any) => ({
             id: b.id,
             name: b.name,
-            address: b.address,
-            totalUnits: b.total_units,
-            occupiedUnits: 0,
-            totalParkingSpots: b.total_parking_spots,
-            visitorParkingSpots: b.visitor_parking_spots,
-            monthlyRevenue: b.monthly_fee || 0,
-            outstandingBalance: b.outstanding_balance || 0,
-            lastPaymentDate: b.last_payment_date ? new Date(b.last_payment_date) : undefined,
-            subscriptionStatus: b.subscription_status || 'active',
-            activeVisitors: 0,
-            pendingAlerts: 0,
-            status: 'active' as const,
+            address: b.address || '',
+            totalUnits: b.totalUnits || b.total_units || 0,
+            occupiedUnits: b.occupiedUnits || 0,
+            totalParkingSpots: b.totalParkingSpots || b.total_parking_spots || 0,
+            visitorParkingSpots: b.visitorParkingSpots || b.visitor_parking_spots || 0,
+            monthlyRevenue: b.monthlyRevenue || b.monthly_fee || 0,
+            outstandingBalance: b.outstandingBalance || b.outstanding_balance || 0,
+            lastPaymentDate: b.lastPaymentDate || b.last_payment_date ? new Date(b.last_payment_date || b.lastPaymentDate) : undefined,
+            subscriptionStatus: b.subscriptionStatus || b.subscription_status || 'active',
+            activeVisitors: b.activeVisitors || 0,
+            pendingAlerts: b.pendingAlerts || 0,
+            status: (b.status || 'active') as 'active' | 'inactive' | 'maintenance',
           }))
           setBuildings(mapped)
         }
+
         if (!cancelled && statsRes.ok) {
           const data = await statsRes.json()
-          if (data.stats) {
+          const statsData = data.stats || data
+          if (statsData) {
             setSystemStats({
-              totalBuildings: data.stats.total_buildings || 0,
-              activeBuildings: data.stats.active_buildings || 0,
-              totalResidents: data.stats.total_residents || 0,
-              totalRevenue: data.stats.total_revenue || 0,
-              monthlyRecurringRevenue: data.stats.monthly_recurring_revenue || 0,
-              pendingPayments: data.stats.pending_payments || 0,
-              systemAlerts: data.stats.system_alerts || 0,
+              totalBuildings: statsData.total_buildings || statsData.totalBuildings || 0,
+              activeBuildings: statsData.active_buildings || statsData.activeBuildings || 0,
+              totalResidents: statsData.total_residents || statsData.totalResidents || 0,
+              totalRevenue: statsData.total_revenue || statsData.totalRevenue || 0,
+              monthlyRecurringRevenue: statsData.monthly_recurring_revenue || statsData.monthlyRecurringRevenue || 0,
+              pendingPayments: statsData.pending_payments || statsData.pendingPayments || 0,
+              systemAlerts: statsData.system_alerts || statsData.systemAlerts || 0,
             })
           }
         }
 
         if (!cancelled && usersRes.ok) {
           const data = await usersRes.json()
-          setUsers(data.users || [])
+          const usersData = Array.isArray(data) ? data : (data.users || [])
+          if (usersData.length > 0) {
+            setUsers(usersData)
+          }
         }
       } catch (error) {
         console.error('Error fetching super admin data:', error)
@@ -178,13 +224,19 @@ export function SuperAdminDashboard() {
         if (!cancelled) setLoading(false)
       }
     }
-    if (user && user.clerkUserId) {
+
+    if (user) {
       fetchData()
     } else {
       setLoading(false)
     }
+
     return () => { cancelled = true }
-  }, [user])
+  }, [user, isAuthenticated, refreshKey])
+
+  const handleRefresh = () => {
+    setRefreshKey(k => k + 1)
+  }
 
   // Keyboard shortcuts
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -234,7 +286,7 @@ export function SuperAdminDashboard() {
           />
         )
       case 'buildings':
-        return <BuildingsPanel buildings={buildings} />
+        return <BuildingsPanel buildings={buildings} onRefresh={handleRefresh} />
       case 'parking':
         return (
           <Suspense fallback={<SkeletonCard className="h-[400px]" />}>

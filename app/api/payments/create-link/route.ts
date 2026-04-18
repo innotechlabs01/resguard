@@ -39,10 +39,7 @@ export async function POST(request: Request) {
       payerEmail: residentEmail,
     })
 
-    const paymentId = crypto.randomUUID()
-    
     await createPayment({
-      id: paymentId,
       building_id: buildingId,
       building_name: buildingName || 'Edificio',
       amount: amount || 0,
@@ -60,7 +57,6 @@ export async function POST(request: Request) {
       success: true,
       boldLinkId: result.boldLinkId,
       url: result.url,
-      paymentId,
     })
   } catch (error) {
     console.error('Error creating payment link:', error)

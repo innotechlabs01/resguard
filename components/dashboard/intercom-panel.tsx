@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
+import { toast } from 'sonner'
 import { 
   Phone, 
   PhoneCall, 
@@ -89,12 +90,57 @@ export function IntercomPanel() {
     name: '',
     message: '',
   })
+  const [lastPollTimestamp, setLastPollTimestamp] = useState(0)
 
   useEffect(() => {
     if (user?.buildingId) {
       fetchData()
+      startPolling()
     }
   }, [user?.buildingId])
+
+  const startPolling = useCallback(() => {
+    if (!user?.buildingId) return
+    
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/intercom?buildingId=${user.buildingId}&type=poll&lastTimestamp=${lastPollTimestamp}`)
+        const data = await res.json()
+        
+        if (data.events && data.events.length > 0) {
+          setLastPollTimestamp(data.timestamp)
+          
+          for (const event of data.events) {
+            if (event.type === 'new-call') {
+              setCalls(prev => [event, ...prev])
+              toast.info(`🔔 Nueva llamada del apartamento ${event.unit_number}`, {
+                description: event.caller_name || 'Visitante',
+                duration: 10000,
+              })
+            } else if (event.type === 'call-response') {
+              setCalls(prev => prev.map(c => 
+                c.id === event.id ? { ...c, status: event.status, responded_at: new Date().toISOString() } : c
+              ))
+              toast.success(event.status === 'approved' ? '✅ Acceso concedido' : '❌ Acceso denegado', {
+                description: `Apartamento ${event.unitNumber}`,
+              })
+            }
+          }
+        }
+        
+        if (data.calls) {
+          setCalls(data.calls)
+        }
+      } catch (error) {
+        console.error('Polling error:', error)
+      }
+    }
+    
+    poll()
+    const interval = setInterval(poll, 3000)
+    
+    return () => clearInterval(interval)
+  }, [user?.buildingId, lastPollTimestamp])
 
   const fetchData = async () => {
     if (!user?.buildingId) return
@@ -124,7 +170,7 @@ export function IntercomPanel() {
     if (!user?.buildingId || !selectedUnit) return
     
     try {
-      await fetch('/api/intercom', {
+      const res = await fetch('/api/intercom', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -137,10 +183,19 @@ export function IntercomPanel() {
         }),
       })
       
+      const data = await res.json()
       setCallDialogOpen(false)
+      
+      if (data.realtime) {
+        toast.success(`📱 Llamada iniciada - Notificación en tiempo real enviada al apartamento ${selectedUnit.unit_number}`)
+      } else {
+        toast.info('📱 Llamada iniciada (sin realtime)')
+      }
+      
       fetchData()
     } catch (error) {
       console.error('Error initiating call:', error)
+      toast.error('Error al iniciar la llamada')
     }
   }
 

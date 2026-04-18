@@ -25,8 +25,8 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
-import { mockCommunications } from '@/lib/mock-data'
 import type { Communication } from '@/lib/types'
+import { useAuth } from '@/lib/auth-context'
 
 const typeConfig: Record<
   Communication['type'],
@@ -62,22 +62,23 @@ function formatRelativeTime(date: Date) {
   return `Hace ${Math.floor(hrs / 24)} dias`
 }
 
-const MY_USER_ID = 'usuario-1'
-
 interface UsuarioNotificationsProps {
   communications?: Communication[]
 }
 
 export function UsuarioNotifications({ communications: propCommunications }: UsuarioNotificationsProps = {}) {
-  const [communications, setCommunications] = useState<Communication[]>(propCommunications || mockCommunications)
+  const { user } = useAuth()
+  const myUserId = user?.id ?? ''
+  
+  const [communications, setCommunications] = useState<Communication[]>(propCommunications || [])
   const [filter, setFilter] = useState<'all' | 'unread' | 'urgent'>('all')
   const [selectedComm, setSelectedComm] = useState<Communication | null>(null)
 
   const markAsRead = (id: string) => {
     setCommunications((prev) =>
       prev.map((c) =>
-        c.id === id && !c.readBy.includes(MY_USER_ID)
-          ? { ...c, readBy: [...c.readBy, MY_USER_ID] }
+        c.id === id && !c.readBy.includes(myUserId)
+          ? { ...c, readBy: [...c.readBy, myUserId] }
           : c
       )
     )
@@ -86,12 +87,12 @@ export function UsuarioNotifications({ communications: propCommunications }: Usu
   const markAllRead = () => {
     setCommunications((prev) =>
       prev.map((c) =>
-        !c.readBy.includes(MY_USER_ID) ? { ...c, readBy: [...c.readBy, MY_USER_ID] } : c
+        !c.readBy.includes(myUserId) ? { ...c, readBy: [...c.readBy, myUserId] } : c
       )
     )
   }
 
-  const isRead = (comm: Communication) => comm.readBy.includes(MY_USER_ID)
+  const isRead = (comm: Communication) => comm.readBy.includes(myUserId)
 
   const filtered = communications.filter((c) => {
     if (filter === 'unread') return !isRead(c)
