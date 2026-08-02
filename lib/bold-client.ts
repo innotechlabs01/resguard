@@ -1,62 +1,36 @@
-'use strict'
+import { createHash } from 'crypto'
 
 const BOLD_API_URL = 'https://integrations.api.bold.co'
 
 function getBoldApiKey(): string {
   const scope = process.env.APP_SCOPE
-  
   if (scope === 'PRODUCTION') {
     return process.env.BOLD_API_KEY || ''
   }
-  
   return process.env.BOLD_API_KEY_TEST || ''
 }
 
 function getBoldSecretKey(): string {
   const scope = process.env.APP_SCOPE
-  
   if (scope === 'PRODUCTION') {
     return process.env.BOLD_SECRET_KEY || ''
   }
-  
   return process.env.BOLD_SECRET_KEY_TEST || ''
 }
 
 export function getBoldPublicKey(): string {
   const scope = process.env.APP_SCOPE
-  
   if (scope === 'PRODUCTION') {
     return process.env.NEXT_PUBLIC_BOLD_PUBLIC_KEY || ''
   }
-  
   return process.env.NEXT_PUBLIC_BOLD_PUBLIC_KEY_TEST || ''
 }
 
-function isSandbox(): boolean {
+export function isSandbox(): boolean {
   return process.env.APP_SCOPE !== 'PRODUCTION'
 }
 
-export async function generateIntegrityHash(
-  orderId: string,
-  amount: number,
-  currency: string
-): Promise<string> {
-  const secretKey = getBoldSecretKey()
-  if (!secretKey) {
-    throw new Error('Bold secret key no configurada')
-  }
-  
-  const cadena = `${orderId}${amount}${currency}${secretKey}`
-  
-  const encoder = new TextEncoder()
-  const data = encoder.encode(cadena)
-  
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
-  const hashArray = Array.from(new Uint8Array(hashBuffer))
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
-}
-
-export function generateIntegrityHashSync(
+export function generateIntegrityHash(
   orderId: string,
   amount: number,
   currency: string
@@ -65,35 +39,8 @@ export function generateIntegrityHashSync(
   if (!secretKey) {
     throw new Error('Bold secret key no configurada')
   }
-  
   const cadena = `${orderId}${amount}${currency}${secretKey}`
-  
-  let hash = 0
-  for (let i = 0; i < cadena.length; i++) {
-    const char = cadena.charCodeAt(i)
-    hash = ((hash << 5) - hash) + char
-    hash = hash & hash
-  }
-  
-  const hexHash = Math.abs(hash).toString(16).padStart(8, '0').repeat(8).slice(0, 64)
-  return hexHash
-}
-
-import { createHash } from 'crypto'
-
-export function generateIntegrityHashServer(
-  orderId: string,
-  amount: number,
-  currency: string
-): string {
-  const secretKey = getBoldSecretKey()
-  if (!secretKey) {
-    throw new Error('Bold secret key no configurada')
-  }
-  
-  const cadena = `${orderId}${amount}${currency}${secretKey}`
-  const hash = createHash('sha256').update(cadena).digest('hex')
-  return hash
+  return createHash('sha256').update(cadena).digest('hex')
 }
 
 interface BoldPaymentMethods {
@@ -146,7 +93,7 @@ async function boldRequest<T>(
   body?: object
 ): Promise<T> {
   const apiKey = getBoldApiKey()
-  
+
   if (!apiKey) {
     throw new Error('Bold API key no configurada')
   }
@@ -308,5 +255,3 @@ export function mapBoldStatusToApp(boldStatus: string): 'succeeded' | 'pending' 
       return 'pending'
   }
 }
-
-export { isSandbox }

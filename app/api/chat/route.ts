@@ -2,6 +2,9 @@ import { streamText, UIMessage, convertToModelMessages, consumeStream } from 'ai
 import { buildingRegulations } from '@/lib/mock-data'
 import { secureApiHandler, addSecurityHeaders } from './../../../lib/api/securityMiddleware'
 import { NextResponse } from 'next/server'
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'api/chat' })
 
 export const maxDuration = 30
 
@@ -35,7 +38,7 @@ async function handler(req: Request) {
   let response = result.toUIMessageStreamResponse({
     onFinish: async ({ isAborted }) => {
       if (isAborted) {
-        console.log('Chat stream aborted')
+        log.info('Chat stream aborted')
       }
     },
     consumeSseStream: consumeStream,

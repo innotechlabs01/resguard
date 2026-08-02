@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { getIntercomUnits, getIntercomCalls, createIntercomCall, respondToCall } from '@/lib/db/queries/intercom'
 import { getSupabaseAdmin } from '@/lib/db/supabase'
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'api/intercom' })
 
 const hasClerk = Boolean(process.env.CLERK_SECRET_KEY?.trim())
 const POLL_INTERVAL_MS = 3000
@@ -72,7 +75,7 @@ export async function GET(request: Request) {
     const units = await getIntercomUnits(buildingId)
     return NextResponse.json({ units })
   } catch (error) {
-    console.error('Error fetching intercom data:', error)
+    log.error({ error }, 'Error fetching intercom data')
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
@@ -146,7 +149,7 @@ export async function POST(request: Request) {
       polling: true,
     })
   } catch (error) {
-    console.error('Error processing intercom action:', error)
+    log.error({ error }, 'Error processing intercom action')
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

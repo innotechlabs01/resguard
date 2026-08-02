@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { getAlerts, createAlert, updateAlert, deleteAlert } from '@/lib/db/queries/alerts'
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'api/alerts' })
 
 const hasClerk = Boolean(process.env.CLERK_SECRET_KEY?.trim())
 
@@ -21,7 +24,7 @@ export async function GET(request: Request) {
     const alerts = await getAlerts(buildingId)
     return NextResponse.json(alerts)
   } catch (error) {
-    console.error('Error fetching alerts:', error)
+    log.error({ error }, 'Error fetching alerts')
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
@@ -51,7 +54,7 @@ export async function POST(request: Request) {
     await createAlert(alertData)
     return NextResponse.json({ success: true, message: 'Alert created successfully' }, { status: 201 })
   } catch (error) {
-    console.error('Error creating alert:', error)
+    log.error({ error }, 'Error creating alert')
     return NextResponse.json({ error: 'Failed to create alert', details: String(error) }, { status: 500 })
   }
 }
@@ -75,7 +78,7 @@ export async function PUT(request: Request) {
     await updateAlert(id, updates)
     return NextResponse.json({ success: true, message: 'Alert updated successfully' })
   } catch (error) {
-    console.error('Error updating alert:', error)
+    log.error({ error }, 'Error updating alert')
     return NextResponse.json({ error: 'Failed to update alert' }, { status: 500 })
   }
 }
@@ -99,7 +102,7 @@ export async function DELETE(request: Request) {
     await deleteAlert(id)
     return NextResponse.json({ success: true, message: 'Alert deleted successfully' })
   } catch (error) {
-    console.error('Error deleting alert:', error)
+    log.error({ error }, 'Error deleting alert')
     return NextResponse.json({ error: 'Failed to delete alert' }, { status: 500 })
   }
 }

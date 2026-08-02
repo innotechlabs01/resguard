@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { getVisitors, createVisitor, updateVisitor, deleteVisitor } from '@/lib/db/queries/visitors'
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'api/visitors' })
 
 const hasClerk = Boolean(process.env.CLERK_SECRET_KEY?.trim())
 
@@ -24,7 +27,7 @@ export async function GET(request: Request) {
     const visitors = await getVisitors(buildingId)
     return NextResponse.json({ visitors })
   } catch (error) {
-    console.error('Error fetching visitors:', error)
+    log.error({ error }, 'Error fetching visitors')
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
@@ -57,7 +60,7 @@ export async function POST(request: Request) {
     await createVisitor(visitorData)
     return NextResponse.json({ success: true, message: 'Visitor registered successfully' }, { status: 201 })
   } catch (error) {
-    console.error('Error creating visitor:', error)
+    log.error({ error }, 'Error creating visitor')
     return NextResponse.json({ error: 'Failed to register visitor', details: String(error) }, { status: 500 })
   }
 }
@@ -81,7 +84,7 @@ export async function PUT(request: Request) {
     await updateVisitor(id, updates)
     return NextResponse.json({ success: true, message: 'Visitor updated successfully' })
   } catch (error) {
-    console.error('Error updating visitor:', error)
+    log.error({ error }, 'Error updating visitor')
     return NextResponse.json({ error: 'Failed to update visitor' }, { status: 500 })
   }
 }
@@ -105,7 +108,7 @@ export async function DELETE(request: Request) {
     await deleteVisitor(id)
     return NextResponse.json({ success: true, message: 'Visitor deleted successfully' })
   } catch (error) {
-    console.error('Error deleting visitor:', error)
+    log.error({ error }, 'Error deleting visitor')
     return NextResponse.json({ error: 'Failed to delete visitor' }, { status: 500 })
   }
 }

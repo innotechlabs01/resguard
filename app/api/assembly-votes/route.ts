@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { getAssemblyVotes, createAssemblyVote, updateVoteStatus, getVoteById, getVoteResponses, castVote, hasUserVoted } from '@/lib/db/queries/assemblies'
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'api/assembly-votes' })
 
 export const dynamic = 'force-dynamic'
 
@@ -29,7 +32,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ error: 'assemblyId or voteId required' }, { status: 400 })
   } catch (error) {
-    console.error('Error fetching votes:', error)
+    log.error({ error }, 'Error fetching votes')
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
@@ -76,7 +79,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ id, message: 'Vote created successfully' })
   } catch (error) {
-    console.error('Error processing vote:', error)
+    log.error({ error }, 'Error processing vote')
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
@@ -104,7 +107,7 @@ export async function PUT(request: Request) {
 
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   } catch (error) {
-    console.error('Error updating status:', error)
+    log.error({ error }, 'Error updating status')
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

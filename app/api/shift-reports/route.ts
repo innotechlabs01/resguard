@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { getShiftReports } from '@/lib/db/queries/shift-reports'
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'api/shift-reports' })
 
 export async function GET(request: Request) {
   try {
@@ -18,7 +21,7 @@ export async function GET(request: Request) {
     const reports = await getShiftReports(buildingId)
     return NextResponse.json({ reports })
   } catch (error) {
-    console.error('Error fetching shift reports:', error)
+    log.error({ error }, 'Error fetching shift reports')
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

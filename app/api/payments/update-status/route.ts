@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server'
 import { updatePayment } from '@/lib/db/queries/payments'
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'api/payments/update-status' })
 
 export async function POST(request: Request) {
   try {
@@ -17,7 +20,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('Error updating payment status:', error)
+    log.error({ error }, 'Error updating payment status')
     return NextResponse.json(
       { error: 'Error al actualizar estado del pago' },
       { status: 500 }

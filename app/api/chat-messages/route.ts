@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { getChatMessages } from '@/lib/db/queries/chat-messages'
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'api/chat-messages' })
 
 export async function GET(request: Request) {
   try {
@@ -19,7 +22,7 @@ export async function GET(request: Request) {
     const messages = await getChatMessages(buildingId, limit)
     return NextResponse.json({ messages })
   } catch (error) {
-    console.error('Error fetching chat messages:', error)
+    log.error({ error }, 'Error fetching chat messages')
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

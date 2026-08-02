@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { getResidents, createResident, updateResident, deleteResident } from '@/lib/db/queries/residents'
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'api/residents' })
 
 const hasClerk = Boolean(process.env.CLERK_SECRET_KEY?.trim())
 
@@ -24,7 +27,7 @@ export async function GET(request: Request) {
     const residents = await getResidents(buildingId)
     return NextResponse.json({ residents })
   } catch (error) {
-    console.error('Error fetching residents:', error)
+    log.error({ error }, 'Error fetching residents')
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
@@ -60,7 +63,7 @@ export async function POST(request: Request) {
     await createResident(residentData)
     return NextResponse.json({ success: true, message: 'Resident created successfully' }, { status: 201 })
   } catch (error) {
-    console.error('Error creating resident:', error)
+    log.error({ error }, 'Error creating resident')
     return NextResponse.json({ error: 'Failed to create resident', details: String(error) }, { status: 500 })
   }
 }
@@ -84,7 +87,7 @@ export async function PUT(request: Request) {
     await updateResident(id, updates)
     return NextResponse.json({ success: true, message: 'Resident updated successfully' })
   } catch (error) {
-    console.error('Error updating resident:', error)
+    log.error({ error }, 'Error updating resident')
     return NextResponse.json({ error: 'Failed to update resident' }, { status: 500 })
   }
 }
@@ -108,7 +111,7 @@ export async function DELETE(request: Request) {
     await deleteResident(id)
     return NextResponse.json({ success: true, message: 'Resident deleted successfully' })
   } catch (error) {
-    console.error('Error deleting resident:', error)
+    log.error({ error }, 'Error deleting resident')
     return NextResponse.json({ error: 'Failed to delete resident' }, { status: 500 })
   }
 }

@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { getParkingSpots, createParkingSpot, updateParkingSpot, deleteParkingSpot } from '@/lib/db/queries/parking'
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'api/parking' })
 
 const hasClerk = Boolean(process.env.CLERK_SECRET_KEY?.trim())
 
@@ -24,7 +27,7 @@ export async function GET(request: Request) {
     const spots = await getParkingSpots(buildingId)
     return NextResponse.json({ spots })
   } catch (error) {
-    console.error('Error fetching parking spots:', error)
+    log.error({ error }, 'Error fetching parking spots')
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
@@ -55,7 +58,7 @@ export async function POST(request: Request) {
     await createParkingSpot(spotData)
     return NextResponse.json({ success: true, message: 'Parking spot created successfully' }, { status: 201 })
   } catch (error) {
-    console.error('Error creating parking spot:', error)
+    log.error({ error }, 'Error creating parking spot')
     return NextResponse.json({ error: 'Failed to create parking spot', details: String(error) }, { status: 500 })
   }
 }
@@ -79,7 +82,7 @@ export async function PUT(request: Request) {
     await updateParkingSpot(id, updates)
     return NextResponse.json({ success: true, message: 'Parking spot updated successfully' })
   } catch (error) {
-    console.error('Error updating parking spot:', error)
+    log.error({ error }, 'Error updating parking spot')
     return NextResponse.json({ error: 'Failed to update parking spot' }, { status: 500 })
   }
 }
@@ -103,7 +106,7 @@ export async function DELETE(request: Request) {
     await deleteParkingSpot(id)
     return NextResponse.json({ success: true, message: 'Parking spot deleted successfully' })
   } catch (error) {
-    console.error('Error deleting parking spot:', error)
+    log.error({ error }, 'Error deleting parking spot')
     return NextResponse.json({ error: 'Failed to delete parking spot' }, { status: 500 })
   }
 }

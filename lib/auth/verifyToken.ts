@@ -1,12 +1,13 @@
 import { jwtVerify } from 'jose'
+import { logger } from '@/lib/logger'
 
-// Clerk's JWKS endpoint
 const CLERK_JWKS_URL = 'https://api.clerk.dev/v1/jwks'
 
-// Cache the JWKS
 let jwksCache: any = null
 let jwksCacheTime = 0
-const JWKS_CACHE_TTL = 5 * 60 * 1000 // 5 minutes
+const JWKS_CACHE_TTL = 5 * 60 * 1000
+
+const log = logger.child({ module: 'auth/verifyToken' })
 
 async function getJWKS() {
   const now = Date.now()
@@ -30,12 +31,11 @@ export async function verifyClerkToken(token: string) {
     const { payload } = await jwtVerify(token, jwks)
     return payload
   } catch (error) {
-    console.error('Failed to verify Clerk token:', error)
+    log.error({ error }, 'Failed to verify Clerk token')
     throw new Error('Invalid or expired token')
   }
 }
 
-// Helper to extract token from Authorization header
 export function getTokenFromHeader(header: string | undefined): string | null {
   if (!header) return null
   const match = header.match(/^Bearer\s+(.+)$/i)

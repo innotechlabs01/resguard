@@ -54,7 +54,7 @@ export async function getUsers(): Promise<DbUser[]> {
 }
 
 export async function createUser(user: {
-  clerk_user_id: string
+  clerk_user_id: string | null
   email: string
   name: string
   role: string

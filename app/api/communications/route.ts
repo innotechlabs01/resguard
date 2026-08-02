@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { getCommunications, createCommunication, updateCommunication } from '@/lib/db/queries/communications'
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'api/communications' })
 
 const hasClerk = Boolean(process.env.CLERK_SECRET_KEY?.trim())
 
@@ -24,7 +27,7 @@ export async function GET(request: Request) {
     const communications = await getCommunications(buildingId)
     return NextResponse.json({ communications })
   } catch (error) {
-    console.error('Error fetching communications:', error)
+    log.error({ error }, 'Error fetching communications')
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
@@ -57,7 +60,7 @@ export async function POST(request: Request) {
     await createCommunication(commData)
     return NextResponse.json({ success: true, message: 'Communication created successfully' }, { status: 201 })
   } catch (error) {
-    console.error('Error creating communication:', error)
+    log.error({ error }, 'Error creating communication')
     return NextResponse.json({ error: 'Failed to create communication', details: String(error) }, { status: 500 })
   }
 }
@@ -81,7 +84,7 @@ export async function PUT(request: Request) {
     await updateCommunication(id, updates)
     return NextResponse.json({ success: true, message: 'Communication updated successfully' })
   } catch (error) {
-    console.error('Error updating communication:', error)
+    log.error({ error }, 'Error updating communication')
     return NextResponse.json({ error: 'Failed to update communication' }, { status: 500 })
   }
 }

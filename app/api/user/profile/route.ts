@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
-import { getUserByClerkId } from '@/lib/db/queries/users'
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'api/user/profile' })
 
 export async function GET() {
   try {
@@ -8,17 +10,9 @@ export async function GET() {
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-
-    console.log('User ID:', userId);
-
-    const user = await getUserByClerkId(userId)
-    if (!user) {
-      return NextResponse.json({ error: 'User not found in database. Please contact administrator.' }, { status: 404 })
-    }
-
-    return NextResponse.json({ user })
+    return NextResponse.json({ userId })
   } catch (error) {
-    console.error('Error fetching user profile:', error)
+    log.error({ error }, 'Error fetching user profile')
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { getRentalListings } from '@/lib/db/queries/rentals'
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'api/rentals' })
 
 export async function GET(request: Request) {
   try {
@@ -18,7 +21,7 @@ export async function GET(request: Request) {
     const listings = await getRentalListings(buildingId)
     return NextResponse.json({ listings })
   } catch (error) {
-    console.error('Error fetching rental listings:', error)
+    log.error({ error }, 'Error fetching rental listings')
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { getPayments } from '@/lib/db/queries/payments'
+import { logger } from '@/lib/logger'
 
 const hasClerk = Boolean(process.env.CLERK_SECRET_KEY?.trim())
+const log = logger.child({ module: 'api/payments' })
 
 export const dynamic = 'force-dynamic'
 
@@ -19,7 +21,7 @@ export async function GET(request: Request) {
     const buildingId = searchParams.get('buildingId') ?? undefined
 
     const payments = await getPayments(buildingId)
-    
+
     const formattedPayments = payments.map(p => ({
       id: p.id,
       buildingId: p.building_id,
@@ -40,7 +42,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ payments: formattedPayments })
   } catch (error) {
-    console.error('Error fetching payments:', error)
+    log.error({ error }, 'Error fetching payments')
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

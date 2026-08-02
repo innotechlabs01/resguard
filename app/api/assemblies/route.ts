@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { getAssemblies, createAssembly, getAssemblyById, updateAssemblyStatus } from '@/lib/db/queries/assemblies'
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'api/assemblies' })
 
 export const dynamic = 'force-dynamic'
 
@@ -20,7 +23,7 @@ export async function GET(request: Request) {
     const assemblies = await getAssemblies(buildingId)
     return NextResponse.json({ assemblies })
   } catch (error) {
-    console.error('Error fetching assemblies:', error)
+    log.error({ error }, 'Error fetching assemblies')
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
@@ -52,7 +55,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ id, message: 'Assembly created successfully' })
   } catch (error) {
-    console.error('Error creating assembly:', error)
+    log.error({ error }, 'Error creating assembly')
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

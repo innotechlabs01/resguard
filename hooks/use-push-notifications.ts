@@ -9,7 +9,7 @@ export function usePushNotifications() {
 
   const handleForegroundMessage = useCallback((payload: any) => {
     const { notification, data } = payload
-    
+
     const type = data?.type as 'visitor' | 'package' | 'alert' || 'alert'
     const title = notification?.title || 'Nueva notificación'
     const message = notification?.body || data?.message || ''
@@ -37,30 +37,16 @@ export function usePushNotifications() {
       try {
         const permission = await Notification.requestPermission()
         if (permission === 'granted') {
-          console.log('Notification permission granted')
-          
           const token = await getFcmToken()
-          if (token) {
-            console.log('FCM Token:', token)
-            
-            // TODO: Send token to your backend to store for this user
-            // await fetch('/api/notifications/register-token', {
-            //   method: 'POST',
-            //   body: JSON.stringify({ token, userId: user?.id }),
-            // })
-          }
 
-          // Listen for foreground messages
           const unsubscribe = onForegroundMessage(handleForegroundMessage)
-          
+
           return () => {
             unsubscribe()
           }
-        } else {
-          console.log('Notification permission denied')
         }
       } catch (error) {
-        console.error('Error initializing push notifications:', error)
+        // Push notifications failed to initialize
       }
     }
 

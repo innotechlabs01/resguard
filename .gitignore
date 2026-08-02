@@ -27,4 +27,12 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-*.json
+# firebase service accounts
+*-firebase-*.json
+serviceAccount*.json
+
+# debug / dev scripts
+scripts/
+
+# os
+.DS_Store

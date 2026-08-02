@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { getUsers, createUser, updateUser, deleteUser } from '@/lib/db/queries/users'
+import { validateBody, CreateUserSchema } from '@/lib/validation'
+import { logger } from '@/lib/logger'
 
 const hasClerk = Boolean(process.env.CLERK_SECRET_KEY?.trim())
+const log = logger.child({ module: 'api/users' })
 
 export const dynamic = 'force-dynamic'
 
@@ -25,7 +28,7 @@ export async function GET() {
     }))
     return NextResponse.json(formattedUsers)
   } catch (error) {
-    console.error('Error fetching users:', error)
+    log.error({ error }, 'Error fetching users')
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
@@ -40,20 +43,20 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    
-    const userData = {
-      clerk_user_id: body.clerk_user_id || null,
-      email: body.email,
-      name: body.name,
-      role: body.role,
-      building_id: body.building_id || null,
-    }
+    const validation = validateBody(CreateUserSchema, body)
+    if (!validation.success) return validation.response
 
-    await createUser(userData)
+    await createUser({
+      clerk_user_id: validation.data.clerk_user_id,
+      email: validation.data.email,
+      name: validation.data.name,
+      role: validation.data.role,
+      building_id: validation.data.building_id || null,
+    })
     return NextResponse.json({ success: true, message: 'User created successfully' }, { status: 201 })
   } catch (error) {
-    console.error('Error creating user:', error)
-    return NextResponse.json({ error: 'Failed to create user', details: String(error) }, { status: 500 })
+    log.error({ error }, 'Error creating user')
+    return NextResponse.json({ error: 'Failed to create user' }, { status: 500 })
   }
 }
 
@@ -76,7 +79,7 @@ export async function PUT(request: Request) {
     await updateUser(id, updates)
     return NextResponse.json({ success: true, message: 'User updated successfully' })
   } catch (error) {
-    console.error('Error updating user:', error)
+    log.error({ error }, 'Error updating user')
     return NextResponse.json({ error: 'Failed to update user' }, { status: 500 })
   }
 }
@@ -100,7 +103,7 @@ export async function DELETE(request: Request) {
     await deleteUser(id)
     return NextResponse.json({ success: true, message: 'User deleted successfully' })
   } catch (error) {
-    console.error('Error deleting user:', error)
+    log.error({ error }, 'Error deleting user')
     return NextResponse.json({ error: 'Failed to delete user' }, { status: 500 })
   }
 }

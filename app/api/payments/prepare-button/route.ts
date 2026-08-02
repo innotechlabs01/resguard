@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
-import { createPayment, getPaymentById, updatePayment } from '@/lib/db/queries/payments'
-import { getBoldPublicKey, generateIntegrityHashServer } from '@/lib/bold-client'
+import { createPayment, getPaymentById } from '@/lib/db/queries/payments'
+import { getBoldPublicKey, generateIntegrityHash } from '@/lib/bold-client'
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'api/payments/prepare-button' })
 
 export async function POST(request: Request) {
   try {
@@ -42,7 +45,7 @@ export async function POST(request: Request) {
     
     let hash = ''
     if (paymentAmount > 0) {
-      hash = generateIntegrityHashServer(orderId, paymentAmount, currency)
+      hash = generateIntegrityHash(orderId, paymentAmount, currency)
     }
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
@@ -86,7 +89,7 @@ export async function POST(request: Request) {
       paymentId,
     })
   } catch (error) {
-    console.error('Error preparing payment button:', error)
+    log.error({ error }, 'Error preparing payment button')
     return NextResponse.json(
       { error: 'Error al preparar pago' },
       { status: 500 }

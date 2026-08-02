@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { getMarketplaceProducts } from '@/lib/db/queries/marketplace'
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'api/marketplace' })
 
 export async function GET(request: Request) {
   try {
@@ -18,7 +21,7 @@ export async function GET(request: Request) {
     const products = await getMarketplaceProducts(buildingId)
     return NextResponse.json({ products })
   } catch (error) {
-    console.error('Error fetching marketplace products:', error)
+    log.error({ error }, 'Error fetching marketplace products')
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
