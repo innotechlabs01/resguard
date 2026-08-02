@@ -90,13 +90,13 @@ export function VisitorList({ visitors, onVisitorExit }: VisitorListProps) {
   return (
     <Card className="border-border bg-card">
       <CardHeader className="pb-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <CardTitle className="flex items-center gap-2 text-foreground">
               <Users className="h-5 w-5" />
               Visitor Registry
             </CardTitle>
-            <div className="mt-2 flex items-center gap-4 text-sm text-muted-foreground">
+            <div className="mt-2 flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
               <span className="flex items-center gap-1">
                 <span className="h-2 w-2 rounded-full bg-success" />
                 {activeCount} active
@@ -111,7 +111,7 @@ export function VisitorList({ visitors, onVisitorExit }: VisitorListProps) {
               </span>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             {/* Search */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -119,7 +119,7 @@ export function VisitorList({ visitors, onVisitorExit }: VisitorListProps) {
                 placeholder="Search visitors..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-64 bg-secondary pl-9"
+                className="w-full sm:w-64 bg-secondary pl-9"
               />
             </div>
             {/* Filter */}
@@ -145,7 +145,7 @@ export function VisitorList({ visitors, onVisitorExit }: VisitorListProps) {
         </div>
       </CardHeader>
       <CardContent>
-        <div className="rounded-lg border border-border">
+        <div className="rounded-lg border border-border overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow className="border-border hover:bg-transparent">

@@ -10,9 +10,10 @@ interface HeaderProps {
   title: string
   onNewEntry: () => void
   unreadAlerts: number
+  onNotificationsClick?: () => void
 }
 
-export function Header({ title, onNewEntry, unreadAlerts }: HeaderProps) {
+export function Header({ title, onNewEntry, unreadAlerts, onNotificationsClick }: HeaderProps) {
   const [currentTime, setCurrentTime] = useState(new Date())
 
   useEffect(() => {
@@ -41,10 +42,10 @@ export function Header({ title, onNewEntry, unreadAlerts }: HeaderProps) {
   }
 
   return (
-    <header className="flex items-center justify-between border-b border-border bg-card px-6 py-4">
+    <header className="flex flex-col gap-4 border-b border-border bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-4">
       <div className="flex items-center gap-6">
         <div>
-          <h2 className="text-2xl font-semibold text-foreground">{title}</h2>
+          <h2 className="text-xl font-semibold text-foreground sm:text-2xl">{title}</h2>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Building2 className="h-4 w-4" />
             <span>Torres del Parque - Building A</span>
@@ -52,13 +53,13 @@ export function Header({ title, onNewEntry, unreadAlerts }: HeaderProps) {
         </div>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
         {/* Search */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search visitors, plates..."
-            className="w-64 bg-secondary pl-9"
+            className="w-full sm:w-64 bg-secondary pl-9"
           />
         </div>
 
@@ -73,25 +74,27 @@ export function Header({ title, onNewEntry, unreadAlerts }: HeaderProps) {
           </div>
         </div>
 
-        {/* Notifications */}
-        <Button variant="outline" size="icon" className="relative bg-transparent">
-          <Bell className="h-5 w-5" />
-          {unreadAlerts > 0 && (
-            <Badge
-              variant="destructive"
-              className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center p-0 text-xs"
-            >
-              {unreadAlerts}
-            </Badge>
-          )}
-        </Button>
+        {/* Notifications & New Entry */}
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="icon" className="relative bg-transparent" onClick={onNotificationsClick}>
+            <Bell className="h-5 w-5" />
+            {unreadAlerts > 0 && (
+              <Badge
+                variant="destructive"
+                className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center p-0 text-xs"
+              >
+                {unreadAlerts}
+              </Badge>
+            )}
+          </Button>
 
-        {/* New Entry Button */}
-        <Button onClick={onNewEntry} className="gap-2">
-          <Plus className="h-4 w-4" />
-          New Entry
-          <kbd className="ml-1 rounded bg-primary-foreground/20 px-1.5 py-0.5 text-xs">F1</kbd>
-        </Button>
+          {/* New Entry Button */}
+          <Button onClick={onNewEntry} className="gap-2">
+            <Plus className="h-4 w-4" />
+            <span className="hidden sm:inline">New Entry</span>
+            <kbd className="ml-1 rounded bg-primary-foreground/20 px-1.5 py-0.5 text-xs hidden sm:inline">F1</kbd>
+          </Button>
+        </div>
       </div>
     </header>
   )

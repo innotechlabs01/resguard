@@ -41,35 +41,6 @@ interface ParkingRequest {
   spotAssigned?: string
 }
 
-const mockRequests: ParkingRequest[] = [
-  {
-    id: '1',
-    visitorName: 'Juan Perez',
-    vehiclePlate: 'ABC-123',
-    date: new Date(),
-    duration: 2,
-    status: 'approved',
-    spotAssigned: 'V-02',
-  },
-  {
-    id: '2',
-    visitorName: 'Maria Garcia',
-    vehiclePlate: 'XYZ-789',
-    date: new Date(Date.now() + 24 * 60 * 60 * 1000),
-    duration: 3,
-    status: 'pending',
-  },
-  {
-    id: '3',
-    visitorName: 'Carlos Lopez',
-    vehiclePlate: 'DEF-456',
-    date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-    duration: 2,
-    status: 'completed',
-    spotAssigned: 'V-05',
-  },
-]
-
 const statusConfig = {
   pending: { label: 'Pendiente', icon: Clock, color: 'text-warning bg-warning/10' },
   approved: { label: 'Aprobado', icon: CheckCircle, color: 'text-success bg-success/10' },
@@ -78,7 +49,7 @@ const statusConfig = {
 }
 
 export function ParkingRequests() {
-  const [requests, setRequests] = useState<ParkingRequest[]>(mockRequests)
+  const [requests, setRequests] = useState<ParkingRequest[]>([])
   const [dialogOpen, setDialogOpen] = useState(false)
   const [newRequest, setNewRequest] = useState({
     visitorName: '',

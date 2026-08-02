@@ -4,10 +4,12 @@ export type UserRole = 'super_admin' | 'admin' | 'vigilante' | 'usuario'
 
 export interface User {
   id: string
+  clerkUserId?: string
   name: string
   email: string
   role: UserRole
-  buildingId?: string // For admin and vigilante - which building they belong to
+  buildingId?: string
+  buildingName?: string
   avatar?: string
 }
 
@@ -93,9 +95,10 @@ export interface Alert {
 
 export interface ShiftReport {
   id: string
+  buildingId: string
   guardName: string
   shiftStart: Date
-  shiftEnd: Date
+  shiftEnd?: Date
   incidents: string[]
   notes: string
   audioTranscription?: string
@@ -111,10 +114,15 @@ export interface Building {
   stripeAccountId?: string
   monthlyFee: number
   currency: string
+  outstandingBalance: number
+  lastPaymentDate?: Date
+  subscriptionStatus: 'active' | 'past_due' | 'canceled' | 'trialing'
 }
 
 export interface ChatMessage {
   id: string
+  buildingId: string
+  userId?: string
   role: 'user' | 'assistant'
   content: string
   timestamp: Date
@@ -208,6 +216,7 @@ export interface Communication {
 
 export interface Resident {
   id: string
+  buildingId: string
   name: string
   unit: string
   phone: string
@@ -222,4 +231,172 @@ export interface Resident {
   }
   hasRentalListing?: boolean
   hasMarketplaceListing?: boolean
+}
+
+// Bold Payment Types
+
+export type BoldPaymentStatus = 'ACTIVE' | 'PROCESSING' | 'PAID' | 'REJECTED' | 'CANCELLED' | 'EXPIRED'
+export type BoldAmountType = 'OPEN' | 'CLOSE'
+export type BoldPaymentMethod = 'CREDIT_CARD' | 'PSE' | 'BOTON_BANCOLOMBIA' | 'NEQUI'
+
+export interface BoldPaymentLink {
+  id: string
+  boldLinkId: string
+  url: string
+  amount: number
+  amountType: BoldAmountType
+  description: string
+  status: BoldPaymentStatus
+  paymentMethod?: BoldPaymentMethod
+  transactionId?: string
+  createdAt: Date
+  expirationDate?: Date
+}
+
+export interface BoldPaymentMethodsResponse {
+  payload: {
+    payment_methods: {
+      CREDIT_CARD?: { max: number; min: number }
+      PSE?: { max: number; min: number }
+      BOTON_BANCOLOMBIA?: { max: number; min: number }
+      NEQUI?: { max: number; min: number }
+    }
+  }
+  errors: string[]
+}
+
+export interface BoldCreateLinkRequest {
+  amount_type: BoldAmountType
+  amount?: {
+    currency: string
+    total_amount: number
+    tip_amount?: number
+    taxes?: Array<{
+      type: 'VAT' | 'CONSUMPTION'
+      base: number
+      value: number
+    }>
+  }
+  reference?: string
+  description?: string
+  expiration_date?: number
+  payment_methods?: BoldPaymentMethod[]
+  payer_email?: string
+  image_url?: string
+}
+
+export interface BoldCreateLinkResponse {
+  payload: {
+    payment_link: string
+    url: string
+  }
+  errors: string[]
+}
+
+export interface BoldPaymentStatusResponse {
+  api_version: number
+  id: string
+  total: number
+  subtotal: number
+  tip_amount: number
+  taxes: Array<{
+    type: string
+    base: number
+    value: number
+  }>
+  status: BoldPaymentStatus
+  expiration_date: number | null
+  creation_date: number
+  description: string | null
+  payment_method: string | null
+  transaction_id: string | null
+  amount_type: BoldAmountType
+  is_sandbox: boolean
+  reference: string
+}
+
+// Assembly and Voting Types
+export interface Assembly {
+  id: string
+  buildingId: string
+  title: string
+  description: string
+  date: Date
+  time: string
+  location: string
+  status: 'scheduled' | 'active' | 'completed' | 'cancelled'
+  createdAt: Date
+  createdBy: string
+}
+
+export interface AssemblyVote {
+  id: string
+  assemblyId: string
+  title: string
+  description: string
+  options: VoteOption[]
+  status: 'pending' | 'active' | 'closed'
+  requiredQuorum?: number
+  createdAt: Date
+  createdBy: string
+}
+
+export interface VoteOption {
+  id: string
+  label: string
+  votes: number
+}
+
+export interface VoteResponse {
+  id: string
+  voteId: string
+  userId: string
+  userName: string
+  unit: string
+  optionId: string
+  votedAt: Date
+}
+
+// Intercom (Citofono) Types
+export interface IntercomUnit {
+  id: string
+  buildingId: string
+  unitNumber: string
+  ownerId?: string
+  ownerName?: string
+  ownerPhone?: string
+  ownerEmail?: string
+  tenantId?: string
+  tenantName?: string
+  tenantPhone?: string
+  tenantEmail?: string
+}
+
+export interface IntercomCall {
+  id: string
+  buildingId: string
+  unitId: string
+  unitNumber: string
+  callerType: 'visitor' | 'delivery' | 'other'
+  callerName?: string
+  callerMessage?: string
+  status: 'pending' | 'approved' | 'rejected' | 'expired'
+  createdAt: Date
+  respondedAt?: Date
+  respondedBy?: string
+  responseNote?: string
+}
+
+export interface IntercomNotification {
+  id: string
+  callId: string
+  userId: string
+  userName: string
+  buildingId: string
+  unitId: string
+  unitNumber: string
+  title: string
+  body: string
+  status: 'pending' | 'read' | 'action_taken'
+  createdAt: Date
 }

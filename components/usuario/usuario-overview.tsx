@@ -15,7 +15,6 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { mockCommunications } from '@/lib/mock-data'
 
 interface UsuarioOverviewProps {
   residentName: string
@@ -25,6 +24,7 @@ interface UsuarioOverviewProps {
   activeReservations: number
   notifications: number
   onTabChange?: (tab: string) => void
+  communications?: any[]
 }
 
 export function UsuarioOverview({
@@ -35,8 +35,9 @@ export function UsuarioOverview({
   activeReservations,
   notifications,
   onTabChange,
+  communications: propCommunications,
 }: UsuarioOverviewProps) {
-  const latestComms = mockCommunications.slice(0, 2)
+  const latestComms = (propCommunications || []).slice(0, 2)
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('es-CO', {
       style: 'currency',
@@ -48,17 +49,17 @@ export function UsuarioOverview({
   return (
     <div className="space-y-6">
       {/* Welcome Section */}
-      <div className="rounded-lg border border-border bg-gradient-to-r from-warning/10 to-warning/5 p-6">
-        <h2 className="text-2xl font-bold text-foreground">
+      <div className="rounded-lg border border-border bg-gradient-to-r from-warning/10 to-warning/5 p-4 sm:p-6">
+        <h2 className="text-xl sm:text-2xl font-bold text-foreground">
           Bienvenido, {residentName}
         </h2>
-        <p className="mt-1 text-muted-foreground">
+        <p className="mt-1 text-sm text-muted-foreground">
           Apartamento {unit} - Torres del Parque
         </p>
       </div>
 
       {/* Quick Stats */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Card className="border-border bg-card">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -67,7 +68,7 @@ export function UsuarioOverview({
             <Receipt className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${balance < 0 ? 'text-destructive' : 'text-success'}`}>
+            <div className={`text-xl sm:text-2xl font-bold ${balance < 0 ? 'text-destructive' : 'text-success'}`}>
               {formatCurrency(Math.abs(balance))}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -84,7 +85,7 @@ export function UsuarioOverview({
             <Car className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-foreground">{pendingRequests}</div>
+            <div className="text-xl sm:text-2xl font-bold text-foreground">{pendingRequests}</div>
             <p className="text-xs text-muted-foreground">Pendientes de aprobar</p>
           </CardContent>
         </Card>
@@ -97,7 +98,7 @@ export function UsuarioOverview({
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-foreground">{activeReservations}</div>
+            <div className="text-xl sm:text-2xl font-bold text-foreground">{activeReservations}</div>
             <p className="text-xs text-muted-foreground">Esta semana</p>
           </CardContent>
         </Card>
@@ -110,7 +111,7 @@ export function UsuarioOverview({
             <Bell className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-foreground">{notifications}</div>
+            <div className="text-xl sm:text-2xl font-bold text-foreground">{notifications}</div>
             <p className="text-xs text-muted-foreground">Sin leer</p>
           </CardContent>
         </Card>

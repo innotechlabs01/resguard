@@ -39,7 +39,6 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
-import { mockMarketplace } from '@/lib/mock-data'
 import type { MarketplaceProduct } from '@/lib/types'
 import { useAuth } from '@/lib/auth-context'
 
@@ -57,9 +56,13 @@ const categoryConfig: Record<
 const formatPrice = (price: number) =>
   new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(price)
 
-export function Marketplace() {
+interface MarketplaceProps {
+  products?: MarketplaceProduct[]
+}
+
+export function Marketplace({ products: propProducts }: MarketplaceProps = {}) {
   const { user } = useAuth()
-  const [products, setProducts] = useState<MarketplaceProduct[]>(mockMarketplace)
+  const [products, setProducts] = useState<MarketplaceProduct[]>(propProducts || [])
   const [search, setSearch] = useState('')
   const [catFilter, setCatFilter] = useState<MarketplaceProduct['category'] | 'all'>('all')
   const [showCreate, setShowCreate] = useState(false)

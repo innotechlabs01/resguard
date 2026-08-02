@@ -41,7 +41,6 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
-import { mockTenants, mockRentalListings } from '@/lib/mock-data'
 import type { Tenant, RentalListing, TenantVehicle } from '@/lib/types'
 import { useAuth } from '@/lib/auth-context'
 
@@ -57,15 +56,20 @@ const vehicleTypeLabel: Record<TenantVehicle['type'], string> = {
   bicycle: 'Bicicleta',
 }
 
-export function AlquilerPanel() {
+interface AlquilerPanelProps {
+  tenants?: Tenant[]
+  listings?: RentalListing[]
+}
+
+export function AlquilerPanel({ tenants: propTenants, listings: propListings }: AlquilerPanelProps = {}) {
   const { user } = useAuth()
-  const myId = user?.id ?? 'usuario-1'
+  const myId = user?.id ?? ''
 
   const [tenants, setTenants] = useState<Tenant[]>(
-    mockTenants.filter((t) => t.ownerId === myId)
+    (propTenants || []).filter((t) => t.ownerId === myId)
   )
   const [listings, setListings] = useState<RentalListing[]>(
-    mockRentalListings.filter((l) => l.ownerId === myId)
+    (propListings || []).filter((l) => l.ownerId === myId)
   )
   const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null)
   const [showTenantDetail, setShowTenantDetail] = useState(false)
@@ -380,7 +384,7 @@ export function AlquilerPanel() {
         {/* All listings in building */}
         <TabsContent value="todos" className="mt-4">
           <div className="grid gap-4 sm:grid-cols-2">
-            {mockRentalListings.filter((l) => l.available).map((listing) => (
+            {(propListings || []).filter((l: any) => l.available).map((listing: any) => (
               <Card key={listing.id} className="bg-card border-border">
                 <CardContent className="p-4 space-y-3">
                   <div className="flex items-start justify-between">

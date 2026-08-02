@@ -43,7 +43,6 @@ import {
   AlertCircle,
 } from 'lucide-react'
 import type { Resident, ParkingSpot } from '@/lib/types'
-import { mockResidents, mockParkingSpots } from '@/lib/mock-data'
 
 interface AssignedParking {
   id: string
@@ -58,47 +57,10 @@ interface AssignedParking {
   monthlyRate: number
 }
 
-export function ParkingManagementPanel() {
-  const [residents] = useState<Resident[]>(mockResidents)
-  const [parkingSpots] = useState<ParkingSpot[]>(mockParkingSpots)
-  const [assignedParkings, setAssignedParkings] = useState<AssignedParking[]>([
-    {
-      id: '1',
-      spotCode: 'R-01',
-      residentId: '1',
-      residentName: 'Maria Garcia',
-      residentUnit: '101',
-      vehiclePlate: 'ABC-123',
-      vehicleBrand: 'Toyota Corolla',
-      assignedDate: '2026-01-15',
-      status: 'active',
-      monthlyRate: 50000,
-    },
-    {
-      id: '2',
-      spotCode: 'R-02',
-      residentId: '2',
-      residentName: 'Carlos Lopez',
-      residentUnit: '102',
-      vehiclePlate: 'XYZ-789',
-      vehicleBrand: 'Honda Civic',
-      assignedDate: '2026-01-20',
-      status: 'active',
-      monthlyRate: 50000,
-    },
-    {
-      id: '3',
-      spotCode: 'R-03',
-      residentId: '3',
-      residentName: 'Ana Martinez',
-      residentUnit: '201',
-      vehiclePlate: 'DEF-456',
-      vehicleBrand: 'Nissan Sentra',
-      assignedDate: '2026-02-01',
-      status: 'active',
-      monthlyRate: 50000,
-    },
-  ])
+export function ParkingManagementPanel({ residents: propResidents, parkingSpots: propParkingSpots }: { residents?: Resident[]; parkingSpots?: ParkingSpot[] } = {}) {
+  const [residents] = useState<Resident[]>(propResidents || [])
+  const [parkingSpots] = useState<ParkingSpot[]>(propParkingSpots || [])
+  const [assignedParkings, setAssignedParkings] = useState<AssignedParking[]>([])
   
   const [search, setSearch] = useState('')
   const [assignDialogOpen, setAssignDialogOpen] = useState(false)
@@ -175,19 +137,19 @@ export function ParkingManagementPanel() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-bold text-foreground">Gestion de Parqueaderos</h2>
-          <p className="text-muted-foreground">Asigna cupos de parqueadero a los residentes</p>
+          <h2 className="text-xl sm:text-2xl font-bold text-foreground">Gestion de Parqueaderos</h2>
+          <p className="text-sm text-muted-foreground">Asigna cupos de parqueadero a los residentes</p>
         </div>
-        <Button onClick={() => setAssignDialogOpen(true)}>
+        <Button onClick={() => setAssignDialogOpen(true)} size="sm">
           <Plus className="mr-2 h-4 w-4" />
-          Asignar Parqueadero
+          Asignar
         </Button>
       </div>
 
       {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Card className="bg-card border-border">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -195,7 +157,7 @@ export function ParkingManagementPanel() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-foreground">{residentSpots.length}</div>
+            <div className="text-xl sm:text-2xl font-bold text-foreground">{residentSpots.length}</div>
             <p className="text-xs text-muted-foreground">parqueaderos residentes</p>
           </CardContent>
         </Card>
@@ -206,7 +168,7 @@ export function ParkingManagementPanel() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-primary">{activeAssignments}</div>
+            <div className="text-xl sm:text-2xl font-bold text-primary">{activeAssignments}</div>
             <p className="text-xs text-muted-foreground">
               {unassignedSpots.length} disponibles
             </p>
@@ -219,7 +181,7 @@ export function ParkingManagementPanel() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-success">
+            <div className="text-xl sm:text-2xl font-bold text-success">
               ${totalMonthlyRevenue.toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground">por parqueaderos</p>
@@ -232,7 +194,7 @@ export function ParkingManagementPanel() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-info">
+            <div className="text-xl sm:text-2xl font-bold text-info">
               {parkingSpots.filter(s => s.status === 'occupied').length}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -243,8 +205,8 @@ export function ParkingManagementPanel() {
       </div>
 
       {/* Search */}
-      <div className="flex gap-4">
-        <div className="relative flex-1 max-w-md">
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Buscar por nombre, unidad, cupo o placa..."

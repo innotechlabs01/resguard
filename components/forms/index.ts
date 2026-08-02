@@ -1,0 +1,5 @@
+export { BuildingForm } from './building-form'
+export { VisitorForm } from './visitor-form'
+export { ResidentForm } from './resident-form'
+export { UserForm } from './user-form'
+export { ParkingSpotForm } from './parking-spot-form'

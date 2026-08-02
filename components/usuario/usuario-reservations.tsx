@@ -46,28 +46,6 @@ interface Reservation {
   notes?: string
 }
 
-const mockReservations: Reservation[] = [
-  {
-    id: '1',
-    area: 'salon_social',
-    date: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000),
-    startTime: '14:00',
-    endTime: '20:00',
-    status: 'confirmed',
-    guests: 25,
-    notes: 'Celebracion de cumpleanos',
-  },
-  {
-    id: '2',
-    area: 'bbq',
-    date: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
-    startTime: '12:00',
-    endTime: '16:00',
-    status: 'pending',
-    guests: 10,
-  },
-]
-
 const areaConfig = {
   salon_social: {
     name: 'Salon Social',
@@ -106,7 +84,7 @@ const statusConfig = {
 }
 
 export function UsuarioReservations() {
-  const [reservations, setReservations] = useState<Reservation[]>(mockReservations)
+  const [reservations, setReservations] = useState<Reservation[]>([])
   const [dialogOpen, setDialogOpen] = useState(false)
   const [newReservation, setNewReservation] = useState({
     area: '',

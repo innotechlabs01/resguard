@@ -18,6 +18,7 @@ yarn-error.log*
 
 # env files
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -25,3 +26,13 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# firebase service accounts
+*-firebase-*.json
+serviceAccount*.json
+
+# debug / dev scripts
+scripts/
+
+# os
+.DS_Store

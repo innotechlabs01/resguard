@@ -40,7 +40,6 @@ import {
 import { Switch } from '@/components/ui/switch'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
-import { mockCommunications } from '@/lib/mock-data'
 import type { Communication } from '@/lib/types'
 
 const typeConfig: Record<
@@ -70,8 +69,8 @@ function formatRelativeTime(date: Date) {
   return `Hace ${Math.floor(hrs / 24)} dias`
 }
 
-export function ComunicacionesPanel() {
-  const [communications, setCommunications] = useState<Communication[]>(mockCommunications)
+export function ComunicacionesPanel({ communications: propCommunications }: { communications?: Communication[] } = {}) {
+  const [communications, setCommunications] = useState<Communication[]>(propCommunications || [])
   const [showCompose, setShowCompose] = useState(false)
   const [viewComm, setViewComm] = useState<Communication | null>(null)
   const [search, setSearch] = useState('')
@@ -133,13 +132,13 @@ export function ComunicacionesPanel() {
   return (
     <div className="space-y-6">
       {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Card className="bg-card border-border">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Total Enviadas</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-foreground">{communications.length}</div>
+            <div className="text-xl sm:text-2xl font-bold text-foreground">{communications.length}</div>
             <p className="text-xs text-muted-foreground mt-1">Todas las comunicaciones</p>
           </CardContent>
         </Card>
@@ -148,7 +147,7 @@ export function ComunicacionesPanel() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Sin Leer</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-warning">
+            <div className="text-xl sm:text-2xl font-bold text-warning">
               {communications.filter((c) => c.readBy.length === 0).length}
             </div>
             <p className="text-xs text-muted-foreground mt-1">Pendientes de apertura</p>
@@ -159,7 +158,7 @@ export function ComunicacionesPanel() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Residentes</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-primary">{totalResidents}</div>
+            <div className="text-xl sm:text-2xl font-bold text-primary">{totalResidents}</div>
             <p className="text-xs text-muted-foreground mt-1">Propietarios activos</p>
           </CardContent>
         </Card>
@@ -168,7 +167,7 @@ export function ComunicacionesPanel() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Incl. Inquilinos</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-success">{totalWithTenants}</div>
+            <div className="text-xl sm:text-2xl font-bold text-success">{totalWithTenants}</div>
             <p className="text-xs text-muted-foreground mt-1">Total destinatarios</p>
           </CardContent>
         </Card>

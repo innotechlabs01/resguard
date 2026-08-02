@@ -1,5 +1,10 @@
 import { streamText, UIMessage, convertToModelMessages, consumeStream } from 'ai'
 import { buildingRegulations } from '@/lib/mock-data'
+import { secureApiHandler, addSecurityHeaders } from './../../../lib/api/securityMiddleware'
+import { NextResponse } from 'next/server'
+import { logger } from '@/lib/logger'
+
+const log = logger.child({ module: 'api/chat' })
 
 export const maxDuration = 30
 
@@ -20,22 +25,37 @@ ${buildingRegulations}
 
 Always respond in the same language the user asks the question in (Spanish or English).`
 
-export async function POST(req: Request) {
+async function handler(req: Request) {
   const { messages }: { messages: UIMessage[] } = await req.json()
 
   const result = streamText({
     model: 'anthropic/claude-sonnet-4-20250514',
     system: systemPrompt,
-    messages: convertToModelMessages(messages),
+    messages: await convertToModelMessages(messages),
     abortSignal: req.signal,
   })
 
-  return result.toUIMessageStreamResponse({
+  let response = result.toUIMessageStreamResponse({
     onFinish: async ({ isAborted }) => {
       if (isAborted) {
-        console.log('Chat stream aborted')
+        log.info('Chat stream aborted')
       }
     },
     consumeSseStream: consumeStream,
   })
+  
+  // Add security headers
+  return addSecurityHeaders(response)
+}
+
+export const POST = secureApiHandler(handler)
+
+// GET method for health check or simple access
+export async function GET() {
+  return addSecurityHeaders(new NextResponse(JSON.stringify({ 
+    status: 'API is running', 
+    timestamp: new Date().toISOString() 
+  }), {
+    headers: { 'Content-Type': 'application/json' }
+  }))
 }

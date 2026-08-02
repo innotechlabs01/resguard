@@ -28,11 +28,11 @@ export function Overview({
     <div className="space-y-6">
       <StatsCards parkingSpots={parkingSpots} visitors={visitors} alerts={alerts} />
       
-      <div className="grid grid-cols-3 gap-6">
-        <div className="col-span-2">
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2">
           <ParkingMap parkingSpots={parkingSpots} onSpotUpdate={onSpotUpdate} />
         </div>
-        <div className="col-span-1">
+        <div className="lg:col-span-1">
           <AlertsPanel
             alerts={alerts}
             onMarkAsRead={onMarkAlertRead}

@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useAuth } from '@/lib/auth-context'
 import {
   Search,
   Plus,
@@ -17,10 +18,12 @@ import {
   CalendarDays,
   Edit,
   Trash2,
+  Users,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import {
   Table,
@@ -54,8 +57,7 @@ import {
 } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import type { User as UserType } from '@/lib/types'
-import { mockUsers, mockBuildingStats } from '@/lib/mock-data'
+import type { User as UserType, BuildingStats } from '@/lib/types'
 
 const roleConfig: Record<string, { label: string; className: string; icon: typeof Shield }> = {
   admin: { label: 'Administrador', className: 'bg-info/10 text-info border-info/20', icon: Shield },
@@ -67,13 +69,15 @@ const statusColors: Record<string, string> = {
   inactive: 'bg-destructive/10 text-destructive border-destructive/20',
 }
 
-export function UsersPanel() {
+export function UsersPanel({ users: propUsers, buildings: propBuildings }: { users?: UserType[]; buildings?: BuildingStats[] } = {}) {
+  const { user, isAuthenticated, isDemoMode, isLoaded } = useAuth()
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'vigilante'>('all')
   const [buildingFilter, setBuildingFilter] = useState('all')
   const [users, setUsers] = useState<UserType[]>(
-    mockUsers.filter((u) => u.role === 'admin' || u.role === 'vigilante')
+    (propUsers || []).filter((u) => u.role === 'admin' || u.role === 'vigilante')
   )
+  const [buildings, setBuildings] = useState<BuildingStats[]>(propBuildings || [])
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [showDetailDialog, setShowDetailDialog] = useState(false)
   const [editMode, setEditMode] = useState(false)
@@ -88,6 +92,38 @@ export function UsersPanel() {
     documentId: '',
   })
 
+  useEffect(() => {
+    if (!isAuthenticated || !isLoaded) return
+    if (propBuildings) {
+      setBuildings(propBuildings)
+    } else {
+      fetch('/api/buildings')
+        .then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data)) {
+            setBuildings(data.map((b: BuildingStats) => b))
+          }
+        })
+        .catch(() => setBuildings([]))
+    }
+  }, [isAuthenticated, isLoaded, propBuildings])
+
+  useEffect(() => {
+    if (!isAuthenticated || !isLoaded) return
+    if (propUsers) {
+      setUsers(propUsers.filter((u: UserType) => u.role === 'admin' || u.role === 'vigilante'))
+    } else {
+      fetch('/api/users')
+        .then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data)) {
+            setUsers(data.filter((u: UserType) => u.role === 'admin' || u.role === 'vigilante'))
+          }
+        })
+        .catch(() => setUsers([]))
+    }
+  }, [isAuthenticated, isLoaded, propUsers])
+
   const filteredUsers = users.filter((u) => {
     const matchesSearch =
       u.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -99,13 +135,13 @@ export function UsersPanel() {
 
   const getBuildingName = (buildingId?: string) => {
     if (!buildingId) return 'Global'
-    const building = mockBuildingStats.find((b) => b.id === buildingId)
+    const building = buildings.find((b) => b.id === buildingId)
     return building?.name || 'Desconocido'
   }
 
   const getBuildingStatus = (buildingId?: string) => {
     if (!buildingId) return null
-    return mockBuildingStats.find((b) => b.id === buildingId)
+    return buildings.find((b) => b.id === buildingId)
   }
 
   const handleCreateUser = () => {
@@ -149,6 +185,57 @@ export function UsersPanel() {
   const adminCount = users.filter((u) => u.role === 'admin').length
   const vigilanteCount = users.filter((u) => u.role === 'vigilante').length
 
+  if (!isLoaded) {
+    return (
+      <div className="space-y-6">
+        <div className="grid gap-4 md:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => (
+            <Card key={i} className="bg-card border-border">
+              <CardHeader className="pb-2">
+                <Skeleton className="h-4 w-24" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-8 w-16" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <Card className="bg-card border-border">
+          <CardHeader>
+            <Skeleton className="h-6 w-48" />
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-64 w-full" />
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  if (isDemoMode || !user) {
+    return (
+      <div className="space-y-6">
+        <Card className="bg-card border-border">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
+              <Users className="h-5 w-5 text-primary" />
+              Modo Demo
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-4">
+              Inicia sesion con tu cuenta para ver los usuarios operativos.
+            </p>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Shield className="h-4 w-4" />
+              <span>Acceso restringido a usuarios autenticados</span>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       {/* Stats */}
@@ -169,9 +256,9 @@ export function UsersPanel() {
           <CardContent>
             <div className="text-2xl font-bold text-info">{adminCount}</div>
             <p className="text-xs text-muted-foreground mt-1">
-              {mockBuildingStats.length - adminCount} edificios sin admin
+              {buildings.length - adminCount} edificios sin admin
             </p>
-          </CardContent>
+            </CardContent>
         </Card>
         <Card className="bg-card border-border">
           <CardHeader className="pb-2">
@@ -190,7 +277,7 @@ export function UsersPanel() {
             <div className="text-2xl font-bold text-primary">
               {new Set(users.map((u) => u.buildingId).filter(Boolean)).size}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">de {mockBuildingStats.length} edificios</p>
+            <p className="text-xs text-muted-foreground mt-1">de {buildings.length} edificios</p>
           </CardContent>
         </Card>
       </div>
@@ -225,7 +312,7 @@ export function UsersPanel() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos los edificios</SelectItem>
-              {mockBuildingStats.map((b) => (
+              {buildings.map((b) => (
                 <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
               ))}
             </SelectContent>
@@ -361,7 +448,7 @@ export function UsersPanel() {
       </Card>
 
       {/* Edificios sin administrador */}
-      {mockBuildingStats.some((b) => !users.find((u) => u.role === 'admin' && u.buildingId === b.id)) && (
+      {buildings.length > 0 && buildings.some((b) => !users.find((u) => u.role === 'admin' && u.buildingId === b.id)) && (
         <Card className="bg-card border-border border-warning/30">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold text-warning flex items-center gap-2">
@@ -371,7 +458,7 @@ export function UsersPanel() {
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-2">
-              {mockBuildingStats
+              {buildings
                 .filter((b) => !users.find((u) => u.role === 'admin' && u.buildingId === b.id))
                 .map((b) => (
                   <div
@@ -480,7 +567,7 @@ export function UsersPanel() {
                     <SelectValue placeholder="Selecciona un edificio" />
                   </SelectTrigger>
                   <SelectContent>
-                    {mockBuildingStats.map((b) => (
+                    {buildings.map((b) => (
                       <SelectItem key={b.id} value={b.id}>
                         <div className="flex items-center gap-2">
                           <Building2 className="h-4 w-4 text-muted-foreground" />
@@ -559,7 +646,7 @@ export function UsersPanel() {
                       <SelectValue placeholder="Seleccionar edificio" />
                     </SelectTrigger>
                     <SelectContent>
-                      {mockBuildingStats.map((b) => (
+                      {buildings.map((b) => (
                         <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
                       ))}
                     </SelectContent>

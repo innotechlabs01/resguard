@@ -20,7 +20,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { mockTenants } from '@/lib/mock-data'
 import type { Tenant } from '@/lib/types'
 
 const vehicleTypeIcon = {
@@ -173,23 +172,28 @@ function TenantRow({ tenant }: { tenant: Tenant }) {
   )
 }
 
-export function InquilinosPanel() {
+interface InquilinosPanelProps {
+  tenants?: Tenant[]
+}
+
+export function InquilinosPanel({ tenants: propTenants }: InquilinosPanelProps = {}) {
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'expiring'>('all')
 
-  const filtered = mockTenants.filter((t) => {
+  const tenantsList = propTenants || []
+
+  const filtered = tenantsList.filter((t: Tenant) => {
     const matchSearch =
       t.name.toLowerCase().includes(search.toLowerCase()) ||
-      t.unit.toLowerCase().includes(search.toLowerCase()) ||
-      t.vehicles.some((v) => v.plate.toLowerCase().includes(search.toLowerCase()))
+      t.unit.toLowerCase().includes(search.toLowerCase())
     const daysLeft = Math.ceil((t.leaseEnd.getTime() - Date.now()) / 86400000)
     if (filterStatus === 'active') return matchSearch && daysLeft > 60 && t.status === 'active'
     if (filterStatus === 'expiring') return matchSearch && daysLeft <= 60
     return matchSearch
   })
 
-  const totalVehicles = mockTenants.reduce((acc, t) => acc + t.vehicles.length, 0)
-  const expiringSoon = mockTenants.filter((t) => {
+  const totalVehicles = tenantsList.reduce((acc: number, t: Tenant) => acc + (t.vehicles?.length || 0), 0)
+  const expiringSoon = tenantsList.filter((t: Tenant) => {
     const d = Math.ceil((t.leaseEnd.getTime() - Date.now()) / 86400000)
     return d <= 60 && d > 0
   }).length
@@ -205,7 +209,7 @@ export function InquilinosPanel() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-foreground">{mockTenants.filter((t) => t.status === 'active').length}</div>
+            <div className="text-2xl font-bold text-foreground">{tenantsList.filter((t: Tenant) => t.status === 'active').length}</div>
             <p className="text-xs text-muted-foreground mt-0.5">En el edificio</p>
           </CardContent>
         </Card>

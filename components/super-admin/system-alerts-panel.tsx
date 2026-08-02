@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useAuth } from '@/lib/auth-context'
 import {
   AlertTriangle,
   CheckCircle2,
@@ -13,10 +14,12 @@ import {
   Check,
   Trash2,
   Filter,
+  Bell,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 interface SystemAlert {
@@ -29,57 +32,6 @@ interface SystemAlert {
   timestamp: Date
   read: boolean
 }
-
-const mockSystemAlerts: SystemAlert[] = [
-  {
-    id: '1',
-    type: 'payment',
-    priority: 'critical',
-    title: 'Pago de suscripcion fallido',
-    message: 'El pago mensual de Conjunto La Esperanza ha fallido. Cuenta en riesgo de suspension.',
-    buildingName: 'Conjunto La Esperanza',
-    timestamp: new Date(Date.now() - 2 * 60 * 60000),
-    read: false,
-  },
-  {
-    id: '2',
-    type: 'building',
-    priority: 'high',
-    title: 'Alta morosidad detectada',
-    message: 'Mirador de la Sabana tiene 15% de residentes en mora. Se recomienda accion.',
-    buildingName: 'Mirador de la Sabana',
-    timestamp: new Date(Date.now() - 4 * 60 * 60000),
-    read: false,
-  },
-  {
-    id: '3',
-    type: 'system',
-    priority: 'medium',
-    title: 'Mantenimiento programado',
-    message: 'Actualizacion del sistema programada para el 25 de enero a las 2:00 AM.',
-    timestamp: new Date(Date.now() - 12 * 60 * 60000),
-    read: false,
-  },
-  {
-    id: '4',
-    type: 'user',
-    priority: 'low',
-    title: 'Nuevo administrador registrado',
-    message: 'Pedro Gomez ha sido asignado como administrador de Residencias del Sol.',
-    buildingName: 'Residencias del Sol',
-    timestamp: new Date(Date.now() - 24 * 60 * 60000),
-    read: true,
-  },
-  {
-    id: '5',
-    type: 'payment',
-    priority: 'high',
-    title: 'Cartera vencida incremento',
-    message: 'La cartera vencida total del sistema ha incrementado un 20% este mes.',
-    timestamp: new Date(Date.now() - 6 * 60 * 60000),
-    read: false,
-  },
-]
 
 const priorityConfig = {
   critical: { icon: XCircle, label: 'Critico', className: 'bg-destructive/10 text-destructive border-destructive/20' },
@@ -107,7 +59,32 @@ function formatTimeAgo(date: Date): string {
 }
 
 export function SystemAlertsPanel() {
-  const [alerts, setAlerts] = useState<SystemAlert[]>(mockSystemAlerts)
+  const { user, isAuthenticated, isDemoMode, isLoaded } = useAuth()
+  const [alerts, setAlerts] = useState<SystemAlert[]>([])
+
+  useEffect(() => {
+    if (!isAuthenticated || !isLoaded) return
+    fetch('/api/alerts')
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to fetch')
+        return res.json()
+      })
+      .then(data => {
+        if (Array.isArray(data)) {
+          setAlerts(data.map((a: { id: string; type: string; priority: string; title: string; message: string; building_name?: string; created_at: string; read: boolean }) => ({
+            id: a.id,
+            type: a.type as SystemAlert['type'],
+            priority: a.priority as SystemAlert['priority'],
+            title: a.title,
+            message: a.message,
+            buildingName: a.building_name,
+            timestamp: new Date(a.created_at),
+            read: a.read,
+          })))
+        }
+      })
+      .catch(() => setAlerts([]))
+  }, [isAuthenticated, isLoaded])
 
   const unreadCount = alerts.filter((a) => !a.read).length
   const criticalCount = alerts.filter((a) => a.priority === 'critical' && !a.read).length
@@ -124,6 +101,57 @@ export function SystemAlertsPanel() {
 
   const handleDismiss = (alertId: string) => {
     setAlerts((alerts) => alerts.filter((a) => a.id !== alertId))
+  }
+
+  if (!isLoaded) {
+    return (
+      <div className="space-y-6">
+        <div className="grid gap-4 md:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => (
+            <Card key={i} className="bg-card border-border">
+              <CardHeader className="pb-2">
+                <Skeleton className="h-4 w-24" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-8 w-16" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <Card className="bg-card border-border">
+          <CardHeader>
+            <Skeleton className="h-6 w-48" />
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-64 w-full" />
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  if (isDemoMode || !user) {
+    return (
+      <div className="space-y-6">
+        <Card className="bg-card border-border">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
+              <Bell className="h-5 w-5 text-primary" />
+              Modo Demo
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-4">
+              Inicia sesion con tu cuenta para ver las alertas del sistema.
+            </p>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <AlertTriangle className="h-4 w-4" />
+              <span>Acceso restringido a usuarios autenticados</span>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (
