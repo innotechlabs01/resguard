@@ -13,13 +13,14 @@ import type { ParkingSpot, Alert, BuildingStats } from '@/lib/types'
 import { useAuth } from '@/lib/auth-context'
 import { useAnalyticsTrack } from '@/lib/hooks/useAnalytics'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
-import { Menu, LayoutDashboard, Users, Car, CreditCard, FileText, Settings, Bell, LogOut, Building2, Send, CarFront, CalendarDays, Building } from 'lucide-react'
+import { Menu, LayoutDashboard, Users, Car, CreditCard, FileText, Settings, Bell, LogOut, Building2, Send, CarFront, CalendarDays, Building, Bot } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { SkeletonCard } from '@/components/ui/skeleton-loaders'
 import { AssemblyPanel } from './assembly-panel'
+import { AIConcierge } from '../dashboard/ai-concierge'
 
 const ParkingMap = lazy(() => import('@/components/dashboard/parking-map').then(m => ({ default: m.ParkingMap })))
 const AlertsPanel = lazy(() => import('@/components/dashboard/alerts-panel').then(m => ({ default: m.AlertsPanel })))
@@ -48,6 +49,7 @@ const navItems = [
   { id: 'assemblies', icon: CalendarDays, label: 'Asambleas' },
   { id: 'alerts', icon: Bell, label: 'Alertas', badge: true },
   { id: 'reports', icon: FileText, label: 'Reportes' },
+  { id: 'concierge', icon: Bot, label: 'Concierge' },
   { id: 'settings', icon: Settings, label: 'Configuracion' },
 ]
 
@@ -367,6 +369,8 @@ export function AdminDashboard() {
             <ReportsPanel />
           </Suspense>
         )
+      case 'concierge':
+        return <AIConcierge />
       case 'settings':
         return building ? <AdminSettingsPanel building={building} /> : null
       default:
