@@ -9,6 +9,7 @@ import { PaymentsPanel } from './payments-panel'
 import { AdminSettingsPanel } from './admin-settings-panel'
 import { ComunicacionesPanel } from './comunicaciones-panel'
 import { ParkingManagementPanel } from './parking-management-panel'
+import { ParkingOwnershipPanel } from '../dashboard/parking-ownership-panel'
 import type { ParkingSpot, Alert, BuildingStats } from '@/lib/types'
 import { useAuth } from '@/lib/auth-context'
 import { useAnalyticsTrack } from '@/lib/hooks/useAnalytics'
@@ -60,6 +61,7 @@ const navItems = [
   { id: 'residents', icon: Users, label: 'Residentes' },
   { id: 'parking', icon: Car, label: 'Parqueaderos' },
   { id: 'visitorParking', icon: CarFront, label: 'Visitantes' },
+  { id: 'parkingOwnership', icon: Car, label: 'Parqueaderos Asignados' },
   { id: 'payments', icon: CreditCard, label: 'Pagos' },
   { id: 'comunicaciones', icon: Send, label: 'Comunicaciones' },
   { id: 'assemblies', icon: CalendarDays, label: 'Asambleas' },
@@ -370,6 +372,8 @@ export function AdminDashboard() {
             <ParkingMap parkingSpots={parkingSpots} onSpotUpdate={handleSpotUpdate} />
           </Suspense>
         )
+      case 'parkingOwnership':
+        return <ParkingOwnershipPanel />
       case 'payments':
         return <PaymentsPanel payments={payments} />
       case 'comunicaciones':

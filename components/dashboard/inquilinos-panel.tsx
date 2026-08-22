@@ -123,6 +123,12 @@ function TenantRow({ tenant }: { tenant: Tenant }) {
                 <KeyRound className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                 Canon: ${new Intl.NumberFormat('es-CO').format(tenant.monthlyRent)} / mes
               </div>
+              {tenant.lastPaymentDate && (
+                <div className="flex items-center gap-2 text-sm text-foreground">
+                  <CheckCircle className="h-3.5 w-3.5 text-success shrink-0" />
+                  Último pago: {formatDate(tenant.lastPaymentDate)}
+                </div>
+              )}
             </div>
 
             {/* Vehicles */}

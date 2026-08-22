@@ -65,6 +65,23 @@ export interface ParkingSpot {
   timeRemaining?: number // in minutes
 }
 
+export interface ParkingAssignment {
+  id: string
+  buildingId: string
+  spotCode: string
+  assignmentType: 'owner' | 'rented' | 'available'
+  ownerId?: string
+  ownerName?: string
+  ownerUnit?: string
+  tenantName?: string
+  tenantUnit?: string
+  vehiclePlate?: string
+  vehicleBrand?: string
+  vehicleColor?: string
+  createdAt: string
+  updatedAt: string
+}
+
 export interface Visitor {
   id: string
   name: string
@@ -145,6 +162,8 @@ export interface Tenant {
   depositPaid: number
   status: 'active' | 'pending' | 'ended'
   vehicles: TenantVehicle[]
+  lastPaymentDate?: Date
+  paymentNotes?: string
 }
 
 export interface TenantVehicle {
