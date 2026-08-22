@@ -50,40 +50,40 @@ ALTER TABLE chat_thread_messages ENABLE ROW LEVEL SECURITY;
 
 -- Staff (vigilante, admin, super_admin) can see all threads in their building
 CREATE POLICY "chat_threads_select_staff" ON chat_threads FOR SELECT USING (
-  building_id IN (SELECT building_id FROM users WHERE id = auth.uid()::text AND role IN ('vigilante', 'admin', 'super_admin'))
+  building_id IN (SELECT building_id FROM users WHERE id::text = auth.uid()::text AND role IN ('vigilante', 'admin', 'super_admin'))
 );
 
--- Resident can see threads for their unit
+-- Resident can see threads for their building (unit filtering done at app level)
 CREATE POLICY "chat_threads_select_resident" ON chat_threads FOR SELECT USING (
-  unit_number IN (SELECT unit FROM users WHERE id = auth.uid()::text)
+  building_id IN (SELECT building_id FROM users WHERE id::text = auth.uid()::text)
 );
 
 -- Staff can create threads
 CREATE POLICY "chat_threads_insert_staff" ON chat_threads FOR INSERT WITH CHECK (
-  building_id IN (SELECT building_id FROM users WHERE id = auth.uid()::text AND role IN ('vigilante', 'admin', 'super_admin'))
+  building_id IN (SELECT building_id FROM users WHERE id::text = auth.uid()::text AND role IN ('vigilante', 'admin', 'super_admin'))
 );
 
 -- Staff can update threads (for last_message_at/preview)
 CREATE POLICY "chat_threads_update_staff" ON chat_threads FOR UPDATE USING (
-  building_id IN (SELECT building_id FROM users WHERE id = auth.uid()::text AND role IN ('vigilante', 'admin', 'super_admin'))
+  building_id IN (SELECT building_id FROM users WHERE id::text = auth.uid()::text AND role IN ('vigilante', 'admin', 'super_admin'))
 );
 
 -- Messages visible to participants of the thread
 CREATE POLICY "chat_thread_messages_select" ON chat_thread_messages FOR SELECT USING (
   thread_id IN (SELECT id FROM chat_threads WHERE
-    building_id IN (SELECT building_id FROM users WHERE id = auth.uid()::text)
+    building_id IN (SELECT building_id FROM users WHERE id::text = auth.uid()::text)
   )
 );
 
 -- Users can insert messages as themselves
 CREATE POLICY "chat_thread_messages_insert" ON chat_thread_messages FOR INSERT WITH CHECK (
-  sender_id = auth.uid()::text
+  sender_id::text = auth.uid()::text
 );
 
 -- Users can update read status on their own messages
 CREATE POLICY "chat_thread_messages_update_read" ON chat_thread_messages FOR UPDATE USING (
-  sender_id = auth.uid()::text OR
+  sender_id::text = auth.uid()::text OR
   thread_id IN (SELECT id FROM chat_threads WHERE
-    building_id IN (SELECT building_id FROM users WHERE id = auth.uid()::text)
+    building_id IN (SELECT building_id FROM users WHERE id::text = auth.uid()::text)
   )
 );

@@ -43,18 +43,18 @@ ALTER TABLE onboarding_checklists ENABLE ROW LEVEL SECURITY;
 
 -- Onboarding: residents can see checklists from their building
 CREATE POLICY "onboarding_select_building" ON onboarding_checklists FOR SELECT USING (
-  building_id IN (SELECT building_id FROM users WHERE id = auth.uid()::text)
+  building_id IN (SELECT building_id FROM users WHERE id::text = auth.uid()::text)
 );
 
 -- Onboarding: admin/super_admin can create checklists
 CREATE POLICY "onboarding_insert_admin" ON onboarding_checklists FOR INSERT WITH CHECK (
-  building_id IN (SELECT building_id FROM users WHERE id = auth.uid()::text AND role IN ('admin', 'super_admin'))
+  building_id IN (SELECT building_id FROM users WHERE id::text = auth.uid()::text AND role IN ('admin', 'super_admin'))
 );
 
 -- Onboarding: users can update their own checklist or admin can update any
 CREATE POLICY "onboarding_update_own" ON onboarding_checklists FOR UPDATE USING (
-  user_id = auth.uid()::text OR
-  building_id IN (SELECT building_id FROM users WHERE id = auth.uid()::text AND role IN ('admin', 'super_admin'))
+  user_id::text = auth.uid()::text OR
+  building_id IN (SELECT building_id FROM users WHERE id::text = auth.uid()::text AND role IN ('admin', 'super_admin'))
 );
 
 -- ============================================================

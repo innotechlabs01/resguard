@@ -84,27 +84,27 @@ ALTER TABLE infraction_evidences ENABLE ROW LEVEL SECURITY;
 
 -- Infractions: residents can see infractions from their building
 CREATE POLICY "infractions_select_building" ON infraction_reports FOR SELECT USING (
-  building_id IN (SELECT building_id FROM users WHERE id = auth.uid()::text)
+  building_id IN (SELECT building_id FROM users WHERE id::text = auth.uid()::text)
 );
 
 -- Infractions: residents can create infractions as themselves
 CREATE POLICY "infractions_insert_resident" ON infraction_reports FOR INSERT WITH CHECK (
-  reporter_id = auth.uid()::text
+  reporter_id::text = auth.uid()::text
 );
 
 -- Infractions: admin/super_admin can update infractions in their building
 CREATE POLICY "infractions_update_admin" ON infraction_reports FOR UPDATE USING (
-  building_id IN (SELECT building_id FROM users WHERE id = auth.uid()::text AND role IN ('admin', 'super_admin'))
+  building_id IN (SELECT building_id FROM users WHERE id::text = auth.uid()::text AND role IN ('admin', 'super_admin'))
 );
 
 -- Evidences: anyone in the building can read evidences
 CREATE POLICY "infraction_evidences_select" ON infraction_evidences FOR SELECT USING (
-  infraction_id IN (SELECT id FROM infraction_reports WHERE building_id IN (SELECT building_id FROM users WHERE id = auth.uid()::text))
+  infraction_id IN (SELECT id FROM infraction_reports WHERE building_id IN (SELECT building_id FROM users WHERE id::text = auth.uid()::text))
 );
 
 -- Evidences: any user can insert evidences as themselves
 CREATE POLICY "infraction_evidences_insert" ON infraction_evidences FOR INSERT WITH CHECK (
-  uploaded_by = auth.uid()::text
+  uploaded_by = auth.uid()
 );
 
 -- ============================================================

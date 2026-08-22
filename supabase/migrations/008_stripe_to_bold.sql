@@ -14,12 +14,12 @@ ALTER TABLE public.buildings ADD COLUMN IF NOT EXISTS subscription_status TEXT N
 
 -- Crear tabla de estadísticas del sistema si no existe
 CREATE TABLE IF NOT EXISTS public.system_stats (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
   total_buildings INTEGER NOT NULL DEFAULT 0,
   active_buildings INTEGER NOT NULL DEFAULT 0,
   total_residents INTEGER NOT NULL DEFAULT 0,
-  total_revenue INTEGER NOT NULL DEFAULT 0,
-  monthly_recurring_revenue INTEGER NOT NULL DEFAULT 0,
+  total_revenue BIGINT NOT NULL DEFAULT 0,
+  monthly_recurring_revenue BIGINT NOT NULL DEFAULT 0,
   pending_payments INTEGER NOT NULL DEFAULT 0,
   system_alerts INTEGER NOT NULL DEFAULT 0,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -28,13 +28,13 @@ CREATE TABLE IF NOT EXISTS public.system_stats (
 -- Insertar estadísticas iniciales si la tabla está vacía
 INSERT INTO public.system_stats (id, total_buildings, active_buildings, total_residents, total_revenue, monthly_recurring_revenue, pending_payments, system_alerts)
 SELECT
-  gen_random_uuid(),
-  COUNT(*) as total_buildings,
-  COUNT(*) FILTER (WHERE subscription_status = 'active') as active_buildings,
-  0 as total_residents,
-  SUM(monthly_fee) as total_revenue,
-  SUM(monthly_fee) FILTER (WHERE subscription_status = 'active') as monthly_recurring_revenue,
-  SUM(outstanding_balance) as pending_payments,
-  0 as system_alerts
+  1,
+  COUNT(*),
+  COUNT(*) FILTER (WHERE subscription_status = 'active'),
+  0,
+  COALESCE(SUM(monthly_fee), 0),
+  COALESCE(SUM(monthly_fee) FILTER (WHERE subscription_status = 'active'), 0),
+  COALESCE(SUM(outstanding_balance), 0),
+  0
 FROM public.buildings
-WHERE NOT EXISTS (SELECT 1 FROM public.system_stats);
+ON CONFLICT (id) DO NOTHING;

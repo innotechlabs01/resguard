@@ -21,6 +21,7 @@ import {
   Store,
   ClipboardCheck,
   UserPlus,
+  Bot,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -40,6 +41,7 @@ const navItems = [
   { id: 'residents', icon: Users, label: 'Residentes' },
   { id: 'parking', icon: Car, label: 'Parqueaderos' },
   { id: 'visitorParking', icon: CarFront, label: 'Visitantes' },
+  { id: 'parkingOwnership', icon: Car, label: 'Parqueaderos Asignados' },
   { id: 'payments', icon: CreditCard, label: 'Pagos y Cobros' },
   { id: 'comunicaciones', icon: Send, label: 'Comunicaciones' },
   { id: 'assemblies', icon: CalendarDays, label: 'Asambleas' },
@@ -51,6 +53,7 @@ const navItems = [
   { id: 'chat', icon: MessageSquare, label: 'Mensajes' },
   { id: 'alerts', icon: Bell, label: 'Alertas', badge: true },
   { id: 'reports', icon: FileText, label: 'Reportes' },
+  { id: 'concierge', icon: Bot, label: 'Concierge' },
   { id: 'surveys', icon: ClipboardCheck, label: 'Encuestas' },
   { id: 'onboarding', icon: UserPlus, label: 'Onboarding' },
   { id: 'settings', icon: Settings, label: 'Configuracion' },

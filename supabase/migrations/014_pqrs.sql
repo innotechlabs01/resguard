@@ -69,27 +69,27 @@ ALTER TABLE pqrs_comments ENABLE ROW LEVEL SECURITY;
 
 -- PQRS: residents can see PQRS from their building
 CREATE POLICY "pqrs_select_building" ON pqrs FOR SELECT USING (
-  building_id IN (SELECT building_id FROM users WHERE id = auth.uid()::text)
+  building_id IN (SELECT building_id FROM users WHERE id::text = auth.uid()::text)
 );
 
 -- PQRS: residents can create PQRS as themselves
 CREATE POLICY "pqrs_insert_resident" ON pqrs FOR INSERT WITH CHECK (
-  created_by = auth.uid()::text
+  created_by = auth.uid()
 );
 
 -- PQRS: admin/super_admin can update PQRS in their building
 CREATE POLICY "pqrs_update_admin" ON pqrs FOR UPDATE USING (
-  building_id IN (SELECT building_id FROM users WHERE id = auth.uid()::text AND role IN ('admin', 'super_admin'))
+  building_id IN (SELECT building_id FROM users WHERE id::text = auth.uid()::text AND role IN ('admin', 'super_admin'))
 );
 
 -- PQRS COMMENTS: anyone in the building can read comments
 CREATE POLICY "pqrs_comments_select" ON pqrs_comments FOR SELECT USING (
-  pqrs_id IN (SELECT id FROM pqrs WHERE building_id IN (SELECT building_id FROM users WHERE id = auth.uid()::text))
+  pqrs_id IN (SELECT id FROM pqrs WHERE building_id IN (SELECT building_id FROM users WHERE id::text = auth.uid()::text))
 );
 
 -- PQRS COMMENTS: any user can insert comments as themselves
 CREATE POLICY "pqrs_comments_insert" ON pqrs_comments FOR INSERT WITH CHECK (
-  author_id = auth.uid()::text
+  author_id::text = auth.uid()::text
 );
 
 -- ============================================================

@@ -38,25 +38,25 @@ ALTER TABLE parking_assignments ENABLE ROW LEVEL SECURITY;
 -- Todos los del edificio pueden ver
 CREATE POLICY "parking_assignments_select_building" ON parking_assignments
   FOR SELECT USING (
-    building_id IN (SELECT building_id FROM users WHERE id = auth.uid()::text)
+    building_id IN (SELECT building_id FROM users WHERE id::text = auth.uid()::text)
   );
 
 -- Propietarios pueden crear/actualizar sus propios parqueaderos
 CREATE POLICY "parking_assignments_insert_resident" ON parking_assignments
   FOR INSERT WITH CHECK (
-    building_id IN (SELECT building_id FROM users WHERE id = auth.uid()::text)
+    building_id IN (SELECT building_id FROM users WHERE id::text = auth.uid()::text)
   );
 
 CREATE POLICY "parking_assignments_update_resident" ON parking_assignments
   FOR UPDATE USING (
-    building_id IN (SELECT building_id FROM users WHERE id = auth.uid()::text)
+    building_id IN (SELECT building_id FROM users WHERE id::text = auth.uid()::text)
   );
 
 -- Admin puede eliminar
 CREATE POLICY "parking_assignments_delete_admin" ON parking_assignments
   FOR DELETE USING (
     building_id IN (
-      SELECT building_id FROM users WHERE id = auth.uid()::text 
+      SELECT building_id FROM users WHERE id::text = auth.uid()::text 
       AND role IN ('admin', 'super_admin')
     )
   );

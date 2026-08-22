@@ -70,32 +70,32 @@ ALTER TABLE work_orders ENABLE ROW LEVEL SECURITY;
 
 -- Maintenance schedules: building members can read
 CREATE POLICY "maintenance_select_building" ON maintenance_schedules FOR SELECT USING (
-  building_id IN (SELECT building_id FROM users WHERE id = auth.uid()::text)
+  building_id IN (SELECT building_id FROM users WHERE id::text = auth.uid()::text)
 );
 
 -- Maintenance schedules: admin/super_admin can insert
 CREATE POLICY "maintenance_insert_admin" ON maintenance_schedules FOR INSERT WITH CHECK (
-  building_id IN (SELECT building_id FROM users WHERE id = auth.uid()::text AND role IN ('admin', 'super_admin'))
+  building_id IN (SELECT building_id FROM users WHERE id::text = auth.uid()::text AND role IN ('admin', 'super_admin'))
 );
 
 -- Maintenance schedules: admin/super_admin can update
 CREATE POLICY "maintenance_update_admin" ON maintenance_schedules FOR UPDATE USING (
-  building_id IN (SELECT building_id FROM users WHERE id = auth.uid()::text AND role IN ('admin', 'super_admin'))
+  building_id IN (SELECT building_id FROM users WHERE id::text = auth.uid()::text AND role IN ('admin', 'super_admin'))
 );
 
 -- Work orders: building members can read
 CREATE POLICY "work_orders_select_building" ON work_orders FOR SELECT USING (
-  building_id IN (SELECT building_id FROM users WHERE id = auth.uid()::text)
+  building_id IN (SELECT building_id FROM users WHERE id::text = auth.uid()::text)
 );
 
 -- Work orders: admin/super_admin can insert
 CREATE POLICY "work_orders_insert_admin" ON work_orders FOR INSERT WITH CHECK (
-  building_id IN (SELECT building_id FROM users WHERE id = auth.uid()::text AND role IN ('admin', 'super_admin'))
+  building_id IN (SELECT building_id FROM users WHERE id::text = auth.uid()::text AND role IN ('admin', 'super_admin'))
 );
 
 -- Work orders: admin/super_admin can update
 CREATE POLICY "work_orders_update_admin" ON work_orders FOR UPDATE USING (
-  building_id IN (SELECT building_id FROM users WHERE id = auth.uid()::text AND role IN ('admin', 'super_admin'))
+  building_id IN (SELECT building_id FROM users WHERE id::text = auth.uid()::text AND role IN ('admin', 'super_admin'))
 );
 
 -- ============================================================

@@ -76,35 +76,35 @@ ALTER TABLE survey_responses ENABLE ROW LEVEL SECURITY;
 
 -- Surveys: residents can see surveys from their building
 CREATE POLICY "surveys_select_building" ON surveys FOR SELECT USING (
-  building_id IN (SELECT building_id FROM users WHERE id = auth.uid()::text)
+  building_id IN (SELECT building_id FROM users WHERE id::text = auth.uid()::text)
 );
 
 -- Surveys: admin/super_admin can create surveys in their building
 CREATE POLICY "surveys_insert_admin" ON surveys FOR INSERT WITH CHECK (
-  building_id IN (SELECT building_id FROM users WHERE id = auth.uid()::text AND role IN ('admin', 'super_admin'))
+  building_id IN (SELECT building_id FROM users WHERE id::text = auth.uid()::text AND role IN ('admin', 'super_admin'))
 );
 
 -- Surveys: admin/super_admin can update surveys in their building
 CREATE POLICY "surveys_update_admin" ON surveys FOR UPDATE USING (
-  building_id IN (SELECT building_id FROM users WHERE id = auth.uid()::text AND role IN ('admin', 'super_admin'))
+  building_id IN (SELECT building_id FROM users WHERE id::text = auth.uid()::text AND role IN ('admin', 'super_admin'))
 );
 
 -- Survey questions: anyone in the building can read questions
 CREATE POLICY "survey_questions_select" ON survey_questions FOR SELECT USING (
-  survey_id IN (SELECT id FROM surveys WHERE building_id IN (SELECT building_id FROM users WHERE id = auth.uid()::text))
+  survey_id IN (SELECT id FROM surveys WHERE building_id IN (SELECT building_id FROM users WHERE id::text = auth.uid()::text))
 );
 
 -- Survey questions: admin can insert questions
 CREATE POLICY "survey_questions_insert_admin" ON survey_questions FOR INSERT WITH CHECK (
-  survey_id IN (SELECT id FROM surveys WHERE building_id IN (SELECT building_id FROM users WHERE id = auth.uid()::text AND role IN ('admin', 'super_admin')))
+  survey_id IN (SELECT id FROM surveys WHERE building_id IN (SELECT building_id FROM users WHERE id::text = auth.uid()::text AND role IN ('admin', 'super_admin')))
 );
 
 -- Survey responses: anyone in the building can read responses
 CREATE POLICY "survey_responses_select" ON survey_responses FOR SELECT USING (
-  survey_id IN (SELECT id FROM surveys WHERE building_id IN (SELECT building_id FROM users WHERE id = auth.uid()::text))
+  survey_id IN (SELECT id FROM surveys WHERE building_id IN (SELECT building_id FROM users WHERE id::text = auth.uid()::text))
 );
 
 -- Survey responses: users can insert responses as themselves
 CREATE POLICY "survey_responses_insert" ON survey_responses FOR INSERT WITH CHECK (
-  respondent_id = auth.uid()::text
+  respondent_id::text = auth.uid()::text
 );

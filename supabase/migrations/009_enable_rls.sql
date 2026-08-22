@@ -27,12 +27,12 @@ ALTER TABLE public.system_stats ENABLE ROW LEVEL SECURITY;
 
 CREATE OR REPLACE FUNCTION public.get_user_role()
 RETURNS TEXT AS $$
-  SELECT role FROM public.users WHERE id = auth.uid()::text LIMIT 1;
+  SELECT role FROM public.users WHERE id::text = auth.uid()::text LIMIT 1;
 $$ LANGUAGE sql SECURITY DEFINER STABLE;
 
 CREATE OR REPLACE FUNCTION public.get_user_building_id()
 RETURNS UUID AS $$
-  SELECT building_id FROM public.users WHERE id = auth.uid()::text LIMIT 1;
+  SELECT building_id FROM public.users WHERE id::text = auth.uid()::text LIMIT 1;
 $$ LANGUAGE sql SECURITY DEFINER STABLE;
 
 -- ============================================================
@@ -41,7 +41,7 @@ $$ LANGUAGE sql SECURITY DEFINER STABLE;
 
 -- Everyone can read their own profile
 CREATE POLICY "users_select_own" ON public.users
-  FOR SELECT USING (id = auth.uid()::text);
+  FOR SELECT USING (id::text = auth.uid()::text);
 
 -- super_admin can read all users
 CREATE POLICY "users_select_admin" ON public.users
