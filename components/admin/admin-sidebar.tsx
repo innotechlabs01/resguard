@@ -17,6 +17,10 @@ import {
   MessageSquare,
   Wrench,
   ShieldAlert,
+  Droplets,
+  Store,
+  ClipboardCheck,
+  UserPlus,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -42,9 +46,13 @@ const navItems = [
   { id: 'pqrs', icon: Ticket, label: 'PQRS' },
   { id: 'convivencia', icon: ShieldAlert, label: 'Convivencia' },
   { id: 'maintenance', icon: Wrench, label: 'Mantenimiento' },
+  { id: 'utilities', icon: Droplets, label: 'Servicios' },
+  { id: 'providers', icon: Store, label: 'Proveedores' },
   { id: 'chat', icon: MessageSquare, label: 'Mensajes' },
   { id: 'alerts', icon: Bell, label: 'Alertas', badge: true },
   { id: 'reports', icon: FileText, label: 'Reportes' },
+  { id: 'surveys', icon: ClipboardCheck, label: 'Encuestas' },
+  { id: 'onboarding', icon: UserPlus, label: 'Onboarding' },
   { id: 'settings', icon: Settings, label: 'Configuracion' },
 ]
 

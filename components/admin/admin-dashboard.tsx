@@ -13,7 +13,7 @@ import type { ParkingSpot, Alert, BuildingStats } from '@/lib/types'
 import { useAuth } from '@/lib/auth-context'
 import { useAnalyticsTrack } from '@/lib/hooks/useAnalytics'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
-import { Menu, LayoutDashboard, Users, Car, CreditCard, FileText, Settings, Bell, LogOut, Building2, Send, CarFront, CalendarDays, Building, Bot, Ticket, MessageSquare, Wrench, ShieldAlert } from 'lucide-react'
+import { Menu, LayoutDashboard, Users, Car, CreditCard, FileText, Settings, Bell, LogOut, Building2, Send, CarFront, CalendarDays, Building, Bot, Ticket, MessageSquare, Wrench, ShieldAlert, Droplets, Store, ClipboardCheck, UserPlus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
@@ -25,6 +25,10 @@ import { PqrsPanel } from '../dashboard/pqrs-panel'
 import { ConvivenciaPanel } from '../dashboard/convivencia-panel'
 import { ChatPanel } from '../dashboard/chat-panel'
 import { MaintenancePanel } from '../dashboard/maintenance-panel'
+import { UtilityPanel } from '../dashboard/utility-panel'
+import { ProvidersPanel } from '../dashboard/providers-panel'
+import { SurveysPanel } from '../dashboard/surveys-panel'
+import { OnboardingPanel } from '../dashboard/onboarding-panel'
 
 const ParkingMap = lazy(() => import('@/components/dashboard/parking-map').then(m => ({ default: m.ParkingMap })))
 const AlertsPanel = lazy(() => import('@/components/dashboard/alerts-panel').then(m => ({ default: m.AlertsPanel })))
@@ -41,10 +45,14 @@ const tabTitles: Record<string, string> = {
   pqrs: 'PQRS',
   convivencia: 'Convivencia',
   maintenance: 'Mantenimiento',
+  utilities: 'Consumo de Servicios',
+  providers: 'Proveedores',
   chat: 'Mensajes',
   alerts: 'Alertas',
   reports: 'Reportes',
   settings: 'Configuracion',
+  surveys: 'Encuestas',
+  onboarding: 'Onboarding',
 }
 
 const navItems = [
@@ -58,10 +66,14 @@ const navItems = [
   { id: 'pqrs', icon: Ticket, label: 'PQRS' },
   { id: 'convivencia', icon: ShieldAlert, label: 'Convivencia' },
   { id: 'maintenance', icon: Wrench, label: 'Mantenimiento' },
+  { id: 'utilities', icon: Droplets, label: 'Servicios' },
+  { id: 'providers', icon: Store, label: 'Proveedores' },
   { id: 'chat', icon: MessageSquare, label: 'Mensajes' },
   { id: 'alerts', icon: Bell, label: 'Alertas', badge: true },
   { id: 'reports', icon: FileText, label: 'Reportes' },
   { id: 'concierge', icon: Bot, label: 'Concierge' },
+  { id: 'surveys', icon: ClipboardCheck, label: 'Encuestas' },
+  { id: 'onboarding', icon: UserPlus, label: 'Onboarding' },
   { id: 'settings', icon: Settings, label: 'Configuracion' },
 ]
 
@@ -370,6 +382,10 @@ export function AdminDashboard() {
         return <ConvivenciaPanel buildingId={building?.id || ''} />
       case 'maintenance':
         return <MaintenancePanel buildingId={building?.id || ''} />
+      case 'utilities':
+        return <UtilityPanel buildingId={building?.id || ''} />
+      case 'providers':
+        return <ProvidersPanel buildingId={building?.id || ''} />
       case 'chat':
         return <ChatPanel buildingId={building?.id || ''} />
       case 'alerts':
@@ -391,6 +407,10 @@ export function AdminDashboard() {
         )
       case 'concierge':
         return <AIConcierge />
+      case 'surveys':
+        return <SurveysPanel buildingId={building?.id || ''} />
+      case 'onboarding':
+        return <OnboardingPanel buildingId={building?.id || ''} />
       case 'settings':
         return building ? <AdminSettingsPanel building={building} /> : null
       default:
