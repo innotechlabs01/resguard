@@ -23,6 +23,59 @@ interface IntercomEvent {
 
 const eventStore = new Map<string, IntercomEvent[]>()
 
+// Send push notification to resident via Expo Push Service
+async function sendPushToResident(unitNumber: string, callerType: string, callerName: string | null) {
+  const supabase = getSupabaseAdmin()
+  if (!supabase) return
+
+  try {
+    // Find device tokens for this unit's resident
+    // The resident's user_id is stored in device_tokens with role='resident'
+    // We need to match by unit — query users table for the unit, then get their device tokens
+    const { data: users } = await supabase
+      .from('users')
+      .select('id')
+      .eq('unit', unitNumber)
+      .limit(1)
+
+    if (!users || users.length === 0) return
+
+    const userId = users[0].id
+
+    const { data: tokens } = await supabase
+      .from('device_tokens')
+      .select('token')
+      .eq('user_id', userId)
+      .eq('is_active', true)
+
+    if (!tokens || tokens.length === 0) return
+
+    const typeLabel = callerType === 'visitor' ? 'Visitante'
+      : callerType === 'delivery' ? 'Domicilio'
+      : 'Otro'
+
+    // Send to Expo Push Service
+    const messages = tokens.map(t => ({
+      to: t.token,
+      title: '🔔 Llamada del Citofono',
+      body: `${typeLabel}${callerName ? ` - ${callerName}` : ''} en portería`,
+      data: { type: 'intercom_call', unitNumber, callerType, callerName },
+      sound: 'default',
+      priority: 'high',
+    }))
+
+    await fetch('https://exp.host/--/api/v2/push/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(messages),
+    })
+
+    log.info({ unitNumber, callerType, tokensCount: tokens.length }, 'Push notification sent to resident')
+  } catch (error) {
+    log.error({ error, unitNumber }, 'Failed to send push notification')
+  }
+}
+
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {
@@ -119,6 +172,11 @@ export async function POST(request: Request) {
       caller_name: callerName,
       caller_message: callerMessage,
     })
+
+    // Send push notification to the specific resident
+    sendPushToResident(unitNumber, callerType, callerName).catch(err =>
+      log.error({ err }, 'Push notification failed')
+    )
 
     const event: IntercomEvent = {
       id,
