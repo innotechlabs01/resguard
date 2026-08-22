@@ -1,79 +1,83 @@
 import { NextResponse } from 'next/server'
 import { updatePayment, getPaymentByBoldLinkId } from '@/lib/db/queries/payments'
-import { mapBoldStatusToApp } from '@/lib/bold-client'
-import { createHash } from 'crypto'
-
+import { mapBoldStatusToApp, verifyBoldSignature } from '@/lib/bold-client'
+import { z } from 'zod'
 import { logger } from '@/lib/logger'
 
 const log = logger.child({ module: 'api/payments/webhook' })
 
-interface BoldWebhookPayload {
-  id: string
-  status: string
-  total: number
-  payment_method: string | null
-  transaction_id: string | null
-  reference: string
-}
-
-function verifyBoldSignature(
-  body: string,
-  signature: string | null,
-  secretKey: string
-): boolean {
-  if (!signature) return false
-  const expectedHash = createHash('sha256').update(body + secretKey).digest('hex')
-  return signature === expectedHash
-}
+const BoldStatusEnum = z.enum(['ACTIVE', 'PROCESSING', 'PAID', 'REJECTED', 'CANCELLED', 'EXPIRED'])
+const WebhookSchema = z.object({
+  id: z.string().min(1),
+  status: BoldStatusEnum,
+  total: z.number().optional(),
+  payment_method: z.string().nullable().optional(),
+  transaction_id: z.string().nullable().optional(),
+  reference: z.string().optional(),
+})
 
 export async function POST(request: Request) {
   try {
     const rawBody = await request.text()
     const signature = request.headers.get('x-bold-signature')
+    const timestamp = request.headers.get('x-bold-timestamp')
 
-    const secretKey = process.env.BOLD_SECRET_KEY || process.env.BOLD_SECRET_KEY_TEST
-    if (secretKey) {
-      const isValid = verifyBoldSignature(rawBody, signature, secretKey)
-      if (!isValid) {
-        log.warn('Invalid Bold webhook signature')
-        return NextResponse.json(
-          { error: 'Invalid signature' },
-          { status: 401 }
-        )
+    const secretKey = process.env.BOLD_SECRET_KEY || process.env.BOLD_SECRET_KEY_TEST || ''
+
+    if (!signature || !secretKey) {
+      log.warn('Missing Bold webhook signature or secret')
+      return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
+    }
+
+    if (timestamp) {
+      const ts = Number(timestamp)
+      if (!Number.isNaN(ts)) {
+        const now = Date.now()
+        const tsMs = ts > 1e12 ? ts : ts > 1e10 ? ts / 1e6 : ts * 1000
+        if (Math.abs(now - tsMs) > 5 * 60 * 1000) {
+          return NextResponse.json({ error: 'Timestamp expired' }, { status: 401 })
+        }
       }
     }
 
-    const body = JSON.parse(rawBody) as BoldWebhookPayload
-    const boldLinkId = body.id
-    const boldStatus = body.status
-
-    if (!boldLinkId || !boldStatus) {
-      return NextResponse.json(
-        { error: 'Datos de webhook incompletos' },
-        { status: 400 }
-      )
+    if (!verifyBoldSignature(rawBody, signature, secretKey)) {
+      log.warn('Invalid Bold webhook signature')
+      return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
     }
 
-    const existingPayment = await getPaymentByBoldLinkId(boldLinkId)
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(rawBody)
+    } catch {
+      return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
+    }
 
+    const body = WebhookSchema.safeParse(parsed)
+    if (!body.success) {
+      return NextResponse.json({ error: 'Datos de webhook incompletos', details: body.error.flatten() }, { status: 400 })
+    }
+
+    const { id: boldLinkId, status: boldStatus } = body.data
+
+    const existingPayment = await getPaymentByBoldLinkId(boldLinkId)
     if (!existingPayment) {
       return NextResponse.json({ message: 'Pago no encontrado' })
     }
 
     const appStatus = mapBoldStatusToApp(boldStatus)
+    if (existingPayment.status === appStatus) {
+      return NextResponse.json({ success: true, message: 'Already up to date' })
+    }
 
     await updatePayment(existingPayment.id, {
       status: appStatus,
-      payment_method: body.payment_method,
-      transaction_id: body.transaction_id,
+      payment_method: body.data.payment_method ?? null,
+      transaction_id: body.data.transaction_id ?? null,
     })
 
     return NextResponse.json({ success: true })
   } catch (error) {
     log.error({ error }, 'Error processing webhook')
-    return NextResponse.json(
-      { error: 'Error al procesar webhook' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Error al procesar webhook' }, { status: 500 })
   }
 }

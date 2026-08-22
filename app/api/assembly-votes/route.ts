@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
+import { requireAuth, isAuthResponse } from '@/lib/auth/requireAuth'
 import { getAssemblyVotes, createAssemblyVote, updateVoteStatus, getVoteById, getVoteResponses, castVote, hasUserVoted } from '@/lib/db/queries/assemblies'
 import { logger } from '@/lib/logger'
 
@@ -9,10 +9,9 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {
   try {
-    const { userId } = await auth()
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const authResult = await requireAuth(request, ['usuario', 'admin', 'super_admin'])
+    if (isAuthResponse(authResult)) return authResult
+    const { user } = authResult
 
     const { searchParams } = new URL(request.url)
     const assemblyId = searchParams.get('assemblyId')
@@ -26,7 +25,7 @@ export async function GET(request: Request) {
     if (voteId) {
       const vote = await getVoteById(voteId)
       const responses = await getVoteResponses(voteId)
-      const hasVoted = await hasUserVoted(voteId, userId)
+      const hasVoted = await hasUserVoted(voteId, user.clerk_user_id ?? user.id)
       return NextResponse.json({ vote, responses, hasVoted })
     }
 
@@ -39,23 +38,22 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const { userId } = await auth()
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const authResult = await requireAuth(request, ['usuario', 'admin', 'super_admin'])
+    if (isAuthResponse(authResult)) return authResult
+    const { user } = authResult
 
     const body = await request.json()
     const { assemblyId, title, description, options, status, userName, unit, optionId, voteId } = body
 
     if (voteId && userName && optionId && unit) {
-      const alreadyVoted = await hasUserVoted(voteId, userId)
+      const alreadyVoted = await hasUserVoted(voteId, user.clerk_user_id ?? user.id)
       if (alreadyVoted) {
         return NextResponse.json({ error: 'You have already voted' }, { status: 400 })
       }
 
       await castVote({
         vote_id: voteId,
-        user_id: userId,
+        user_id: user.clerk_user_id ?? user.id,
         user_name: userName,
         unit,
         option_id: optionId,
@@ -74,7 +72,7 @@ export async function POST(request: Request) {
       description: description || '',
       options: JSON.stringify(options),
       status: status || 'pending',
-      created_by: userId,
+      created_by: user.clerk_user_id ?? user.id,
     })
 
     return NextResponse.json({ id, message: 'Vote created successfully' })
@@ -86,10 +84,9 @@ export async function POST(request: Request) {
 
 export async function PUT(request: Request) {
   try {
-    const { userId } = await auth()
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const authResult = await requireAuth(request, ['admin', 'super_admin'])
+    if (isAuthResponse(authResult)) return authResult
+    const { user } = authResult
 
     const body = await request.json()
     const { voteId, assemblyId, status } = body

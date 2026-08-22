@@ -1,6 +1,6 @@
 import 'server-only'
 import { queryMany, queryOne, executeInsert } from './helpers'
-import type { InValue } from '@libsql/client'
+import type { InValue } from './helpers'
 
 export interface DbTenant {
   id: string

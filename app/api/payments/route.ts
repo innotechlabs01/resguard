@@ -1,21 +1,16 @@
 import { NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
+import { requireAuth } from '@/lib/auth/requireAuth'
 import { getPayments } from '@/lib/db/queries/payments'
 import { logger } from '@/lib/logger'
 
-const hasClerk = Boolean(process.env.CLERK_SECRET_KEY?.trim())
 const log = logger.child({ module: 'api/payments' })
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {
   try {
-    if (hasClerk) {
-      const { userId } = await auth()
-      if (!userId) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-      }
-    }
+    const authRes = await requireAuth(request)
+    if (authRes instanceof Response) return authRes
 
     const { searchParams } = new URL(request.url)
     const buildingId = searchParams.get('buildingId') ?? undefined

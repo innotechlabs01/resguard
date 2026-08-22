@@ -6,8 +6,6 @@ const hasClerk =
   Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim()) &&
   Boolean(process.env.CLERK_SECRET_KEY?.trim())
 
-const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV === 'production'
-
 const isPublicRoute = createRouteMatcher([
   '/sign-in',
   '/sign-up',
@@ -18,13 +16,11 @@ export default function middleware(
   event: import('next/server').NextFetchEvent
 ) {
   if (!hasClerk) {
-    if (isProduction) {
-      return NextResponse.json(
-        { error: 'Authentication not configured' },
-        { status: 503 }
-      )
-    }
-    return NextResponse.next()
+    if (isPublicRoute(request)) return NextResponse.next()
+    return NextResponse.json(
+      { error: 'Authentication not configured' },
+      { status: 503 }
+    )
   }
 
   if (isPublicRoute(request)) {

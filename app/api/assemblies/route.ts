@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
+import { requireAuth, isAuthResponse } from '@/lib/auth/requireAuth'
 import { getAssemblies, createAssembly, getAssemblyById, updateAssemblyStatus } from '@/lib/db/queries/assemblies'
 import { logger } from '@/lib/logger'
 
@@ -9,10 +9,9 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {
   try {
-    const { userId } = await auth()
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const authResult = await requireAuth(request, ['admin', 'super_admin'])
+    if (isAuthResponse(authResult)) return authResult
+    const { user } = authResult
 
     const { searchParams } = new URL(request.url)
     const buildingId = searchParams.get('buildingId')
@@ -30,10 +29,9 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const { userId } = await auth()
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const authResult = await requireAuth(request, ['admin', 'super_admin'])
+    if (isAuthResponse(authResult)) return authResult
+    const { user } = authResult
 
     const body = await request.json()
     const { buildingId, title, description, date, time, location, sendNotification } = body
@@ -50,7 +48,7 @@ export async function POST(request: Request) {
       time,
       location: location || '',
       status: 'scheduled',
-      created_by: userId,
+      created_by: user.clerk_user_id ?? user.id,
     })
 
     return NextResponse.json({ id, message: 'Assembly created successfully' })

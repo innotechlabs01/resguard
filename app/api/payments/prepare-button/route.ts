@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
+import { requireAuth, isAuthResponse } from '@/lib/auth/requireAuth'
 import { createPayment, getPaymentById } from '@/lib/db/queries/payments'
 import { getBoldPublicKey, generateIntegrityHash } from '@/lib/bold-client'
 import { logger } from '@/lib/logger'
@@ -8,10 +8,9 @@ const log = logger.child({ module: 'api/payments/prepare-button' })
 
 export async function POST(request: Request) {
   try {
-    const { userId } = await auth()
-    if (!userId) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-    }
+    const authResult = await requireAuth(request, ['usuario', 'admin', 'super_admin'])
+    if (isAuthResponse(authResult)) return authResult
+    const { user } = authResult
 
     const body = await request.json()
     const {

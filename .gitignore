@@ -36,3 +36,10 @@ scripts/
 
 # os
 .DS_Store
+
+# mcp
+mcp.json
+ResGuardMobile/mcp.json
+
+# sdd
+.atl/

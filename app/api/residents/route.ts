@@ -1,22 +1,16 @@
 import { NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
+import { requireAuth } from '@/lib/auth/requireAuth'
 import { getResidents, createResident, updateResident, deleteResident } from '@/lib/db/queries/residents'
 import { logger } from '@/lib/logger'
 
 const log = logger.child({ module: 'api/residents' })
 
-const hasClerk = Boolean(process.env.CLERK_SECRET_KEY?.trim())
-
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {
   try {
-    if (hasClerk) {
-      const { userId } = await auth()
-      if (!userId) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-      }
-    }
+    const authRes = await requireAuth(request)
+    if (authRes instanceof Response) return authRes
 
     const { searchParams } = new URL(request.url)
     const buildingId = searchParams.get('buildingId')
@@ -34,12 +28,8 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    if (hasClerk) {
-      const { userId } = await auth()
-      if (!userId) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-      }
-    }
+    const authRes = await requireAuth(request)
+    if (authRes instanceof Response) return authRes
 
     const body = await request.json()
     
@@ -70,12 +60,8 @@ export async function POST(request: Request) {
 
 export async function PUT(request: Request) {
   try {
-    if (hasClerk) {
-      const { userId } = await auth()
-      if (!userId) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-      }
-    }
+    const authRes = await requireAuth(request)
+    if (authRes instanceof Response) return authRes
 
     const body = await request.json()
     const { id, ...updates } = body
@@ -94,12 +80,8 @@ export async function PUT(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    if (hasClerk) {
-      const { userId } = await auth()
-      if (!userId) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-      }
-    }
+    const authRes = await requireAuth(request)
+    if (authRes instanceof Response) return authRes
 
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')

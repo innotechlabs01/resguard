@@ -1,22 +1,17 @@
 import { NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
+import { requireAuth } from '@/lib/auth/requireAuth'
 import { getUsers, createUser, updateUser, deleteUser } from '@/lib/db/queries/users'
 import { validateBody, CreateUserSchema } from '@/lib/validation'
 import { logger } from '@/lib/logger'
 
-const hasClerk = Boolean(process.env.CLERK_SECRET_KEY?.trim())
 const log = logger.child({ module: 'api/users' })
 
 export const dynamic = 'force-dynamic'
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    if (hasClerk) {
-      const { userId } = await auth()
-      if (!userId) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-      }
-    }
+    const authRes = await requireAuth(request)
+    if (authRes instanceof Response) return authRes
 
     const users = await getUsers()
     const formattedUsers = users.map(u => ({
@@ -35,12 +30,8 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    if (hasClerk) {
-      const { userId: clerkUserId } = await auth()
-      if (!clerkUserId) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-      }
-    }
+    const authRes = await requireAuth(request)
+    if (authRes instanceof Response) return authRes
 
     const body = await request.json()
     const validation = validateBody(CreateUserSchema, body)
@@ -62,12 +53,8 @@ export async function POST(request: Request) {
 
 export async function PUT(request: Request) {
   try {
-    if (hasClerk) {
-      const { userId } = await auth()
-      if (!userId) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-      }
-    }
+    const authRes = await requireAuth(request)
+    if (authRes instanceof Response) return authRes
 
     const body = await request.json()
     const { id, ...updates } = body
@@ -86,12 +73,8 @@ export async function PUT(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    if (hasClerk) {
-      const { userId } = await auth()
-      if (!userId) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-      }
-    }
+    const authRes = await requireAuth(request)
+    if (authRes instanceof Response) return authRes
 
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')

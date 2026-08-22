@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
+import { requireAuth, isAuthResponse } from '@/lib/auth/requireAuth'
 import { createPaymentLink, checkPaymentStatus } from '@/lib/bold-client'
 import { createPayment, getPaymentByBoldLinkId, updatePayment } from '@/lib/db/queries/payments'
 import { validateBody, CreatePaymentSchema } from '@/lib/validation'
@@ -9,10 +9,9 @@ const log = logger.child({ module: 'api/payments/create-link' })
 
 export async function POST(request: Request) {
   try {
-    const { userId } = await auth()
-    if (!userId) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-    }
+    const authResult = await requireAuth(request, ['usuario', 'admin', 'super_admin'])
+    if (isAuthResponse(authResult)) return authResult
+    const { user } = authResult
 
     const body = await request.json()
     const validation = validateBody(CreatePaymentSchema, body)
@@ -59,10 +58,9 @@ export async function POST(request: Request) {
 
 export async function GET(request: Request) {
   try {
-    const { userId } = await auth()
-    if (!userId) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-    }
+    const authResult = await requireAuth(request, ['usuario', 'admin', 'super_admin'])
+    if (isAuthResponse(authResult)) return authResult
+    const { user } = authResult
 
     const { searchParams } = new URL(request.url)
     const boldLinkId = searchParams.get('boldLinkId')

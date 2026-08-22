@@ -1,4 +1,4 @@
-import { createHash } from 'crypto'
+import { createHash, timingSafeEqual } from 'crypto'
 
 const BOLD_API_URL = 'https://integrations.api.bold.co'
 
@@ -238,6 +238,13 @@ export async function checkPaymentStatus(boldLinkId: string): Promise<PaymentSta
     expirationDate: response.expiration_date ? new Date(response.expiration_date / 1e6) : null,
     description: response.description,
   }
+}
+
+export function verifyBoldSignature(body: string, sig: string | null, secret: string): boolean {
+  if (!sig || !secret) return false
+  const expected = createHash('sha256').update(body + secret).digest('hex')
+  if (sig.length !== expected.length) return false
+  return timingSafeEqual(Buffer.from(sig, 'utf8'), Buffer.from(expected, 'utf8'))
 }
 
 export function mapBoldStatusToApp(boldStatus: string): 'succeeded' | 'pending' | 'failed' | 'refunded' {

@@ -1,12 +1,11 @@
 import { NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
+import { requireAuth } from '@/lib/auth/requireAuth'
 import { getIntercomUnits, getIntercomCalls, createIntercomCall, respondToCall } from '@/lib/db/queries/intercom'
 import { getSupabaseAdmin } from '@/lib/db/supabase'
 import { logger } from '@/lib/logger'
 
 const log = logger.child({ module: 'api/intercom' })
 
-const hasClerk = Boolean(process.env.CLERK_SECRET_KEY?.trim())
 const POLL_INTERVAL_MS = 3000
 
 interface IntercomEvent {
@@ -28,12 +27,8 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {
   try {
-    if (hasClerk) {
-      const { userId } = await auth()
-      if (!userId) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-      }
-    }
+    const authRes = await requireAuth(request)
+    if (authRes instanceof Response) return authRes
 
     const { searchParams } = new URL(request.url)
     const buildingId = searchParams.get('buildingId')
@@ -82,12 +77,8 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    if (hasClerk) {
-      const { userId } = await auth()
-      if (!userId) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-      }
-    }
+    const authRes = await requireAuth(request)
+    if (authRes instanceof Response) return authRes
 
     const body = await request.json()
     const { buildingId, unitId, unitNumber, callerType, callerName, callerMessage, callId, response, note } = body

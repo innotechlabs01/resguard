@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
+import { requireAuth, isAuthResponse } from '@/lib/auth/requireAuth'
 import { getSystemStats } from '@/lib/db/queries/stats'
 import { logger } from '@/lib/logger'
 
@@ -7,12 +7,11 @@ const log = logger.child({ module: 'api/stats' })
 
 export const dynamic = 'force-dynamic'
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const { userId } = await auth()
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const authResult = await requireAuth(request, ['admin', 'super_admin'])
+    if (isAuthResponse(authResult)) return authResult
+    const { user } = authResult
 
     const stats = await getSystemStats()
     return NextResponse.json({ stats })

@@ -1,12 +1,11 @@
 /**
  * Resolución de entorno y proveedor de base de datos (solo servidor salvo NEXT_PUBLIC_*).
- * - Local / QA: suele usarse Turso (variables en .env.development, cargado por Next en `next dev`).
- * - Productivo: Supabase (variables en .env.productive vía scripts o panel del host).
+ * - Productivo: Supabase (PostgreSQL) — único proveedor.
  */
 
 export type AppEnv = 'development' | 'qa' | 'production'
 
-export type DatabaseProvider = 'turso' | 'supabase' | 'none'
+export type DatabaseProvider = 'supabase' | 'none'
 
 export function getAppEnv(): AppEnv {
   const explicit =
@@ -17,13 +16,12 @@ export function getAppEnv(): AppEnv {
 }
 
 export function getDatabaseProvider(): DatabaseProvider {
-  // Always check Turso first if available
-  if (process.env.DATABASE_URL_TURSO) return 'turso'
-  
-  // Check for Supabase
-  if (process.env.DATABASE_URL_SUPABASE) return 'supabase'
-  
+  if (process.env.DATABASE_URL_SUPABASE || process.env.DATABASE_SERVICES_SUPABASE || process.env.DATABASE_PWD_SUPABASE) return 'supabase'
   return 'none'
+}
+
+export function isSupabaseConfigured(): boolean {
+  return getDatabaseProvider() === 'supabase'
 }
 
 export function hasClerkPublicKey(): boolean {

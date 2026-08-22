@@ -1,16 +1,15 @@
 import { NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
+import { requireAuth, isAuthResponse } from '@/lib/auth/requireAuth'
 import { logger } from '@/lib/logger'
 
 const log = logger.child({ module: 'api/user/profile' })
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const { userId } = await auth()
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    return NextResponse.json({ userId })
+    const authResult = await requireAuth(request)
+    if (isAuthResponse(authResult)) return authResult
+    const { user } = authResult
+    return NextResponse.json({ userId: user.clerk_user_id ?? user.id })
   } catch (error) {
     log.error({ error }, 'Error fetching user profile')
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
