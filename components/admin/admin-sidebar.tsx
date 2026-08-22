@@ -15,6 +15,7 @@ import {
   CalendarDays,
   Ticket,
   MessageSquare,
+  Wrench,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -38,6 +39,7 @@ const navItems = [
   { id: 'comunicaciones', icon: Send, label: 'Comunicaciones' },
   { id: 'assemblies', icon: CalendarDays, label: 'Asambleas' },
   { id: 'pqrs', icon: Ticket, label: 'PQRS' },
+  { id: 'maintenance', icon: Wrench, label: 'Mantenimiento' },
   { id: 'chat', icon: MessageSquare, label: 'Mensajes' },
   { id: 'alerts', icon: Bell, label: 'Alertas', badge: true },
   { id: 'reports', icon: FileText, label: 'Reportes' },
