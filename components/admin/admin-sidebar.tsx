@@ -12,6 +12,8 @@ import {
   Building2,
   Send,
   CarFront,
+  CalendarDays,
+  Ticket,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -33,6 +35,8 @@ const navItems = [
   { id: 'visitorParking', icon: CarFront, label: 'Visitantes' },
   { id: 'payments', icon: CreditCard, label: 'Pagos y Cobros' },
   { id: 'comunicaciones', icon: Send, label: 'Comunicaciones' },
+  { id: 'assemblies', icon: CalendarDays, label: 'Asambleas' },
+  { id: 'pqrs', icon: Ticket, label: 'PQRS' },
   { id: 'alerts', icon: Bell, label: 'Alertas', badge: true },
   { id: 'reports', icon: FileText, label: 'Reportes' },
   { id: 'settings', icon: Settings, label: 'Configuracion' },

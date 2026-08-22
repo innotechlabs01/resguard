@@ -400,3 +400,39 @@ export interface IntercomNotification {
   status: 'pending' | 'read' | 'action_taken'
   createdAt: Date
 }
+
+// PQRS Types
+export type PqrsCategory = 'maintenance' | 'noise' | 'security' | 'cleaning' | 'parking' | 'common_areas' | 'billing' | 'other'
+export type PqrsPriority = 'low' | 'normal' | 'high' | 'urgent'
+export type PqrsStatus = 'open' | 'in_progress' | 'waiting' | 'resolved' | 'closed' | 'reopened'
+
+export interface Pqrs {
+  id: string
+  buildingId: string
+  createdBy: string
+  createdByName: string
+  createdByUnit?: string
+  subject: string
+  description: string
+  category: PqrsCategory
+  priority: PqrsPriority
+  status: PqrsStatus
+  unit?: string
+  locationDetail?: string
+  assignedTo?: string
+  createdAt: Date
+  updatedAt: Date
+  resolvedAt?: Date
+  firstResponseAt?: Date
+}
+
+export interface PqrsComment {
+  id: string
+  pqrsId: string
+  authorId: string
+  authorName: string
+  authorRole: string
+  content: string
+  isInternal: boolean
+  createdAt: Date
+}

@@ -13,7 +13,7 @@ import type { ParkingSpot, Alert, BuildingStats } from '@/lib/types'
 import { useAuth } from '@/lib/auth-context'
 import { useAnalyticsTrack } from '@/lib/hooks/useAnalytics'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
-import { Menu, LayoutDashboard, Users, Car, CreditCard, FileText, Settings, Bell, LogOut, Building2, Send, CarFront, CalendarDays, Building, Bot } from 'lucide-react'
+import { Menu, LayoutDashboard, Users, Car, CreditCard, FileText, Settings, Bell, LogOut, Building2, Send, CarFront, CalendarDays, Building, Bot, Ticket } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
@@ -21,6 +21,7 @@ import { Badge } from '@/components/ui/badge'
 import { SkeletonCard } from '@/components/ui/skeleton-loaders'
 import { AssemblyPanel } from './assembly-panel'
 import { AIConcierge } from '../dashboard/ai-concierge'
+import { PqrsPanel } from '../dashboard/pqrs-panel'
 
 const ParkingMap = lazy(() => import('@/components/dashboard/parking-map').then(m => ({ default: m.ParkingMap })))
 const AlertsPanel = lazy(() => import('@/components/dashboard/alerts-panel').then(m => ({ default: m.AlertsPanel })))
@@ -34,6 +35,7 @@ const tabTitles: Record<string, string> = {
   payments: 'Pagos y Cobros',
   comunicaciones: 'Comunicaciones',
   assemblies: 'Asambleas',
+  pqrs: 'PQRS',
   alerts: 'Alertas',
   reports: 'Reportes',
   settings: 'Configuracion',
@@ -47,6 +49,7 @@ const navItems = [
   { id: 'payments', icon: CreditCard, label: 'Pagos' },
   { id: 'comunicaciones', icon: Send, label: 'Comunicaciones' },
   { id: 'assemblies', icon: CalendarDays, label: 'Asambleas' },
+  { id: 'pqrs', icon: Ticket, label: 'PQRS' },
   { id: 'alerts', icon: Bell, label: 'Alertas', badge: true },
   { id: 'reports', icon: FileText, label: 'Reportes' },
   { id: 'concierge', icon: Bot, label: 'Concierge' },
@@ -352,6 +355,8 @@ export function AdminDashboard() {
         return <ComunicacionesPanel communications={communications} />
       case 'assemblies':
         return <AssemblyPanel />
+      case 'pqrs':
+        return <PqrsPanel buildingId={building?.id || ''} />
       case 'alerts':
         return (
           <Suspense fallback={<SkeletonCard className="h-[200px]" />}>
