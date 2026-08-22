@@ -13,7 +13,7 @@ import type { ParkingSpot, Alert, BuildingStats } from '@/lib/types'
 import { useAuth } from '@/lib/auth-context'
 import { useAnalyticsTrack } from '@/lib/hooks/useAnalytics'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
-import { Menu, LayoutDashboard, Users, Car, CreditCard, FileText, Settings, Bell, LogOut, Building2, Send, CarFront, CalendarDays, Building, Bot, Ticket, MessageSquare, Wrench } from 'lucide-react'
+import { Menu, LayoutDashboard, Users, Car, CreditCard, FileText, Settings, Bell, LogOut, Building2, Send, CarFront, CalendarDays, Building, Bot, Ticket, MessageSquare, Wrench, ShieldAlert } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
@@ -22,6 +22,7 @@ import { SkeletonCard } from '@/components/ui/skeleton-loaders'
 import { AssemblyPanel } from './assembly-panel'
 import { AIConcierge } from '../dashboard/ai-concierge'
 import { PqrsPanel } from '../dashboard/pqrs-panel'
+import { ConvivenciaPanel } from '../dashboard/convivencia-panel'
 import { ChatPanel } from '../dashboard/chat-panel'
 import { MaintenancePanel } from '../dashboard/maintenance-panel'
 
@@ -38,6 +39,7 @@ const tabTitles: Record<string, string> = {
   comunicaciones: 'Comunicaciones',
   assemblies: 'Asambleas',
   pqrs: 'PQRS',
+  convivencia: 'Convivencia',
   maintenance: 'Mantenimiento',
   chat: 'Mensajes',
   alerts: 'Alertas',
@@ -54,6 +56,7 @@ const navItems = [
   { id: 'comunicaciones', icon: Send, label: 'Comunicaciones' },
   { id: 'assemblies', icon: CalendarDays, label: 'Asambleas' },
   { id: 'pqrs', icon: Ticket, label: 'PQRS' },
+  { id: 'convivencia', icon: ShieldAlert, label: 'Convivencia' },
   { id: 'maintenance', icon: Wrench, label: 'Mantenimiento' },
   { id: 'chat', icon: MessageSquare, label: 'Mensajes' },
   { id: 'alerts', icon: Bell, label: 'Alertas', badge: true },
@@ -363,6 +366,8 @@ export function AdminDashboard() {
         return <AssemblyPanel />
       case 'pqrs':
         return <PqrsPanel buildingId={building?.id || ''} />
+      case 'convivencia':
+        return <ConvivenciaPanel buildingId={building?.id || ''} />
       case 'maintenance':
         return <MaintenancePanel buildingId={building?.id || ''} />
       case 'chat':
