@@ -4,6 +4,7 @@ import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { AppProviders } from '@/components/providers/app-providers'
 import { ErrorBoundary } from '@/components/error-boundary'
+import { SwRegister } from '@/components/pwa/sw-register'
 import './globals.css'
 
 const geist = Geist({ subsets: ['latin'], variable: '--font-geist' })
@@ -14,6 +15,11 @@ export const metadata: Metadata = {
   description:
     'ResGuard centraliza avisos, PQRS, pagos, mantenimiento y portería de tu copropiedad. Simple para residentes, potente para administradores.',
   generator: 'v0.app',
+  appleWebApp: {
+    capable: true,
+    title: 'ResGuard',
+    statusBarStyle: 'black-translucent',
+  },
   icons: {
     icon: [
       {
@@ -34,7 +40,8 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  themeColor: '#000000',
+  // Matches --background in globals.css and manifest background/theme color.
+  themeColor: '#050505',
   width: 'device-width',
   initialScale: 1,
 }
@@ -50,6 +57,7 @@ export default function RootLayout({
         <ErrorBoundary>
           <AppProviders>{children}</AppProviders>
         </ErrorBoundary>
+        <SwRegister />
         <Analytics />
       </body>
     </html>
