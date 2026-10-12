@@ -1,28 +1,50 @@
 import 'server-only'
-import { auth } from '@clerk/nextjs/server'
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
-import { getUserByClerkId, type DbUser } from '@/lib/db/queries/users'
+import { getUserById, type DbUser } from '@/lib/db/queries/users'
 
 export type Role = 'super_admin' | 'admin' | 'vigilante' | 'usuario'
 
 export async function requireAuth(
-  _req: Request,
+  req: Request,
   allowedRoles?: Role[]
-): Promise<{ user: DbUser; clerkId: string } | Response> {
-  const { userId } = await auth()
-  if (!userId) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+) {
+  const cookieStore = await cookies()
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name) { return cookieStore.get(name)?.value },
+        set() {},
+        remove() {}
+      }
+    }
+  )
+  let user = null
+  const authHeader = req.headers.get('authorization')
+  if (authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.substring(7)
+    const { data } = await supabase.auth.getUser(token)
+    user = data.user
+  } else {
+    const { data } = await supabase.auth.getUser()
+    user = data.user
   }
-  const user = await getUserByClerkId(userId)
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
+  const dbUser = await getUserById(user.id)
+  if (!dbUser) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
   if (allowedRoles && allowedRoles.length > 0) {
-    if (!allowedRoles.includes(user.role as Role)) {
+    if (!allowedRoles.includes(dbUser.role as Role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
   }
-  return { user, clerkId: userId }
+  return { user: dbUser, supabaseId: user.id }
 }
 
 export function isAuthResponse(v: unknown): v is Response {
