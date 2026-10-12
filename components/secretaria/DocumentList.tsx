@@ -6,7 +6,7 @@ export default function DocumentList({ buildingId }: { buildingId: string }) {
   const [docs, setDocs] = useState<any[]>([]);
 
   useEffect(() => {
-    supabase.from('documents').select('*').eq('building_id', buildingId).then(({ data }) => setDocs(data || []));
+    supabase.from('documents').select('*').eq('building_id', buildingId).then(({ data }: { data: any[] | null }) => setDocs(data || []));
   }, [buildingId]);
 
   return (

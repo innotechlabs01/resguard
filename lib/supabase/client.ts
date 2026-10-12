@@ -6,4 +6,14 @@ export const createClient = () => {
   return createBrowserClient(url, key);
 };
 
-export const supabase = createClient();
+// Lazily instantiated so that importing this module at build time
+// (page-data collection) does not throw when env vars are absent.
+let cached: ReturnType<typeof createBrowserClient> | null = null;
+
+export const supabase = new Proxy({} as ReturnType<typeof createBrowserClient>, {
+  get(_target, prop) {
+    if (!cached) cached = createClient();
+    const value = Reflect.get(cached as object, prop);
+    return typeof value === 'function' ? value.bind(cached) : value;
+  },
+});
