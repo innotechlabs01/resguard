@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth/requireAuth'
 import { assertBuildingAccess } from '@/lib/auth/assertBuildingAccess'
-import { getParkingSpots, createParkingSpot, updateParkingSpot, deleteParkingSpot } from '@/lib/db/queries/parking'
+import { getParkingSpots, getParkingSpotById, createParkingSpot, updateParkingSpot, deleteParkingSpot } from '@/lib/db/queries/parking'
 import { logger } from '@/lib/logger'
 
 const log = logger.child({ module: 'api/parking' })
@@ -34,9 +34,13 @@ export async function POST(request: Request) {
   try {
     const authRes = await requireAuth(request)
     if (authRes instanceof Response) return authRes
+    const { user } = authRes
 
     const body = await request.json()
-    
+
+    const access = assertBuildingAccess(user, body.building_id)
+    if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
+
     const spotData = {
       building_id: body.building_id,
       code: body.code,
@@ -61,12 +65,25 @@ export async function PUT(request: Request) {
   try {
     const authRes = await requireAuth(request)
     if (authRes instanceof Response) return authRes
+    const { user } = authRes
 
     const body = await request.json()
     const { id, ...updates } = body
 
     if (!id) {
       return NextResponse.json({ error: 'Parking spot ID required' }, { status: 400 })
+    }
+
+    // Read the existing spot row first to verify building access
+    const existingSpot = await getParkingSpotById(id)
+    if (!existingSpot) {
+      return NextResponse.json({ error: 'Parking spot not found' }, { status: 404 })
+    }
+    const access = assertBuildingAccess(user, existingSpot.building_id)
+    if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
+
+    if (updates.building_id !== undefined && updates.building_id !== existingSpot.building_id) {
+      return NextResponse.json({ error: 'Forbidden: cannot change building_id' }, { status: 403 })
     }
 
     await updateParkingSpot(id, updates)
@@ -81,6 +98,7 @@ export async function DELETE(request: Request) {
   try {
     const authRes = await requireAuth(request)
     if (authRes instanceof Response) return authRes
+    const { user } = authRes
 
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
@@ -88,6 +106,14 @@ export async function DELETE(request: Request) {
     if (!id) {
       return NextResponse.json({ error: 'Parking spot ID required' }, { status: 400 })
     }
+
+    // Read the existing spot row first to verify building access
+    const existingSpot = await getParkingSpotById(id)
+    if (!existingSpot) {
+      return NextResponse.json({ error: 'Parking spot not found' }, { status: 404 })
+    }
+    const access = assertBuildingAccess(user, existingSpot.building_id)
+    if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
 
     await deleteParkingSpot(id)
     return NextResponse.json({ success: true, message: 'Parking spot deleted successfully' })
