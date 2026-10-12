@@ -1,11 +1,5 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co',
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key'
-);
 
 export default function VisitasPanel() {
   const [visitas, setVisitas] = useState<any[]>([]);
@@ -13,12 +7,18 @@ export default function VisitasPanel() {
 
   async function load() {
     if (!buildingId) return;
-    const { data } = await supabase.from('visitors').select('*').eq('building_id', buildingId).order('created_at', { ascending: false });
-    setVisitas(data || []);
+    const res = await fetch(`/api/visitors?buildingId=${encodeURIComponent(buildingId)}`);
+    if (!res.ok) return;
+    const body = await res.json();
+    setVisitas(body.visitors || []);
   }
 
   async function aprobar(id: string) {
-    await supabase.from('visitors').update({ status: 'aprobado' }).eq('id', id);
+    await fetch('/api/visitors', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, status: 'aprobado' }),
+    });
     load();
   }
 
