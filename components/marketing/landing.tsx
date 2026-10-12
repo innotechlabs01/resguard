@@ -5,7 +5,6 @@ import {
   CreditCard,
   Wrench,
   DoorOpen,
-  MessageSquareWarning,
   ReceiptText,
   MessagesSquare,
 } from 'lucide-react'
@@ -22,22 +21,22 @@ import { WaitlistForm } from '@/components/marketing/waitlist-form'
 
 const PROBLEMS = [
   {
-    icon: MessagesSquare,
-    title: 'Avisos dispersos',
+    icon: DoorOpen,
+    title: 'Portería por papel y teléfono',
     description:
-      'Comunicados por WhatsApp y papelotes en el ascensor que nadie lee y nadie puede rastrear.',
-  },
-  {
-    icon: MessageSquareWarning,
-    title: 'PQRS sin trazabilidad',
-    description:
-      'Peticiones y reclamos por correo o de palabra, sin registro, sin estado y sin respuesta medible.',
+      'Registro de visitantes en papelotes y autorizaciones por llamada, sin historial confiable.',
   },
   {
     icon: ReceiptText,
-    title: 'Pagos manuales',
+    title: 'Pagos dispersos',
     description:
-      'Administración cobrada por transferencia, conciliada a mano y sin cartera clara por unidad.',
+      'La administración se cobra por transferencias sueltas, se concilia a mano y la cartera se pierde.',
+  },
+  {
+    icon: MessagesSquare,
+    title: 'Comunicación por WhatsApp caótica',
+    description:
+      'Comunicados y reclamos mezclados en grupos de WhatsApp donde todo se pierde y nadie lee.',
   },
 ]
 
@@ -121,6 +120,54 @@ export function Landing() {
         </div>
       </section>
 
+      {/* Visual: screenshot del dashboard en Card con borde glow */}
+      <section className="mx-auto max-w-6xl px-4 pb-20 sm:px-6">
+        <Card className="relative overflow-hidden border-primary/40 shadow-[0_0_60px_-15px] shadow-primary/40">
+          <div
+            className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-transparent"
+            aria-hidden
+          />
+          <div className="flex h-64 flex-col gap-3 p-4 sm:h-80 md:h-96" aria-hidden>
+            <div className="flex gap-3">
+              <div className="hidden w-40 shrink-0 space-y-2 rounded-md border border-border bg-card p-3 sm:block">
+                <div className="h-3 w-3/4 rounded bg-muted" />
+                <div className="h-3 w-1/2 rounded bg-muted" />
+                <div className="h-3 w-2/3 rounded bg-muted" />
+                <div className="h-3 w-1/3 rounded bg-muted" />
+              </div>
+              <div className="flex-1 space-y-3">
+                <div className="h-4 w-1/3 rounded bg-muted" />
+                <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+                  <div className="rounded-md border border-border bg-card p-3">
+                    <div className="h-3 w-2/3 rounded bg-muted" />
+                    <div className="mt-2 h-4 w-1/2 rounded bg-muted" />
+                  </div>
+                  <div className="rounded-md border border-border bg-card p-3">
+                    <div className="h-3 w-1/2 rounded bg-muted" />
+                    <div className="mt-2 h-4 w-2/3 rounded bg-muted" />
+                  </div>
+                  <div className="hidden rounded-md border border-border bg-card p-3 md:block">
+                    <div className="h-3 w-2/3 rounded bg-muted" />
+                    <div className="mt-2 h-4 w-1/3 rounded bg-muted" />
+                  </div>
+                </div>
+                <div className="flex-1 rounded-md border border-border bg-card p-3">
+                  <div className="h-3 w-1/4 rounded bg-muted" />
+                  <div className="mt-3 space-y-2">
+                    <div className="h-3 w-full rounded bg-muted" />
+                    <div className="h-3 w-5/6 rounded bg-muted" />
+                    <div className="h-3 w-4/6 rounded bg-muted" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <span className="sr-only">
+            Vista previa del panel de administración de ResGuard
+          </span>
+        </Card>
+      </section>
+
       {/* Problema */}
       <section className="border-t border-border">
         <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 md:py-24">
@@ -200,11 +247,10 @@ export function Landing() {
           <div className="mx-auto mt-10 max-w-sm">
             <Card>
               <CardHeader>
-                <CardTitle>Plan Básico</CardTitle>
-                <CardDescription>Para copropiedades pequeñas y medianas</CardDescription>
-                <p className="mt-2 text-3xl font-bold">
-                  $49.900 <span className="text-base font-normal text-muted-foreground">COP/mes</span>
-                </p>
+                <CardTitle>ResGuard para tu copropiedad</CardTitle>
+                <CardDescription>
+                  Contáctanos para conocer los planes disponibles
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <ul className="space-y-2 text-sm text-muted-foreground">
@@ -249,6 +295,14 @@ export function Landing() {
               hola@innotechlabs.co
             </a>
           </p>
+          <nav aria-label="Legal" className="flex gap-4">
+            <Link href="/terminos" className="hover:text-foreground">
+              Términos
+            </Link>
+            <Link href="/privacidad" className="hover:text-foreground">
+              Privacidad
+            </Link>
+          </nav>
           <Link href="/sign-in" className="hover:text-foreground">
             Ya soy cliente
           </Link>
