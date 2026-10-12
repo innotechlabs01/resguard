@@ -3,7 +3,11 @@
 
 create table if not exists waitlist_leads (
   id uuid primary key default gen_random_uuid(),
-  email text not null unique,
+  -- Uniqueness is enforced case-insensitively via the functional unique
+  -- index below (FOO@x == foo@x). A plain `unique` constraint here would be
+  -- case-sensitive (Postgres has no case-insensitive text without citext,
+  -- and the functional index is the simplest Supabase-compatible pattern).
+  email text not null,
   source text not null default 'landing',
   created_at timestamptz not null default now()
 );
@@ -23,3 +27,9 @@ with check (
   auth.role() = 'anon'
   and email ~* '^[^@\s]+@[^@\s]+\.[^@\s]+$'
 );
+
+-- Case-insensitive uniqueness at the DB level: the app lowercases emails,
+-- but direct PostgREST inserts would bypass that. This functional unique
+-- index makes the guarantee regardless of the caller.
+create unique index if not exists waitlist_leads_email_lower_key
+on waitlist_leads (lower(email));
