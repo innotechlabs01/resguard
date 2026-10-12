@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
+import { supabase } from '@/lib/supabase/client';
+import { requireAuth, isAuthResponse } from '@/lib/auth/requireAuth';
+import { assertBuildingAccess } from '@/lib/auth/assertBuildingAccess';
 import { z } from 'zod';
 
 const schema = z.object({
@@ -9,10 +10,12 @@ const schema = z.object({
   signature_note: z.string().optional()
 });
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  const supabase = createRouteHandlerClient({ cookies });
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const authRes = await requireAuth(req);
+  if (isAuthResponse(authRes)) return authRes;
+  const { user } = authRes;
+
+  const { id } = await params;
 
   const body = await req.json();
   const parsed = schema.safeParse(body);
@@ -20,8 +23,14 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
   const { version_id, status, signature_note } = parsed.data;
 
+  // Mutation by id: read the document's building → assert access → mutate
+  const { data: doc } = await supabase.from('documents').select('building_id').eq('id', id).single();
+  if (!doc) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  const access = assertBuildingAccess(user, doc.building_id);
+  if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
+
   const { data, error } = await supabase.from('document_signatures').insert({
-    document_id: params.id,
+    document_id: id,
     version_id,
     signed_by: user.id,
     status,
