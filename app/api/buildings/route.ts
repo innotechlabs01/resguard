@@ -58,7 +58,8 @@ export async function POST(request: Request) {
     const currency = validation.data.currency ?? 'COP'
 
     const buildingId = crypto.randomUUID()
-    await createBuilding({
+    const createdId = await createBuilding({
+      id: buildingId,
       name: validation.data.name,
       address: validation.data.address,
       total_units: validation.data.total_units,
@@ -74,7 +75,7 @@ export async function POST(request: Request) {
 
     if (user.id) {
       const { updateUser } = await import('@/lib/db/queries/users')
-      await updateUser(user.id, { role: 'admin', building_id: buildingId })
+      await updateUser(user.id, { role: 'admin', building_id: createdId })
     }
 
     return NextResponse.json({ success: true, message: 'Building created successfully' }, { status: 201 })

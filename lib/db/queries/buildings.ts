@@ -50,6 +50,7 @@ export async function getBuildingById(id: string): Promise<DbBuilding | null> {
 }
 
 export async function createBuilding(building: {
+  id: string
   name: string
   address: string
   total_units: number
@@ -61,12 +62,12 @@ export async function createBuilding(building: {
   outstanding_balance: number
   last_payment_date: string | null
   subscription_status: string
-}): Promise<void> {
-  const id = crypto.randomUUID()
+}): Promise<string> {
   await executeInsert(
     `INSERT INTO buildings (id, name, address, total_units, total_parking_spots, visitor_parking_spots, bold_account_id, monthly_fee, currency, outstanding_balance, last_payment_date, subscription_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [id, building.name, building.address, building.total_units, building.total_parking_spots, building.visitor_parking_spots, building.bold_account_id, building.monthly_fee, building.currency, building.outstanding_balance, building.last_payment_date, building.subscription_status]
+    [building.id, building.name, building.address, building.total_units, building.total_parking_spots, building.visitor_parking_spots, building.bold_account_id, building.monthly_fee, building.currency, building.outstanding_balance, building.last_payment_date, building.subscription_status]
   )
+  return building.id
 }
 
 export async function updateBuilding(id: string, updates: Partial<DbBuilding>): Promise<void> {
