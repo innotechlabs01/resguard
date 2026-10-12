@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth, isAuthResponse } from '@/lib/auth/requireAuth';
 import { assertBuildingAccess } from '@/lib/auth/assertBuildingAccess';
-import { supabase } from '@/lib/supabase/client';
+import { getSupabaseAdmin } from '@/lib/db/supabase';
 import { z } from 'zod';
 
 const schema = z.object({
@@ -25,6 +25,9 @@ export async function POST(req: NextRequest) {
     const { building_id, category_id, title, description } = parsed.data
     const access = assertBuildingAccess(user, building_id)
     if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
+
+    const supabase = getSupabaseAdmin()
+    if (!supabase) return NextResponse.json({ error: 'Database not configured' }, { status: 500 })
 
     const { data, error } = await supabase.from('documents').insert({
       building_id,

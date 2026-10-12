@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase/client';
 import { requireAuth, isAuthResponse } from '@/lib/auth/requireAuth';
+import { getSupabaseAdmin } from '@/lib/db/supabase';
 import { assertBuildingAccess } from '@/lib/auth/assertBuildingAccess';
 import { z } from 'zod';
 
@@ -14,6 +14,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const authRes = await requireAuth(req);
   if (isAuthResponse(authRes)) return authRes;
   const { user } = authRes;
+
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return NextResponse.json({ error: 'Database not configured' }, { status: 500 });
 
   const { id } = await params;
 
