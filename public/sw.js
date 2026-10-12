@@ -3,7 +3,13 @@
 // FCM handler lives in /firebase-messaging-sw.js and is merged here via
 // importScripts so a SINGLE service worker owns the "/" scope. Any eager
 // cache cleanup runs before FCM continues its own setup.
-importScripts('/firebase-messaging-sw.js')
+// FCM is a progressive enhancement: if the messaging script fails to load
+// (404, CSP, network), the main SW must survive so PWA install/offline still work.
+try {
+  importScripts('/firebase-messaging-sw.js')
+} catch (error) {
+  console.error('[sw] Failed to load Firebase messaging SW — push disabled, PWA continues:', error)
+}
 
 const CACHE_NAME = 'resguard-shell-v1'
 
