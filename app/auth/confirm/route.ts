@@ -9,7 +9,12 @@ import type { EmailOtpType } from '@supabase/supabase-js'
 export async function GET(request: Request) {
   const url = new URL(request.url)
   const tokenHash = url.searchParams.get('token_hash')
-  const type = url.searchParams.get('type') as EmailOtpType | null
+  // Allowlist: this handler only serves password-recovery links. Any other
+  // OTP type is rejected before reaching verifyOtp.
+  const type =
+    url.searchParams.get('type') === 'recovery'
+      ? ('recovery' as EmailOtpType)
+      : null
 
   const redirectToError = () =>
     NextResponse.redirect(new URL('/reset-password?error=expired', url.origin))
