@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth/requireAuth'
+import { assertBuildingAccess } from '@/lib/auth/assertBuildingAccess'
 import { getVisitors, createVisitor, updateVisitor, deleteVisitor } from '@/lib/db/queries/visitors'
 import { logger } from '@/lib/logger'
 
@@ -17,6 +18,8 @@ export async function GET(request: Request) {
     if (!buildingId) {
       return NextResponse.json({ error: 'buildingId required' }, { status: 400 })
     }
+    const access = assertBuildingAccess(authRes.user, buildingId)
+    if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
 
     const visitors = await getVisitors(buildingId)
     return NextResponse.json({ visitors })
@@ -32,7 +35,9 @@ export async function POST(request: Request) {
     if (authRes instanceof Response) return authRes
 
     const body = await request.json()
-    
+    const access = assertBuildingAccess(authRes.user, body.building_id)
+    if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
+
     const visitorData = {
       building_id: body.building_id,
       name: body.name,
@@ -67,6 +72,10 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'Visitor ID required' }, { status: 400 })
     }
 
+    if (updates.building_id !== undefined) {
+      const access = assertBuildingAccess(authRes.user, updates.building_id as string)
+      if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
+    }
     await updateVisitor(id, updates)
     return NextResponse.json({ success: true, message: 'Visitor updated successfully' })
   } catch (error) {

@@ -13,7 +13,6 @@ export const CreatePaymentSchema = z.object({
 })
 
 export const CreateUserSchema = z.object({
-  clerk_user_id: z.string().optional().default(''),
   email: z.string().email(),
   name: z.string().min(1).max(200),
   role: z.enum(['super_admin', 'admin', 'vigilante', 'usuario']),
@@ -46,8 +45,8 @@ export const CreateBuildingSchema = z.object({
   total_units: z.number().min(1).max(10000),
   total_parking_spots: z.number().min(0).max(10000),
   visitor_parking_spots: z.number().min(0).max(1000),
-  monthly_fee: z.number().min(0).max(100_000_000),
-  currency: z.string().min(3).max(3),
+  monthly_fee: z.number().min(0).max(100_000_000).optional(),
+  currency: z.string().min(3).max(3).optional(),
 })
 
 export function validateBody<T extends z.ZodType>(

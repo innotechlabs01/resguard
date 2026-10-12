@@ -13,7 +13,16 @@ export async function GET(request: Request) {
     if (authRes instanceof Response) return authRes
 
     const { searchParams } = new URL(request.url)
-    const buildingId = searchParams.get('buildingId') ?? undefined
+    const { user } = authRes
+    const buildingIdParam = searchParams.get('buildingId') ?? undefined
+
+    let buildingId = buildingIdParam
+    if (user.role !== 'super_admin') {
+      buildingId = user.building_id ?? undefined
+      if (buildingIdParam && buildingIdParam !== buildingId) {
+        return NextResponse.json({ error: 'Forbidden: building mismatch' }, { status: 403 })
+      }
+    }
 
     const payments = await getPayments(buildingId)
 

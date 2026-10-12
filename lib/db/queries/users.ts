@@ -3,7 +3,6 @@ import { queryMany, queryOne, executeInsert } from './helpers'
 
 export interface DbUser {
   id: string
-  clerk_user_id: string | null
   email: string
   name: string
   role: string
@@ -13,7 +12,6 @@ export interface DbUser {
 function mapUser(row: Record<string, unknown>): DbUser {
   return {
     id: row.id as string,
-    clerk_user_id: (row.clerk_user_id ?? null) as string | null,
     email: row.email as string,
     name: row.name as string,
     role: row.role as string,
@@ -29,14 +27,6 @@ export async function getUserById(id: string): Promise<DbUser | null> {
   return row ? mapUser(row) : null
 }
 
-export async function getUserByClerkId(clerkUserId: string): Promise<DbUser | null> {
-  const row = await queryOne<Record<string, unknown>>(
-    'SELECT * FROM users WHERE clerk_user_id = ?',
-    [clerkUserId]
-  )
-  return row ? mapUser(row) : null
-}
-
 export async function getUserByEmail(email: string): Promise<DbUser | null> {
   const row = await queryOne<Record<string, unknown>>(
     'SELECT * FROM users WHERE email = ?',
@@ -45,7 +35,14 @@ export async function getUserByEmail(email: string): Promise<DbUser | null> {
   return row ? mapUser(row) : null
 }
 
-export async function getUsers(): Promise<DbUser[]> {
+export async function getUsers(buildingId?: string | null): Promise<DbUser[]> {
+  if (buildingId) {
+    const rows = await queryMany<Record<string, unknown>>(
+      'SELECT * FROM users WHERE building_id = ? ORDER BY created_at DESC',
+      [buildingId]
+    )
+    return rows.map(mapUser)
+  }
   const rows = await queryMany<Record<string, unknown>>(
     'SELECT * FROM users ORDER BY created_at DESC',
     []
@@ -54,27 +51,29 @@ export async function getUsers(): Promise<DbUser[]> {
 }
 
 export async function createUser(user: {
-  clerk_user_id: string | null
+  id: string
   email: string
   name: string
   role: string
   building_id?: string | null
 }): Promise<void> {
-  const id = crypto.randomUUID()
   await executeInsert(
-    'INSERT INTO users (id, clerk_user_id, email, name, role, building_id) VALUES (?, ?, ?, ?, ?, ?)',
-    [id, user.clerk_user_id, user.email, user.name, user.role, user.building_id ?? null]
+    'INSERT INTO users (id, email, name, role, building_id) VALUES (?, ?, ?, ?, ?)',
+    [user.id, user.email, user.name, user.role, user.building_id ?? null]
   )
 }
 
-export async function updateUser(id: string, updates: Partial<Pick<DbUser, 'name' | 'role' | 'building_id' | 'clerk_user_id'>>): Promise<void> {
+export async function updateUser(id: string, updates: Partial<Record<string, unknown>>): Promise<void> {
   const fields: string[] = []
   const values: (string | number | null)[] = []
 
-  if (updates.name !== undefined) { fields.push('name = ?'); values.push(updates.name) }
-  if (updates.role !== undefined) { fields.push('role = ?'); values.push(updates.role) }
-  if (updates.building_id !== undefined) { fields.push('building_id = ?'); values.push(updates.building_id) }
-  if (updates.clerk_user_id !== undefined) { fields.push('clerk_user_id = ?'); values.push(updates.clerk_user_id) }
+  if (updates.name !== undefined) { fields.push('name = ?'); values.push(String(updates.name)) }
+  if (updates.role !== undefined) { fields.push('role = ?'); values.push(String(updates.role)) }
+  if (updates.building_id !== undefined) { fields.push('building_id = ?'); values.push((updates.building_id ?? null) as string | null) }
+  if (updates.status !== undefined) { fields.push('status = ?'); values.push(String(updates.status)) }
+  if (updates.unit !== undefined) { fields.push('unit = ?'); values.push(String(updates.unit)) }
+  if (updates.phone !== undefined) { fields.push('phone = ?'); values.push(String(updates.phone)) }
+  if (updates.profile_picture !== undefined) { fields.push('profile_picture = ?'); values.push((updates.profile_picture ?? null) as string | null) }
 
   if (fields.length === 0) return
 

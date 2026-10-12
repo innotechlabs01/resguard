@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireAuth, isAuthResponse } from '@/lib/auth/requireAuth'
+import { assertBuildingAccess } from '@/lib/auth/assertBuildingAccess'
 import { createPaymentLink, checkPaymentStatus } from '@/lib/bold-client'
 import { createPayment, getPaymentByBoldLinkId, updatePayment } from '@/lib/db/queries/payments'
 import { validateBody, CreatePaymentSchema } from '@/lib/validation'
@@ -18,6 +19,8 @@ export async function POST(request: Request) {
     if (!validation.success) return validation.response
 
     const { amount, amountType, description, residentEmail, residentUnit, buildingId, buildingName, paymentType } = validation.data
+    const access = assertBuildingAccess(user, buildingId)
+    if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
     const reference = `${buildingId}-${Date.now()}`
 
     const result = await createPaymentLink({
