@@ -14,7 +14,7 @@ import type { ParkingSpot, Alert, BuildingStats } from '@/lib/types'
 import { useAuth } from '@/lib/auth-context'
 import { useAnalyticsTrack } from '@/lib/hooks/useAnalytics'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
-import { Menu, LayoutDashboard, Users, Car, CreditCard, FileText, Settings, Bell, LogOut, Building2, Send, CarFront, CalendarDays, Building, Bot, Ticket, MessageSquare, Wrench, ShieldAlert, Droplets, Store, ClipboardCheck, UserPlus } from 'lucide-react'
+import { Menu, LayoutDashboard, Users, Car, CreditCard, FileText, Settings, Bell, LogOut, Building2, Send, CarFront, CalendarDays, Building, Bot, Ticket, MessageSquare, Wrench, ShieldAlert, Droplets, Store, ClipboardCheck, UserPlus, Inbox } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
@@ -24,6 +24,7 @@ import { AssemblyPanel } from './assembly-panel'
 import { AIConcierge } from '../dashboard/ai-concierge'
 import { PqrsPanel } from '../dashboard/pqrs-panel'
 import { ConvivenciaPanel } from '../dashboard/convivencia-panel'
+import { HelpdeskInboxPanel } from './helpdesk-inbox-panel'
 import { ChatPanel } from '../dashboard/chat-panel'
 import { MaintenancePanel } from '../dashboard/maintenance-panel'
 import { UtilityPanel } from '../dashboard/utility-panel'
@@ -37,6 +38,7 @@ const ReportsPanel = lazy(() => import('@/components/dashboard/reports-panel').t
 
 const tabTitles: Record<string, string> = {
   overview: 'Dashboard del Edificio',
+  inbox: 'Inbox',
   residents: 'Gestion de Residentes',
   parking: 'Parqueaderos Residentes',
   visitorParking: 'Parqueadero Visitantes',
@@ -58,6 +60,7 @@ const tabTitles: Record<string, string> = {
 
 const navItems = [
   { id: 'overview', icon: LayoutDashboard, label: 'Dashboard' },
+  { id: 'inbox', icon: Inbox, label: 'Inbox' },
   { id: 'residents', icon: Users, label: 'Residentes' },
   { id: 'parking', icon: Car, label: 'Parqueaderos' },
   { id: 'visitorParking', icon: CarFront, label: 'Visitantes' },
@@ -153,6 +156,7 @@ export function AdminDashboard() {
   const [communications, setCommunications] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [focusTarget, setFocusTarget] = useState<{ type: 'pqrs' | 'infraction'; id: string } | null>(null)
 
   useAnalyticsTrack(activeTab, 'admin')
 
@@ -340,6 +344,11 @@ export function AdminDashboard() {
     setAlerts((alerts) => alerts.map((a) => ({ ...a, read: true })))
   }
 
+  const handleOpenTicketDetail = useCallback((type: 'pqrs' | 'infraction', id: string) => {
+    setFocusTarget({ type, id })
+    setActiveTab(type === 'pqrs' ? 'pqrs' : 'convivencia')
+  }, [])
+
   const handleDismissAlert = (alertId: string) => {
     setAlerts((alerts) => alerts.filter((a) => a.id !== alertId))
   }
@@ -380,10 +389,31 @@ export function AdminDashboard() {
         return <ComunicacionesPanel communications={communications} />
       case 'assemblies':
         return <AssemblyPanel />
+      case 'inbox':
+        return (
+          <HelpdeskInboxPanel
+            buildingId={building?.id || ''}
+            residents={residents}
+            onOpenDetail={handleOpenTicketDetail}
+          />
+        )
       case 'pqrs':
-        return <PqrsPanel buildingId={building?.id || ''} />
+        return (
+          <PqrsPanel
+            buildingId={building?.id || ''}
+            residents={residents}
+            focusId={focusTarget?.type === 'pqrs' ? focusTarget.id : null}
+            onFocusConsumed={() => setFocusTarget(null)}
+          />
+        )
       case 'convivencia':
-        return <ConvivenciaPanel buildingId={building?.id || ''} />
+        return (
+          <ConvivenciaPanel
+            buildingId={building?.id || ''}
+            focusId={focusTarget?.type === 'infraction' ? focusTarget.id : null}
+            onFocusConsumed={() => setFocusTarget(null)}
+          />
+        )
       case 'maintenance':
         return <MaintenancePanel buildingId={building?.id || ''} />
       case 'utilities':

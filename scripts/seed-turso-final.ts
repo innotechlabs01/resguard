@@ -87,7 +87,7 @@ async function seedTursoFinal() {
       ]);
     }
     
-    // Seed parking spots (for building-1 as example)
+    // Seed parking spots (for 11111111-1111-4111-8111-111111111111 as example)
     console.log('Seeding parking spots...');
     for (const spot of mockData.mockParkingSpots) {
       await turso.execute(`
@@ -96,7 +96,7 @@ async function seedTursoFinal() {
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `, [
         spot.id,
-        'building-1',
+        '11111111-1111-4111-8111-111111111111',
         spot.code,
         spot.status,
         spot.vehiclePlate || null,
@@ -118,7 +118,7 @@ async function seedTursoFinal() {
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `, [
         visitor.id,
-        'building-1',
+        '11111111-1111-4111-8111-111111111111',
         visitor.name,
         visitor.documentId,
         visitor.type,
@@ -141,7 +141,7 @@ async function seedTursoFinal() {
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `, [
         alert.id,
-        'building-1',
+        '11111111-1111-4111-8111-111111111111',
         alert.type,
         alert.title,
         alert.message,
@@ -162,7 +162,7 @@ async function seedTursoFinal() {
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `, [
         resident.id,
-        'building-1',
+        '11111111-1111-4111-8111-111111111111',
         resident.name,
         resident.unit,
         resident.phone,

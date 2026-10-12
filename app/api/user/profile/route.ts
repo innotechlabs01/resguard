@@ -9,7 +9,7 @@ export async function GET(request: Request) {
     const authResult = await requireAuth(request)
     if (isAuthResponse(authResult)) return authResult
     const { user } = authResult
-    return NextResponse.json({ userId: user.clerk_user_id ?? user.id })
+    return NextResponse.json({ userId: user.id })
   } catch (error) {
     log.error({ error }, 'Error fetching user profile')
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

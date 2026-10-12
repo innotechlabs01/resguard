@@ -53,10 +53,6 @@ const roleConfig: Record<
 
 type Step = 'role' | 'login'
 
-function hasClerkKey() {
-  return Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim().length)
-}
-
 export function LandingPage() {
   const { login } = useAuth()
   const router = useRouter()
@@ -153,27 +149,24 @@ export function LandingPage() {
                 <p className="text-sm text-muted-foreground">Selecciona tu tipo de perfil para continuar</p>
               </div>
 
-              {/* Clerk login button */}
-              {hasClerkKey() && (
-                <>
-                  <Button
-                    className="w-full h-10 bg-foreground text-background hover:bg-foreground/90 font-medium"
-                    onClick={() => router.push('/sign-in')}
-                  >
-                    Iniciar sesion real
-                    <ChevronRight className="ml-2 h-4 w-4" />
-                  </Button>
+              {/* Supabase login button */}
+              <Button
+                className="w-full h-10 bg-foreground text-background hover:bg-foreground/90 font-medium"
+                onClick={() => router.push('/sign-in')}
+              >
+                Iniciar sesion real
+                <ChevronRight className="ml-2 h-4 w-4" />
+              </Button>
 
-                  <div className="relative">
-                    <div className="absolute inset-0 flex items-center">
-                      <span className="w-full border-t border-border" />
-                    </div>
-                    <div className="relative flex justify-center text-xs">
-                      <span className="bg-background px-2 text-muted-foreground">o entra como demo</span>
-                    </div>
-                  </div>
-                </>
-              )}
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t border-border" />
+                </div>
+                <div className="relative flex justify-center text-xs">
+                  <span className="bg-background px-2 text-muted-foreground">o entra como demo</span>
+                </div>
+              </div>
+
 
               {/* Role cards */}
               <div className="grid grid-cols-2 gap-3">
@@ -205,11 +198,10 @@ export function LandingPage() {
                 })}
               </div>
 
-              {!hasClerkKey() && (
-                <p className="text-center text-xs text-muted-foreground border border-dashed border-border rounded-lg py-2.5 px-3">
-                  Modo demostracion: elige un perfil y un usuario de ejemplo para explorar la plataforma.
-                </p>
-              )}
+              <p className="text-center text-xs text-muted-foreground border border-dashed border-border rounded-lg py-2.5 px-3">
+                Modo demostración: elige un perfil y un usuario de ejemplo para explorar la plataforma.
+              </p>
+
             </div>
           )}
 

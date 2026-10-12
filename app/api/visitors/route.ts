@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth/requireAuth'
 import { assertBuildingAccess } from '@/lib/auth/assertBuildingAccess'
-import { getVisitors, createVisitor, updateVisitor, deleteVisitor } from '@/lib/db/queries/visitors'
+import { getVisitors, getVisitorById, createVisitor, updateVisitor, deleteVisitor } from '@/lib/db/queries/visitors'
 import { logger } from '@/lib/logger'
 
 const log = logger.child({ module: 'api/visitors' })
@@ -72,10 +72,18 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'Visitor ID required' }, { status: 400 })
     }
 
-    if (updates.building_id !== undefined) {
-      const access = assertBuildingAccess(authRes.user, updates.building_id as string)
-      if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
+    // Read the existing visitor row first to verify building access
+    const existingVisitor = await getVisitorById(id)
+    if (!existingVisitor) {
+      return NextResponse.json({ error: 'Visitor not found' }, { status: 404 })
     }
+    const access = assertBuildingAccess(authRes.user, existingVisitor.building_id)
+    if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
+
+    if (updates.building_id !== undefined && updates.building_id !== existingVisitor.building_id) {
+      return NextResponse.json({ error: 'Forbidden: cannot change building_id' }, { status: 403 })
+    }
+
     await updateVisitor(id, updates)
     return NextResponse.json({ success: true, message: 'Visitor updated successfully' })
   } catch (error) {
@@ -95,6 +103,14 @@ export async function DELETE(request: Request) {
     if (!id) {
       return NextResponse.json({ error: 'Visitor ID required' }, { status: 400 })
     }
+
+    // Read the existing visitor row first to verify building access
+    const existingVisitor = await getVisitorById(id)
+    if (!existingVisitor) {
+      return NextResponse.json({ error: 'Visitor not found' }, { status: 404 })
+    }
+    const access = assertBuildingAccess(authRes.user, existingVisitor.building_id)
+    if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
 
     await deleteVisitor(id)
     return NextResponse.json({ success: true, message: 'Visitor deleted successfully' })

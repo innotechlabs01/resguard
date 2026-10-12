@@ -1,5 +1,5 @@
 import 'server-only'
-import { queryOne, executeInsert } from './helpers'
+import { queryOne, queryMany, executeInsert } from './helpers'
 
 export interface DbSystemStats {
   id: string
@@ -21,10 +21,49 @@ export async function getSystemStatsById(id: string): Promise<DbSystemStats | nu
 }
 
 export async function getSystemStats(): Promise<DbSystemStats | null> {
-  return queryOne<DbSystemStats>(
+  // Intenta leer snapshot guardado
+  const snapshot = await queryOne<DbSystemStats>(
     'SELECT * FROM system_stats ORDER BY updated_at DESC LIMIT 1',
     []
   )
+  if (snapshot) return snapshot
+
+  // Cálculo en tiempo real desde tablas base
+  const buildings = await queryMany<{id:string, subscription_status:string, monthly_fee:number, outstanding_balance:number}>(
+    'SELECT id, subscription_status, monthly_fee, outstanding_balance FROM buildings',
+    []
+  )
+  const users = await queryMany<{id:string, role:string, building_id:string|null}>(
+    'SELECT id, role, building_id FROM users',
+    []
+  )
+
+  const totalBuildings = buildings.length
+  const activeBuildings = buildings.filter(b => b.subscription_status === 'active').length
+  const totalResidents = users.filter(u => u.role === 'usuario' || u.role === 'residente').length
+  const monthlyRecurringRevenue = buildings
+    .filter(b => b.subscription_status === 'active')
+    .reduce((sum, b) => sum + Number(b.monthly_fee || 0), 0)
+  const totalRevenue = buildings.reduce((sum, b) => sum + Number(b.monthly_fee || 0), 0)
+  const pendingPayments = buildings.reduce((sum, b) => sum + Number(b.outstanding_balance || 0), 0)
+
+  const alerts = await queryMany<{read:number, action_required:number, priority:string}>(
+    'SELECT read, action_required, priority FROM alerts',
+    []
+  )
+  const systemAlerts = alerts.filter(a => a.read === 0 && (a.priority === 'critical' || a.priority === 'high' || a.action_required === 1)).length
+
+  return {
+    id: crypto.randomUUID(),
+    total_buildings: totalBuildings,
+    active_buildings: activeBuildings,
+    total_residents: totalResidents,
+    total_revenue: totalRevenue,
+    monthly_recurring_revenue: monthlyRecurringRevenue,
+    pending_payments: pendingPayments,
+    system_alerts: systemAlerts,
+    updated_at: new Date().toISOString()
+  }
 }
 
 export async function createSystemStats(stats: {

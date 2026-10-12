@@ -1,4 +1,4 @@
-export { getUserById, getUserByClerkId, getUserByEmail, getUsers, createUser, updateUser, deleteUser, type DbUser } from './users'
+export { getUserById, getUserByEmail, getUsers, createUser, updateUser, deleteUser, type DbUser } from './users'
 export { getBuildingById, getBuildings, createBuilding, updateBuilding, type DbBuilding } from './buildings'
 export { getPaymentById, getPayments, createPayment, updatePayment, deletePayment, type DbPayment } from './payments'
 export { getParkingSpotById, getParkingSpots, createParkingSpot, updateParkingSpot, deleteParkingSpot, type DbParkingSpot } from './parking'

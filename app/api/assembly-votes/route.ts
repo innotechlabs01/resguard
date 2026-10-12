@@ -1,3 +1,8 @@
+/**
+ * @deprecated Legacy assembly_votes API. The reconciled model uses /api/agenda-items
+ * and /api/votes against the agenda_items + votes tables. This route is kept in place
+ * for backward compatibility and will be archived in a later migration.
+ */
 import { NextResponse } from 'next/server'
 import { requireAuth, isAuthResponse } from '@/lib/auth/requireAuth'
 import { getAssemblyVotes, createAssemblyVote, updateVoteStatus, getVoteById, getVoteResponses, castVote, hasUserVoted } from '@/lib/db/queries/assemblies'
@@ -25,7 +30,7 @@ export async function GET(request: Request) {
     if (voteId) {
       const vote = await getVoteById(voteId)
       const responses = await getVoteResponses(voteId)
-      const hasVoted = await hasUserVoted(voteId, user.clerk_user_id ?? user.id)
+      const hasVoted = await hasUserVoted(voteId, user.id)
       return NextResponse.json({ vote, responses, hasVoted })
     }
 
@@ -46,14 +51,14 @@ export async function POST(request: Request) {
     const { assemblyId, title, description, options, status, userName, unit, optionId, voteId } = body
 
     if (voteId && userName && optionId && unit) {
-      const alreadyVoted = await hasUserVoted(voteId, user.clerk_user_id ?? user.id)
+      const alreadyVoted = await hasUserVoted(voteId, user.id)
       if (alreadyVoted) {
         return NextResponse.json({ error: 'You have already voted' }, { status: 400 })
       }
 
       await castVote({
         vote_id: voteId,
-        user_id: user.clerk_user_id ?? user.id,
+        user_id: user.id,
         user_name: userName,
         unit,
         option_id: optionId,
@@ -72,7 +77,7 @@ export async function POST(request: Request) {
       description: description || '',
       options: JSON.stringify(options),
       status: status || 'pending',
-      created_by: user.clerk_user_id ?? user.id,
+      created_by: user.id,
     })
 
     return NextResponse.json({ id, message: 'Vote created successfully' })

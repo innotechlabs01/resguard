@@ -129,7 +129,7 @@ export function PaymentsPanel({ payments: propPayments }: { payments?: Payment[]
   })
 
   const buildingPayments = allPayments.filter(
-    (p) => p.buildingId === user?.buildingId || p.buildingId === 'building-1'
+    (p) => p.buildingId === user?.buildingId || p.buildingId === '11111111-1111-4111-8111-111111111111'
   )
 
   const handleAddPayment = () => {
@@ -137,7 +137,7 @@ export function PaymentsPanel({ payments: propPayments }: { payments?: Payment[]
     
     const payment: Payment = {
       id: Math.random().toString(36).slice(2),
-      buildingId: 'building-1',
+      buildingId: '11111111-1111-4111-8111-111111111111',
       buildingName: 'Torres del Parque',
       amount: parseInt(newPayment.amount),
       currency: 'COP',

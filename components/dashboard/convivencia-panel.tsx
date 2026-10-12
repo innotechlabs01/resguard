@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -36,6 +36,12 @@ import {
   Ban,
   Scale,
   TrendingUp,
+  FileText,
+  Music,
+  Upload,
+  History,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react'
 
 const infractionTypeLabels: Record<string, string> = {
@@ -116,17 +122,65 @@ interface InfractionStats {
   total_fines_amount: number
 }
 
-export function ConvivenciaPanel({ buildingId }: { buildingId: string }) {
+interface InfractionEvent {
+  id: string
+  entity_type: string
+  entity_id: string
+  event_type: string
+  actor_name: string | null
+  old_value: string | null
+  new_value: string | null
+  note: string | null
+  created_at: string
+}
+
+const decisionLabels: Record<string, string> = {
+  fine: 'Multa',
+  dismiss: 'Desestimado',
+  escalate: 'Escalado',
+}
+
+function infractionEventLabel(event: InfractionEvent): string {
+  switch (event.event_type) {
+    case 'reported':
+      return 'Reportado'
+    case 'notified':
+      return 'Notificado al infractor'
+    case 'replied':
+      return 'Réplica recibida'
+    case 'decided':
+      return `Decisión: ${event.new_value ? (decisionLabels[event.new_value] || event.new_value) : ''}`
+    case 'evidence_uploaded':
+      return `Evidencia añadida (${event.note || ''})`
+    default:
+      return event.event_type
+  }
+}
+
+export function ConvivenciaPanel({
+  buildingId,
+  focusId,
+  onFocusConsumed,
+}: {
+  buildingId: string
+  focusId?: string | null
+  onFocusConsumed?: () => void
+}) {
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin' || user?.role === 'super_admin'
 
   const [infractionsList, setInfractionsList] = useState<InfractionItem[]>([])
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(1)
+  const pageSize = 20
   const [stats, setStats] = useState<InfractionStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<string>('all')
   const [selectedInfraction, setSelectedInfraction] = useState<InfractionItem | null>(null)
   const [evidences, setEvidences] = useState<InfractionEvidence[]>([])
+  const [events, setEvents] = useState<InfractionEvent[]>([])
   const [loadingDetail, setLoadingDetail] = useState(false)
+  const handledFocusRef = useRef<string | null>(null)
 
   // Create dialog
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
@@ -147,6 +201,12 @@ export function ConvivenciaPanel({ buildingId }: { buildingId: string }) {
   })
   const [deciding, setDeciding] = useState(false)
 
+  // Evidence upload
+  const [uploading, setUploading] = useState(false)
+  const [evidenceFile, setEvidenceFile] = useState<File | null>(null)
+  const [evidenceType, setEvidenceType] = useState<'photo' | 'audio' | 'document'>('photo')
+  const evidenceFileInputRef = useRef<HTMLInputElement>(null)
+
   // Filters
   const [filterType, setFilterType] = useState<string>('all')
 
@@ -156,18 +216,21 @@ export function ConvivenciaPanel({ buildingId }: { buildingId: string }) {
       const params = new URLSearchParams({ buildingId })
       if (activeTab !== 'all') params.set('status', activeTab)
       if (filterType !== 'all') params.set('infraction_type', filterType)
+      params.set('page', String(page))
+      params.set('pageSize', String(pageSize))
 
       const res = await fetch(`/api/infractions?${params}`)
       if (res.ok) {
         const data = await res.json()
         setInfractionsList(data.infractions || [])
+        setTotal(data.total || 0)
       }
     } catch (err) {
       console.error('Error fetching infractions:', err)
     } finally {
       setLoading(false)
     }
-  }, [buildingId, activeTab, filterType])
+  }, [buildingId, activeTab, filterType, page, pageSize])
 
   // Fetch stats (admin only)
   const fetchStats = useCallback(async () => {
@@ -195,6 +258,7 @@ export function ConvivenciaPanel({ buildingId }: { buildingId: string }) {
       if (res.ok) {
         const data = await res.json()
         setEvidences(data.evidences || [])
+        setEvents(data.events || [])
       }
     } catch (err) {
       console.error('Error fetching detail:', err)
@@ -202,6 +266,25 @@ export function ConvivenciaPanel({ buildingId }: { buildingId: string }) {
       setLoadingDetail(false)
     }
   }
+
+  // Open a specific infraction detail when navigated from another panel (e.g. Inbox)
+  useEffect(() => {
+    if (!focusId || handledFocusRef.current === focusId) return
+    handledFocusRef.current = focusId
+    onFocusConsumed?.()
+    setLoadingDetail(true)
+    fetch(`/api/infractions/${focusId}`)
+      .then(res => (res.ok ? res.json() : null))
+      .then(data => {
+        if (data?.infraction) {
+          setSelectedInfraction(data.infraction)
+          setEvidences(data.evidences || [])
+          setEvents(data.events || [])
+        }
+      })
+      .catch(err => console.error('Error fetching focused infraction:', err))
+      .finally(() => setLoadingDetail(false))
+  }, [focusId])
 
   // Create infraction
   const handleCreate = async () => {
@@ -226,6 +309,20 @@ export function ConvivenciaPanel({ buildingId }: { buildingId: string }) {
     }
   }
 
+  // Refetch evidences + events for the open detail (keeps timeline fresh after admin actions)
+  const reloadDetail = useCallback(async (infractionId: string) => {
+    try {
+      const res = await fetch(`/api/infractions/${infractionId}`)
+      if (res.ok) {
+        const data = await res.json()
+        setEvidences(data.evidences || [])
+        setEvents(data.events || [])
+      }
+    } catch (err) {
+      console.error('Error refreshing infraction detail:', err)
+    }
+  }, [])
+
   // Admin action
   const handleAdminAction = async (infractionId: string, action: string, data?: Record<string, any>) => {
     try {
@@ -240,6 +337,8 @@ export function ConvivenciaPanel({ buildingId }: { buildingId: string }) {
         if (selectedInfraction?.id === infractionId) {
           const updated = await res.json()
           setSelectedInfraction(updated.infraction)
+          if (updated.evidences) setEvidences(updated.evidences)
+          reloadDetail(infractionId)
         }
       }
     } catch (err) {
@@ -264,6 +363,57 @@ export function ConvivenciaPanel({ buildingId }: { buildingId: string }) {
     }
   }
 
+  // Evidence file selection — auto-suggest type from MIME and read as data URL
+  const handleEvidenceFile = (file: File | null) => {
+    setEvidenceFile(file)
+    if (file) {
+      if (file.type.startsWith('image/')) setEvidenceType('photo')
+      else if (file.type.startsWith('audio/')) setEvidenceType('audio')
+      else setEvidenceType('document')
+    }
+  }
+
+  // Upload evidence for the selected infraction
+  const handleUploadEvidence = async () => {
+    if (!selectedInfraction || !evidenceFile) return
+    setUploading(true)
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result as string)
+        reader.onerror = () => reject(new Error('read failed'))
+        reader.readAsDataURL(evidenceFile)
+      })
+      if (dataUrl.length > 900_000) {
+        alert('Archivo demasiado grande. Maximo ~500KB.')
+        return
+      }
+      const res = await fetch(`/api/infractions/${selectedInfraction.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'upload_evidence',
+          type: evidenceType,
+          url: dataUrl,
+        }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setEvidences(data.evidences || [])
+        setEvidenceFile(null)
+        setEvidenceType('photo')
+        if (evidenceFileInputRef.current) evidenceFileInputRef.current.value = ''
+      } else {
+        alert('No se pudo subir la evidencia')
+      }
+    } catch (err) {
+      console.error('Error uploading evidence:', err)
+      alert('No se pudo subir la evidencia')
+    } finally {
+      setUploading(false)
+    }
+  }
+
   // Detail view
   if (selectedInfraction) {
     const typeColor = infractionTypeColors[selectedInfraction.infraction_type] || 'bg-gray-100 text-gray-800'
@@ -273,7 +423,7 @@ export function ConvivenciaPanel({ buildingId }: { buildingId: string }) {
 
     return (
       <div className="space-y-6">
-        <Button variant="ghost" onClick={() => { setSelectedInfraction(null); setEvidences([]); fetchInfractions(); fetchStats(); }} className="gap-2">
+        <Button variant="ghost" onClick={() => { setSelectedInfraction(null); setEvidences([]); setEvents([]); fetchInfractions(); fetchStats(); }} className="gap-2">
           <ArrowLeft className="h-4 w-4" />
           Volver
         </Button>
@@ -394,6 +544,122 @@ export function ConvivenciaPanel({ buildingId }: { buildingId: string }) {
             </CardContent>
           </Card>
         )}
+
+        {/* Evidencias */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Evidencias ({evidences.length})</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {evidences.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Sin evidencias</p>
+            ) : (
+              evidences.map(ev => {
+                const isPhoto = ev.type === 'photo' || ev.url.startsWith('data:image')
+                return isPhoto ? (
+                  <img
+                    key={ev.id}
+                    src={ev.url}
+                    alt="Evidencia"
+                    className="max-w-full h-40 rounded-md object-cover cursor-pointer border border-border"
+                    onClick={() => window.open(ev.url, '_blank')}
+                  />
+                ) : (
+                  <div key={ev.id} className="flex items-center gap-3 py-1">
+                    {ev.type === 'audio' ? (
+                      <Music className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <FileText className="h-4 w-4 text-muted-foreground" />
+                    )}
+                    <span className="text-sm text-foreground">
+                      {ev.type === 'audio' ? 'Audio' : 'Documento'}
+                    </span>
+                    <a href={ev.url} target="_blank" rel="noreferrer" className="text-sm text-primary underline">
+                      Ver
+                    </a>
+                  </div>
+                )
+              })
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Timeline / Historial */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <History className="h-4 w-4" />
+              Historial
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loadingDetail ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : events.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">Sin eventos registrados</p>
+            ) : (
+              <ol className="relative border-l border-border space-y-4">
+                {events.map(event => (
+                  <li key={event.id} className="ml-4">
+                    <span className="absolute -left-1.5 mt-1.5 h-2 w-2 rounded-full bg-muted-foreground/40" />
+                    <div className="space-y-0.5">
+                      <p className="text-sm text-foreground">{infractionEventLabel(event)}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {event.actor_name ? `${event.actor_name} · ` : ''}
+                        {new Date(event.created_at).toLocaleDateString('es-CO', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Subir evidencia */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Subir Evidencia</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div>
+              <label className="text-sm font-medium text-foreground">Tipo</label>
+              <Select
+                value={evidenceType}
+                onValueChange={v => setEvidenceType(v as 'photo' | 'audio' | 'document')}
+              >
+                <SelectTrigger className="mt-1 w-48">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="photo">Foto</SelectItem>
+                  <SelectItem value="audio">Audio</SelectItem>
+                  <SelectItem value="document">Documento</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-foreground">Archivo</label>
+              <Input
+                ref={evidenceFileInputRef}
+                type="file"
+                className="mt-1"
+                onChange={e => handleEvidenceFile(e.target.files?.[0] || null)}
+                accept="image/*,audio/*,.pdf,.doc,.docx,.txt"
+              />
+            </div>
+            <Button
+              onClick={handleUploadEvidence}
+              disabled={uploading || !evidenceFile}
+              className="gap-2"
+            >
+              {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+              {uploading ? 'Subiendo...' : 'Subir evidencia'}
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     )
   }
@@ -473,7 +739,7 @@ export function ConvivenciaPanel({ buildingId }: { buildingId: string }) {
       {/* Filters */}
       {isAdmin && (
         <div className="flex gap-3">
-          <Select value={filterType} onValueChange={setFilterType}>
+          <Select value={filterType} onValueChange={v => { setFilterType(v); setPage(1) }}>
             <SelectTrigger className="w-48">
               <SelectValue placeholder="Tipo" />
             </SelectTrigger>
@@ -492,7 +758,7 @@ export function ConvivenciaPanel({ buildingId }: { buildingId: string }) {
         {tabs.map(tab => (
           <button
             key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => { setActiveTab(tab.id); setPage(1) }}
             className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
               activeTab === tab.id
                 ? 'border-primary text-primary'
@@ -570,6 +836,33 @@ export function ConvivenciaPanel({ buildingId }: { buildingId: string }) {
               </Card>
             )
           })}
+          {/* Pagination footer */}
+          <div className="flex items-center justify-between pt-2">
+            <span className="text-sm text-muted-foreground">{total} registros</span>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">
+                Página {page} de {Math.max(1, Math.ceil(total / pageSize))}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page <= 1}
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+              >
+                <ChevronLeft className="h-4 w-4 mr-1" />
+                Anterior
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page >= Math.max(1, Math.ceil(total / pageSize))}
+                onClick={() => setPage(p => p + 1)}
+              >
+                Siguiente
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            </div>
+          </div>
         </div>
       )}
 

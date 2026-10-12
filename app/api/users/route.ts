@@ -12,9 +12,15 @@ export async function GET(request: Request) {
   try {
     const authRes = await requireAuth(request)
     if (authRes instanceof Response) return authRes
+
     const { user } = authRes
 
-    const users = await getUsers(user.role === 'super_admin' ? undefined : user.building_id)
+    // If user has no building_id and is not super_admin, deny global scope
+    if (user.role !== 'super_admin' && !user.building_id) {
+      return NextResponse.json({ error: 'Forbidden: building scope required' }, { status: 403 })
+    }
+
+    const users = await getUsers(user.role === 'super_admin' ? undefined : user.building_id!)
     const formattedUsers = users.map(u => ({
       id: u.id,
       name: u.name,

@@ -43,14 +43,16 @@ interface VoteOption {
   votes: number
 }
 
-interface AssemblyVote {
+interface AgendaItem {
   id: string
   assembly_id: string
   title: string
-  description: string
-  options: string
-  status: 'pending' | 'active' | 'closed'
+  description: string | null
+  vote_type: 'yes_no' | 'multiple_choice'
+  options: { id: string; label: string }[]
   created_at: string
+  voteCounts: Record<string, number>
+  totalVotes: number
 }
 
 function formatDate(dateStr: string): string {
@@ -81,7 +83,7 @@ const statusConfig = {
 export function AssemblyPanel() {
   const { user } = useAuth()
   const [assemblies, setAssemblies] = useState<Assembly[]>([])
-  const [votes, setVotes] = useState<Record<string, AssemblyVote[]>>({})
+  const [agendaItems, setAgendaItems] = useState<Record<string, AgendaItem[]>>({})
   const [loading, setLoading] = useState(true)
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [voteDialogOpen, setVoteDialogOpen] = useState(false)
@@ -93,9 +95,15 @@ export function AssemblyPanel() {
     time: '',
     location: '',
   })
-  const [newVote, setNewVote] = useState({
+  const [newVote, setNewVote] = useState<{
+    title: string
+    description: string
+    voteType: 'yes_no' | 'multiple_choice'
+    options: { label: string }[]
+  }>({
     title: '',
     description: '',
+    voteType: 'yes_no',
     options: [{ label: '' }, { label: '' }],
   })
 
@@ -118,13 +126,13 @@ export function AssemblyPanel() {
     }
   }
 
-  const fetchVotes = async (assemblyId: string) => {
+  const fetchAgendaItems = async (assemblyId: string) => {
     try {
-      const res = await fetch(`/api/assembly-votes?assemblyId=${assemblyId}`)
+      const res = await fetch(`/api/agenda-items?assemblyId=${assemblyId}`)
       const data = await res.json()
-      setVotes(prev => ({ ...prev, [assemblyId]: data.votes || [] }))
+      setAgendaItems(prev => ({ ...prev, [assemblyId]: data.agendaItems || [] }))
     } catch (error) {
-      console.error('Error fetching votes:', error)
+      console.error('Error fetching agenda items:', error)
     }
   }
 
@@ -171,20 +179,26 @@ export function AssemblyPanel() {
     if (validOptions.length < 2) return
 
     try {
-      await fetch('/api/assembly-votes', {
+      const res = await fetch('/api/agenda-items', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           assemblyId: selectedAssembly.id,
           title: newVote.title,
           description: newVote.description,
-          options: validOptions.map((o, i) => ({ id: String(i + 1), label: o.label, votes: 0 })),
+          voteType: newVote.voteType,
+          options: validOptions.map((o, i) => ({ id: String(i + 1), label: o.label })),
         }),
       })
 
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Error creating the agenda item')
+      }
+
       setVoteDialogOpen(false)
-      setNewVote({ title: '', description: '', options: [{ label: '' }, { label: '' }] })
-      fetchVotes(selectedAssembly.id)
+      setNewVote({ title: '', description: '', voteType: 'yes_no', options: [{ label: '' }, { label: '' }] })
+      fetchAgendaItems(selectedAssembly.id)
     } catch (error) {
       console.error('Error creating vote:', error)
     }
@@ -294,7 +308,7 @@ export function AssemblyPanel() {
                       </Button>
                       <Button size="sm" variant="outline" onClick={() => {
                         setSelectedAssembly(assembly)
-                        fetchVotes(assembly.id)
+                        fetchAgendaItems(assembly.id)
                         setVoteDialogOpen(true)
                       }}>
                         <Vote className="mr-2 h-4 w-4" />
@@ -307,7 +321,7 @@ export function AssemblyPanel() {
                     <div className="mt-4">
                       <Button size="sm" variant="outline" onClick={() => {
                         setSelectedAssembly(assembly)
-                        fetchVotes(assembly.id)
+                        fetchAgendaItems(assembly.id)
                       }}>
                         <BarChart3 className="mr-2 h-4 w-4" />
                         Ver Votaciones
@@ -315,16 +329,52 @@ export function AssemblyPanel() {
                     </div>
                   )}
 
-                  {votes[assembly.id]?.length > 0 && assembly.status !== 'scheduled' && (
+                  {agendaItems[assembly.id]?.length > 0 && assembly.status !== 'scheduled' && (
                     <div className="mt-4 pt-4 border-t border-border">
-                      <p className="text-sm font-medium text-foreground mb-2">Votaciones ({votes[assembly.id].length})</p>
-                      <div className="space-y-2">
-                        {votes[assembly.id].map(vote => {
-                          const options = JSON.parse(vote.options || '[]')
+                      <p className="text-sm font-medium text-foreground mb-2">Votaciones ({agendaItems[assembly.id].length})</p>
+                      <div className="space-y-4">
+                        {agendaItems[assembly.id].map(item => {
+                          const total = item.totalVotes || 0
                           return (
-                            <div key={vote.id} className="flex items-center justify-between text-sm bg-muted/50 p-2 rounded">
-                              <span className="text-foreground">{vote.title}</span>
-                              <Badge variant="outline">{vote.status}</Badge>
+                            <div key={item.id} className="bg-muted/50 p-3 rounded">
+                              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                                <span className="text-sm font-medium text-foreground">{item.title}</span>
+                                <Badge variant="outline">{item.vote_type === 'yes_no' ? 'Sí/No' : 'Opción Múltiple'}</Badge>
+                              </div>
+                              {item.totalVotes > 0 ? (
+                                <div className="mt-3">
+                                  <div className="overflow-hidden rounded border border-border">
+                                    <table className="w-full text-sm">
+                                      <thead className="bg-muted text-muted-foreground">
+                                        <tr>
+                                          <th className="text-left px-3 py-2 font-medium">Opción</th>
+                                          <th className="text-right px-3 py-2 font-medium">Votos</th>
+                                          <th className="text-right px-3 py-2 font-medium">%</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {item.options.map(option => {
+                                          const count = item.voteCounts[option.id] ?? 0
+                                          const pct = total > 0 ? Math.round((count / total) * 100) : 0
+                                          return (
+                                            <tr key={option.id} className="border-t border-border">
+                                              <td className="px-3 py-2 text-foreground">{option.label}</td>
+                                              <td className="px-3 py-2 text-right text-foreground">{count}</td>
+                                              <td className="px-3 py-2 text-right text-foreground">{pct}%</td>
+                                            </tr>
+                                          )
+                                        })}
+                                        <tr className="border-t border-border bg-muted/60">
+                                          <td className="px-3 py-2 font-medium text-foreground">Total</td>
+                                          <td className="px-3 py-2 text-right font-medium text-foreground" colSpan={2}>{total} votos</td>
+                                        </tr>
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                </div>
+                              ) : (
+                                <p className="text-sm text-muted-foreground mt-2">Aún no hay votos registrados</p>
+                              )}
                             </div>
                           )
                         })}
@@ -430,6 +480,17 @@ export function AssemblyPanel() {
                 onChange={(e) => setNewVote({ ...newVote, description: e.target.value })}
                 placeholder="Detalles de la votación..."
               />
+            </div>
+            <div>
+              <Label>Tipo de Votación</Label>
+              <select
+                value={newVote.voteType}
+                onChange={(e) => setNewVote({ ...newVote, voteType: e.target.value as 'yes_no' | 'multiple_choice' })}
+                className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <option value="yes_no">Sí / No</option>
+                <option value="multiple_choice">Opción Múltiple</option>
+              </select>
             </div>
             <div>
               <Label>Opciones de Votación</Label>

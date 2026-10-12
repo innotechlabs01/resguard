@@ -22,6 +22,7 @@ import {
   ClipboardCheck,
   UserPlus,
   Bot,
+  Inbox,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -38,6 +39,7 @@ interface AdminSidebarProps {
 
 const navItems = [
   { id: 'overview', icon: LayoutDashboard, label: 'Dashboard' },
+  { id: 'inbox', icon: Inbox, label: 'Inbox' },
   { id: 'residents', icon: Users, label: 'Residentes' },
   { id: 'parking', icon: Car, label: 'Parqueaderos' },
   { id: 'visitorParking', icon: CarFront, label: 'Visitantes' },

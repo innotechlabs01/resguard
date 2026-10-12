@@ -1,6 +1,8 @@
 import 'server-only'
 import { queryMany, queryOne, executeInsert } from './helpers'
-import type { InValue } from './helpers'
+import type { InValue, PaginatedResult } from './helpers'
+import { recordTicketEvent } from './ticket-events'
+import { createAlert } from './alerts'
 
 export interface DbPqrs {
   id: string
@@ -41,8 +43,10 @@ export async function getPqrs(
     status?: string
     category?: string
     priority?: string
-  }
-): Promise<DbPqrs[]> {
+  },
+  page?: number,
+  pageSize?: number
+): Promise<PaginatedResult<DbPqrs>> {
   const conditions: InValue[] = [buildingId]
   const wheres: string[] = ['building_id = ?']
 
@@ -59,8 +63,21 @@ export async function getPqrs(
     conditions.push(filters.priority)
   }
 
-  const sql = `SELECT * FROM pqrs WHERE ${wheres.join(' AND ')} ORDER BY created_at DESC`
-  return queryMany<DbPqrs>(sql, conditions)
+  const whereClause = wheres.join(' AND ')
+
+  // Count total matching rows
+  const countSql = `SELECT COUNT(*) AS count FROM pqrs WHERE ${whereClause}`
+  const countResult = await queryMany<{ count: number }>(countSql, conditions)
+  const total = countResult[0]?.count ?? 0
+
+  // Fetch paginated rows
+  const p = page && page > 0 ? page : 1
+  const ps = pageSize && pageSize > 0 ? Math.min(pageSize, 100) : 20
+  const offset = (p - 1) * ps
+
+  const sql = `SELECT * FROM pqrs WHERE ${whereClause} ORDER BY created_at DESC LIMIT ? OFFSET ?`
+  const items = await queryMany<DbPqrs>(sql, [...conditions, ps, offset])
+  return { items, total, page: p, pageSize: ps }
 }
 
 // ── Get PQRS by ID ──
@@ -113,6 +130,28 @@ export async function createPqrs(data: {
       data.location_detail || null,
     ]
   )
+  await recordTicketEvent({
+    entity_type: 'pqrs',
+    entity_id: id,
+    event_type: 'created',
+    actor_name: data.created_by_name,
+    new_value: data.subject,
+  })
+  try {
+    const priorityMap: Record<string, string> = { urgent: 'critical', high: 'high', low: 'low' }
+    await createAlert({
+      building_id: data.building_id,
+      type: 'pqrs_new',
+      title: 'Nueva PQRS: ' + data.subject,
+      message: 'de ' + data.created_by_name + (data.created_by_unit ? ' (Unidad ' + data.created_by_unit + ')' : '') + ' - ' + data.category,
+      priority: priorityMap[data.priority || 'normal'] || 'medium',
+      read: false,
+      action_required: true,
+      related_id: id,
+    })
+  } catch (err) {
+    console.error('Failed to create PQRS alert:', err)
+  }
   const created = await getPqrsById(id)
   return created!
 }
@@ -124,6 +163,12 @@ export async function updatePqrsStatus(
   status: string,
   adminName?: string
 ): Promise<void> {
+  const current = await queryOne<{ status: string }>(
+    'SELECT status FROM pqrs WHERE id = ?',
+    [id]
+  )
+  const oldStatus = current?.status ?? null
+
   const fields: string[] = ['status = ?']
   const values: InValue[] = [status]
 
@@ -145,6 +190,17 @@ export async function updatePqrsStatus(
     `UPDATE pqrs SET ${fields.join(', ')} WHERE id = ?`,
     values
   )
+
+  if (oldStatus !== status) {
+    await recordTicketEvent({
+      entity_type: 'pqrs',
+      entity_id: id,
+      event_type: 'status_changed',
+      actor_name: adminName ?? null,
+      old_value: oldStatus,
+      new_value: status,
+    })
+  }
 }
 
 // ── Assign PQRS ──
@@ -153,10 +209,26 @@ export async function assignPqrs(
   id: string,
   assignedTo: string
 ): Promise<void> {
+  const current = await queryOne<{ assigned_to: string | null }>(
+    'SELECT assigned_to FROM pqrs WHERE id = ?',
+    [id]
+  )
+  const oldAssignedTo = current?.assigned_to ?? null
+
   await executeInsert(
     'UPDATE pqrs SET assigned_to = ? WHERE id = ?',
     [assignedTo, id]
   )
+
+  if (oldAssignedTo !== assignedTo) {
+    await recordTicketEvent({
+      entity_type: 'pqrs',
+      entity_id: id,
+      event_type: 'assigned',
+      old_value: oldAssignedTo,
+      new_value: assignedTo,
+    })
+  }
 }
 
 // ── Add comment ──
@@ -183,6 +255,14 @@ export async function addPqrsComment(data: {
       data.is_internal ? 1 : 0,
     ]
   )
+  await recordTicketEvent({
+    entity_type: 'pqrs',
+    entity_id: data.pqrs_id,
+    event_type: 'comment',
+    actor_name: data.author_name,
+    note: data.content,
+    new_value: data.is_internal ? 'internal' : 'public',
+  })
   return {
     id,
     pqrs_id: data.pqrs_id,

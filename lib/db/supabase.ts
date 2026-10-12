@@ -10,7 +10,7 @@ let supabase: SupabaseClient | null = null
  */
 export function getSupabaseAdmin(): SupabaseClient | null {
   const url = process.env.DATABASE_URL_SUPABASE
-  const key = process.env.DATABASE_SERVICES_SUPABASE ?? process.env.DATABASE_PWD_SUPABASE
+  const key = process.env.DATABASE_SERVICES_SUPABASE ?? process.env.DATABASE_PWD_SUPABASE ?? process.env.PUBLIC_SUPABASE_SERVICE_ROLE
   if (!url || !key) return null
   if (!supabase) {
     supabase = createClient(url, key, {

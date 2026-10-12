@@ -1,10 +1,9 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { supabase } from '@/lib/supabase/client';
 
 export default function DocumentList({ buildingId }: { buildingId: string }) {
   const [docs, setDocs] = useState<any[]>([]);
-  const supabase = createClientComponentClient();
 
   useEffect(() => {
     supabase.from('documents').select('*').eq('building_id', buildingId).then(({ data }) => setDocs(data || []));

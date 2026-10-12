@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireAuth, isAuthResponse } from '@/lib/auth/requireAuth'
-import { getInfractionById, getInfractionEvidences, notifyInfractor, submitReply, decideInfraction } from '@/lib/db/queries/infractions'
+import { getInfractionById, getInfractionEvidences, insertInfractionEvidence, notifyInfractor, submitReply, decideInfraction } from '@/lib/db/queries/infractions'
+import { getTicketEvents } from '@/lib/db/queries/ticket-events'
 import { logger } from '@/lib/logger'
 
 const log = logger.child({ module: 'api/infractions/[id]' })
@@ -19,8 +20,11 @@ export async function GET(
       return NextResponse.json({ error: 'Infraction not found' }, { status: 404 })
     }
 
-    const evidences = await getInfractionEvidences(id)
-    return NextResponse.json({ infraction, evidences })
+    const [evidences, events] = await Promise.all([
+      getInfractionEvidences(id),
+      getTicketEvents('infraction', id),
+    ])
+    return NextResponse.json({ infraction, evidences, events })
   } catch (error) {
     log.error({ error }, 'Error fetching infraction detail')
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
@@ -38,7 +42,7 @@ export async function PATCH(
 
     const { id } = await params
     const body = await request.json()
-    const { action, reply, decision, notes, fine_amount } = body
+    const { action, reply, decision, notes, fine_amount, type, url } = body
 
     switch (action) {
       case 'notify': {
@@ -65,6 +69,20 @@ export async function PATCH(
         }
         await decideInfraction(id, decision, notes, user.name || user.email, fine_amount)
         break
+      }
+      case 'upload_evidence': {
+        if (!['photo', 'audio', 'document'].includes(type)) {
+          return NextResponse.json({ error: 'type required' }, { status: 400 })
+        }
+        if (typeof url !== 'string' || !url.trim()) {
+          return NextResponse.json({ error: 'url required' }, { status: 400 })
+        }
+        await insertInfractionEvidence({ infraction_id: id, type, url, uploaded_by: user.id })
+        const [updated, evidences] = await Promise.all([
+          getInfractionById(id),
+          getInfractionEvidences(id),
+        ])
+        return NextResponse.json({ infraction: updated, evidences })
       }
       default:
         return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
