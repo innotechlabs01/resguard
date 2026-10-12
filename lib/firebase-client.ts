@@ -40,8 +40,19 @@ export async function getFcmToken(): Promise<string | null> {
     const firebaseApp = getFirebaseApp()
     messaging = getMessaging(firebaseApp)
 
+    // Use the app's single SW (/sw.js, registered by SwRegister) instead of
+    // letting Firebase auto-register /firebase-messaging-sw.js as a second
+    // service worker. sw.js merges the FCM handler via importScripts.
+    let serviceWorkerRegistration: ServiceWorkerRegistration | undefined
+    if ('serviceWorker' in navigator) {
+      serviceWorkerRegistration =
+        (await navigator.serviceWorker.getRegistration('/')) ??
+        (await navigator.serviceWorker.register('/sw.js'))
+    }
+
     const token = await getToken(messaging, {
       vapidKey: VAPID_KEY,
+      serviceWorkerRegistration,
     })
 
     return token
