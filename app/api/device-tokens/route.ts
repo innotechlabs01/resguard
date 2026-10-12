@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth/requireAuth'
+import { requireAuth, isAuthResponse } from '@/lib/auth/requireAuth'
 import { getSupabaseAdmin } from '@/lib/db/supabase'
 import { logger } from '@/lib/logger'
 
@@ -9,8 +9,8 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {
   try {
-    const authRes = await requireAuth(request)
-    if (authRes instanceof Response) return authRes
+    const authRes = await requireAuth(request, ['admin', 'super_admin'])
+    if (isAuthResponse(authRes)) return authRes
 
     const { searchParams } = new URL(request.url)
     const role = searchParams.get('role')
@@ -52,9 +52,10 @@ export async function POST(request: Request) {
   try {
     const authRes = await requireAuth(request)
     if (authRes instanceof Response) return authRes
+    const { user } = authRes
 
     const body = await request.json()
-    const { token, userId, role, deviceType, organizationId } = body
+    const { token, role, deviceType, organizationId } = body
 
     if (!token) {
       return NextResponse.json({ error: 'Token required' }, { status: 400 })
@@ -67,7 +68,7 @@ export async function POST(request: Request) {
 
     const { error } = await supabase.from('device_tokens').upsert({
       token,
-      user_id: userId || 'anonymous',
+      user_id: user.id,
       role: role || 'resident',
       device_type: deviceType || 'unknown',
       organization_id: organizationId,
