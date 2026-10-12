@@ -62,7 +62,7 @@ export async function POST(request: Request) {
 
 export async function PUT(request: Request) {
   try {
-    const authRes = await requireAuth(request)
+    const authRes = await requireAuth(request, ['vigilante', 'admin', 'super_admin'])
     if (authRes instanceof Response) return authRes
 
     const body = await request.json()
