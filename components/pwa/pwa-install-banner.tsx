@@ -20,8 +20,35 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
 }
 
+// localStorage/sessionStorage throw in private mode or when cookies are
+// blocked. Banner is a nicety: degrade silently instead of letting the
+// ErrorBoundary tear down the app.
+function safeGet(storage: Storage, key: string): string | null {
+  try {
+    return storage.getItem(key)
+  } catch {
+    return null
+  }
+}
+
+function safeSet(storage: Storage, key: string, value: string): void {
+  try {
+    storage.setItem(key, value)
+  } catch (error) {
+    console.warn('[pwa] Storage unavailable, state not persisted:', error)
+  }
+}
+
+function safeRemove(storage: Storage, key: string): void {
+  try {
+    storage.removeItem(key)
+  } catch {
+    // ignore
+  }
+}
+
 function isDismissed(): boolean {
-  const raw = localStorage.getItem(DISMISS_KEY)
+  const raw = safeGet(localStorage, DISMISS_KEY)
   if (!raw) return false
   const ts = Number(raw)
   if (Number.isNaN(ts)) return false
@@ -38,12 +65,12 @@ function isStandalone(): boolean {
 
 function bumpVisitCount(): number {
   // Count once per browser session.
-  if (sessionStorage.getItem('pwa-visit-counted')) {
-    return Number(localStorage.getItem(VISITS_KEY) || '0')
+  if (safeGet(sessionStorage, 'pwa-visit-counted')) {
+    return Number(safeGet(localStorage, VISITS_KEY) || '0')
   }
-  const next = Number(localStorage.getItem(VISITS_KEY) || '0') + 1
-  localStorage.setItem(VISITS_KEY, String(next))
-  sessionStorage.setItem('pwa-visit-counted', '1')
+  const next = Number(safeGet(localStorage, VISITS_KEY) || '0') + 1
+  safeSet(localStorage, VISITS_KEY, String(next))
+  safeSet(sessionStorage, 'pwa-visit-counted', '1')
   return next
 }
 
@@ -78,7 +105,7 @@ export function PwaInstallBanner() {
     const onInstalled = () => {
       setVisible(false)
       setDeferredPrompt(null)
-      localStorage.removeItem(DISMISS_KEY)
+      safeRemove(localStorage, DISMISS_KEY)
       window.removeEventListener('beforeinstallprompt', onBeforeInstallPrompt)
     }
 
@@ -94,7 +121,7 @@ export function PwaInstallBanner() {
   if (!visible || !deferredPrompt) return null
 
   const dismiss = () => {
-    localStorage.setItem(DISMISS_KEY, String(Date.now()))
+    safeSet(localStorage, DISMISS_KEY, String(Date.now()))
     setVisible(false)
     setDeferredPrompt(null)
   }
