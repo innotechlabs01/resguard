@@ -64,7 +64,22 @@ function ResetPasswordForm() {
     const checkSession = async () => {
       const supabase = createClient()
       const { data } = await supabase.auth.getSession()
-      setSessionValid(!!data.session)
+      // Require proof this is a RECOVERY session, not a regular one: after
+      // verifyOtp({ type: 'recovery' }) GoTrue records an AMR entry with
+      // method 'recovery' on the user's amr claim. auth-js 2.99.3 returns it
+      // at runtime but only types it on JwtPayload, so we narrow it here.
+      // Without it, a logged-in user browsing to /reset-password would
+      // otherwise change their password outside the recovery flow (and we
+      // globally sign them out of every device on success).
+      const amr = (data.session?.user as { amr?: unknown } | undefined)?.amr
+      const isRecoverySession = Array.isArray(amr)
+        ? amr.some((entry) =>
+            typeof entry === 'string'
+              ? entry === 'recovery'
+              : entry?.method === 'recovery',
+          )
+        : false
+      setSessionValid(isRecoverySession)
       setCheckingSession(false)
     }
     checkSession()
