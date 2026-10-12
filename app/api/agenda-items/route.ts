@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireAuth, isAuthResponse } from '@/lib/auth/requireAuth'
-import { getAgendaItems, createAgendaItem, getVotesForItem, type DbAgendaItem } from '@/lib/db/queries/assemblies'
+import { assertBuildingAccess } from '@/lib/auth/assertBuildingAccess'
+import { getAgendaItems, createAgendaItem, getVotesForItem, getAssemblyById, type DbAgendaItem } from '@/lib/db/queries/assemblies'
 import { logger } from '@/lib/logger'
 
 const log = logger.child({ module: 'api/agenda-items' })
@@ -18,6 +19,13 @@ export async function GET(request: Request) {
     if (!assemblyId) {
       return NextResponse.json({ error: 'assemblyId required' }, { status: 400 })
     }
+
+    const assembly = await getAssemblyById(assemblyId)
+    if (!assembly) {
+      return NextResponse.json({ error: 'Assembly not found' }, { status: 404 })
+    }
+    const access = assertBuildingAccess(user, assembly.building_id)
+    if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
 
     const items = await getAgendaItems(assemblyId)
     const enriched = await Promise.all(
@@ -71,6 +79,13 @@ export async function POST(request: Request) {
     if (validatedOptions.some((o) => o.label.trim() === '')) {
       return NextResponse.json({ error: 'Each option must have a label' }, { status: 400 })
     }
+
+    const assembly = await getAssemblyById(assemblyId)
+    if (!assembly) {
+      return NextResponse.json({ error: 'Assembly not found' }, { status: 404 })
+    }
+    const access = assertBuildingAccess(user, assembly.building_id)
+    if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
 
     const item = await createAgendaItem({
       assembly_id: assemblyId,
