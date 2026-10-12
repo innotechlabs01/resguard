@@ -23,10 +23,26 @@ export function secureApiHandler(
         )
       }
 
+      const cookieHeader = request.headers.get('cookie') || ''
       const supabase = createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        { cookies: { get: (name) => request.headers.get('cookie')?.includes(name) ? '' : undefined, set: () => {}, remove: () => {} } }
+        {
+          cookies: {
+            get: (name) => {
+              const match = cookieHeader.split('; ').find((c) => c.startsWith(`${name}=`))
+              if (!match) return undefined
+              const value = match.slice(name.length + 1)
+              try {
+                return decodeURIComponent(value)
+              } catch {
+                return value
+              }
+            },
+            set: () => {},
+            remove: () => {}
+          }
+        }
       )
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
