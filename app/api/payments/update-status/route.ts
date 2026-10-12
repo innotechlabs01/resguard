@@ -36,7 +36,7 @@ export async function POST(request: Request) {
       await supa.from('payment_audits').insert({
         id: crypto.randomUUID(),
         payment_id: paymentId,
-        user_id: user.id,
+        clerk_user_id: user.id,
         prev_status: prevStatus,
         new_status: status,
         created_at: new Date().toISOString(),
