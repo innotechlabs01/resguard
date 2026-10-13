@@ -19,8 +19,8 @@ messaging.onBackgroundMessage((payload) => {
   
   self.registration.showNotification(notification?.title || 'Nueva notificación', {
     body: notification?.body || data?.message || '',
-    icon: '/icon-192x192.png',
-    badge: '/icon-96x96.png',
+    icon: '/icons/icon-192.png',
+    badge: '/icons/icon-192.png',
     tag: data?.type || 'notification',
     data: data,
   })

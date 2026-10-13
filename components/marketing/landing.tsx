@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/card'
 import { LandingHeader } from '@/components/marketing/landing-header'
 import { WaitlistForm } from '@/components/marketing/waitlist-form'
+import { PwaInstallBanner } from '@/components/pwa/pwa-install-banner'
 
 const PROBLEMS = [
   {
@@ -309,6 +310,8 @@ export function Landing() {
           <p>© {new Date().getFullYear()} Innotechlabs</p>
         </div>
       </footer>
+
+      <PwaInstallBanner />
     </div>
   )
 }
