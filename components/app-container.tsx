@@ -1,7 +1,6 @@
 'use client'
 
 import { useAuth } from '@/lib/auth-context'
-import { LandingPage } from '@/components/auth/landing-page'
 import { SecurityDashboard } from '@/components/dashboard/security-dashboard'
 import { AdminDashboard } from '@/components/admin/admin-dashboard'
 import { SuperAdminDashboard } from '@/components/super-admin/super-admin-dashboard'
@@ -21,30 +20,27 @@ function DashboardByRole() {
     case 'usuario':
       return <UsuarioDashboard />
     default:
-      return <LandingPage />
+      return null
   }
 }
 
-/** App container with Supabase Auth: show loading, landing page, or dashboard. */
-function AppContainerWithAuth() {
-  const { user } = useAuth()
+/**
+ * Client dashboard shell for authenticated users. Anonymous visitors never
+ * reach this component: app/page.tsx (Server Component) renders the landing
+ * page instead when there is no session.
+ */
+export function AppContainer() {
+  const { user, isLoaded } = useAuth()
 
-  if (!user) {
-    return <LandingPage />
+  if (!isLoaded) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Spinner className="size-8" />
+      </div>
+    )
   }
+
+  if (!user) return null
 
   return <DashboardByRole />
-}
-
-/** App container without Clerk: always show landing page (demo mode). */
-function AppContainerWithoutClerk() {
-  const { user } = useAuth()
-  if (user) {
-    return <DashboardByRole />
-  }
-  return <LandingPage />
-}
-
-export function AppContainer() {
-  return <AppContainerWithAuth />
 }
