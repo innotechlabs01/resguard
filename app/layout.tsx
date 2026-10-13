@@ -10,8 +10,9 @@ const geist = Geist({ subsets: ['latin'], variable: '--font-geist' })
 const geistMono = Geist_Mono({ subsets: ['latin'], variable: '--font-geist-mono' })
 
 export const metadata: Metadata = {
-  title: 'ResGuard - Security Dashboard',
-  description: 'Residential security and surveillance management system',
+  title: 'ResGuard — Gestión de copropiedad para Colombia',
+  description:
+    'ResGuard centraliza avisos, PQRS, pagos, mantenimiento y portería de tu copropiedad. Simple para residentes, potente para administradores.',
   generator: 'v0.app',
   icons: {
     icon: [
@@ -44,7 +45,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className="dark">
+    <html lang="es" className="dark">
       <body className={`${geist.variable} ${geistMono.variable} font-sans antialiased`}>
         <ErrorBoundary>
           <AppProviders>{children}</AppProviders>
