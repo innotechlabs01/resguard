@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
@@ -38,6 +39,11 @@ export default function SignInPage() {
         <div>
           <label className="text-sm">Contraseña</label>
           <input className="w-full mt-1 p-2 border rounded bg-secondary" type="password" value={password} onChange={e=>setPassword(e.target.value)} required />
+          <div className="flex justify-end mt-1">
+            <Link href="/forgot-password" className="text-sm text-muted-foreground hover:text-foreground">
+              ¿Olvidaste tu contraseña?
+            </Link>
+          </div>
         </div>
         <button disabled={loading} className="w-full p-2 bg-foreground text-background rounded">
           {loading ? 'Entrando...' : 'Entrar'}
