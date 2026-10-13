@@ -13,9 +13,24 @@ export async function GET(request: Request) {
     if (authRes instanceof Response) return authRes
 
     const { searchParams } = new URL(request.url)
-    const buildingId = searchParams.get('buildingId') ?? undefined
+    const { user } = authRes
+    const buildingIdParam = searchParams.get('buildingId') ?? undefined
 
-    const payments = await getPayments(buildingId)
+    // If user has no building_id and is not super_admin, deny global scope
+    if (user.role !== 'super_admin' && !user.building_id) {
+      return NextResponse.json({ error: 'Forbidden: building scope required' }, { status: 403 })
+    }
+
+    let buildingId = buildingIdParam
+    if (user.role !== 'super_admin') {
+      buildingId = user.building_id!
+    }
+
+    if (buildingIdParam && buildingIdParam !== buildingId) {
+      return NextResponse.json({ error: 'Forbidden: building mismatch' }, { status: 403 })
+    }
+
+    const payments = await getPayments(buildingId!)
 
     const formattedPayments = payments.map(p => ({
       id: p.id,

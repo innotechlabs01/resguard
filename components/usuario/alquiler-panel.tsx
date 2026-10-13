@@ -96,7 +96,7 @@ export function AlquilerPanel({ tenants: propTenants, listings: propListings }: 
       ownerId: myId,
       ownerName: user?.name ?? 'Residente',
       ownerUnit: '301',
-      buildingId: 'building-1',
+      buildingId: '11111111-1111-4111-8111-111111111111',
       title: listingForm.title,
       description: listingForm.description,
       price: parseInt(listingForm.price.replace(/\D/g, '')) || 0,

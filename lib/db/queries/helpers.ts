@@ -3,6 +3,13 @@ import { getSupabaseAdmin } from '@/lib/db/supabase'
 
 export type InValue = string | number | null | boolean
 
+export interface PaginatedResult<T> {
+  items: T[]
+  total: number
+  page: number
+  pageSize: number
+}
+
 function getClient() {
   const c = getSupabaseAdmin()
   if (!c) throw new Error('Supabase client not configured: set DATABASE_URL_SUPABASE and DATABASE_SERVICES_SUPABASE')
@@ -66,7 +73,12 @@ export async function queryMany<T>(sql: string, args: InValue[]): Promise<T[]> {
     }
   }
 
-  if (upper.includes('LIMIT')) {
+  // Handle OFFSET (pagination) — LIMIT ? OFFSET ? pattern
+  if (upper.includes('OFFSET')) {
+    const limitVal = typeof args[args.length - 2] === 'number' ? args[args.length - 2] as number : 20
+    const offsetVal = typeof args[args.length - 1] === 'number' ? args[args.length - 1] as number : 0
+    q = q.range(offsetVal, offsetVal + limitVal - 1)
+  } else if (upper.includes('LIMIT')) {
     const lim = args[args.length - 1]
     if (typeof lim === 'number') q = q.limit(lim)
     else {

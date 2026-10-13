@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireAuth, isAuthResponse } from '@/lib/auth/requireAuth'
+import { assertBuildingAccess } from '@/lib/auth/assertBuildingAccess'
 import { createPayment, getPaymentById } from '@/lib/db/queries/payments'
 import { getBoldPublicKey, generateIntegrityHash } from '@/lib/bold-client'
 import { logger } from '@/lib/logger'
@@ -13,6 +14,9 @@ export async function POST(request: Request) {
     const { user } = authResult
 
     const body = await request.json()
+    const access = assertBuildingAccess(user, body.buildingId)
+    if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
+
     const {
       paymentId,
       amount,

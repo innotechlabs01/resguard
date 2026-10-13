@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireAuth, isAuthResponse } from '@/lib/auth/requireAuth'
+import { assertBuildingAccess } from '@/lib/auth/assertBuildingAccess'
 import { getChatMessages } from '@/lib/db/queries/chat-messages'
 import { logger } from '@/lib/logger'
 
@@ -16,6 +17,8 @@ export async function GET(request: Request) {
     if (!buildingId) {
       return NextResponse.json({ error: 'buildingId required' }, { status: 400 })
     }
+    const access = assertBuildingAccess(user, buildingId)
+    if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
 
     const limit = parseInt(searchParams.get('limit') || '50', 10)
     const messages = await getChatMessages(buildingId, limit)

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth/requireAuth'
+import { assertBuildingAccess } from '@/lib/auth/assertBuildingAccess'
 import { getParkingAssignments, createOrUpdateParkingAssignment } from '@/lib/db/queries/parking-assignments'
 import { validateBody } from '@/lib/validation'
 import { z } from 'zod'
@@ -27,12 +28,15 @@ export async function GET(request: Request) {
   try {
     const authRes = await requireAuth(request)
     if (authRes instanceof Response) return authRes
+    const { user } = authRes
 
     const { searchParams } = new URL(request.url)
     const buildingId = searchParams.get('buildingId')
     if (!buildingId) {
       return NextResponse.json({ error: 'buildingId required' }, { status: 400 })
     }
+    const access = assertBuildingAccess(user, buildingId)
+    if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
 
     const assignments = await getParkingAssignments(buildingId)
     return NextResponse.json({ assignments })

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireAuth, isAuthResponse } from '@/lib/auth/requireAuth'
+import { assertBuildingAccess } from '@/lib/auth/assertBuildingAccess'
 import { getRentalListings } from '@/lib/db/queries/rentals'
 import { logger } from '@/lib/logger'
 
@@ -16,6 +17,8 @@ export async function GET(request: Request) {
     if (!buildingId) {
       return NextResponse.json({ error: 'buildingId required' }, { status: 400 })
     }
+    const access = assertBuildingAccess(user, buildingId)
+    if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
 
     const listings = await getRentalListings(buildingId)
     return NextResponse.json({ listings })

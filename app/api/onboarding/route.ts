@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireAuth, isAuthResponse } from '@/lib/auth/requireAuth'
+import { assertBuildingAccess } from '@/lib/auth/assertBuildingAccess'
 import { getOnboardingByBuilding, createOnboarding } from '@/lib/db/queries/onboarding'
 import { logger } from '@/lib/logger'
 
@@ -15,6 +16,8 @@ export async function GET(request: Request) {
     if (!buildingId) {
       return NextResponse.json({ error: 'buildingId required' }, { status: 400 })
     }
+    const access = assertBuildingAccess(authResult.user, buildingId)
+    if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
 
     const checklists = await getOnboardingByBuilding(buildingId)
     return NextResponse.json({ checklists })
@@ -35,6 +38,8 @@ export async function POST(request: Request) {
     if (!building_id || !user_id || !user_name) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
+    const access = assertBuildingAccess(authResult.user, building_id)
+    if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
 
     const checklist = await createOnboarding({
       building_id,

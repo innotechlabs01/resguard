@@ -94,7 +94,7 @@ export function Marketplace({ products: propProducts }: MarketplaceProps = {}) {
       sellerId: user?.id ?? 'usuario-1',
       sellerName: user?.name ?? 'Residente',
       sellerUnit: '301',
-      buildingId: 'building-1',
+      buildingId: '11111111-1111-4111-8111-111111111111',
       title: form.title,
       description: form.description,
       price: parseInt(form.price.replace(/\D/g, '')) || 0,

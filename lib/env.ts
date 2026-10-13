@@ -24,14 +24,4 @@ export function isSupabaseConfigured(): boolean {
   return getDatabaseProvider() === 'supabase'
 }
 
-export function hasClerkPublicKey(): boolean {
-  return Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim().length)
-}
-
-/** Clerk completo (middleware / servidor): requiere clave secreta. */
-export function isClerkFullyConfigured(): boolean {
-  return (
-    hasClerkPublicKey() &&
-    Boolean(process.env.CLERK_SECRET_KEY?.trim().length)
-  )
-}
+// Clerk removed in favor of Supabase Auth

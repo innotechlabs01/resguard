@@ -1,7 +1,8 @@
-import { clerkAuthMiddleware } from '@lib/auth/clerk-utils'
+import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { logger } from '@/lib/logger'
+import { getUserById } from '@/lib/db/queries/users'
 
 export function secureApiHandler(
   handler: (request: Request, user: any) => Promise<Response>
@@ -22,16 +23,43 @@ export function secureApiHandler(
         )
       }
 
-      const authResult = await clerkAuthMiddleware(request)
-
-      if (!authResult.isAuthenticated) {
+      const cookieHeader = request.headers.get('cookie') || ''
+      const supabase = createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+          cookies: {
+            get: (name) => {
+              const match = cookieHeader.split('; ').find((c) => c.startsWith(`${name}=`))
+              if (!match) return undefined
+              const value = match.slice(name.length + 1)
+              try {
+                return decodeURIComponent(value)
+              } catch {
+                return value
+              }
+            },
+            set: () => {},
+            remove: () => {}
+          }
+        }
+      )
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
         return new NextResponse(
-          JSON.stringify({ error: 'Unauthorized', details: authResult.error }),
+          JSON.stringify({ error: 'Unauthorized', details: 'No Supabase session' }),
+          { status: 401, headers: { 'Content-Type': 'application/json' } }
+        )
+      }
+      const dbUser = await getUserById(user.id)
+      if (!dbUser) {
+        return new NextResponse(
+          JSON.stringify({ error: 'Unauthorized', details: 'User not found' }),
           { status: 401, headers: { 'Content-Type': 'application/json' } }
         )
       }
 
-      return await handler(request, authResult.user)
+      return await handler(request, dbUser)
     } catch (error: any) {
       logger.error({ error: error?.message, stack: error?.stack }, 'API security error')
       return new NextResponse(

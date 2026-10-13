@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth/requireAuth'
-import { getVisitors, createVisitor, updateVisitor, deleteVisitor } from '@/lib/db/queries/visitors'
+import { assertBuildingAccess } from '@/lib/auth/assertBuildingAccess'
+import { getVisitors, getVisitorById, createVisitor, updateVisitor, deleteVisitor } from '@/lib/db/queries/visitors'
 import { logger } from '@/lib/logger'
 
 const log = logger.child({ module: 'api/visitors' })
@@ -17,6 +18,8 @@ export async function GET(request: Request) {
     if (!buildingId) {
       return NextResponse.json({ error: 'buildingId required' }, { status: 400 })
     }
+    const access = assertBuildingAccess(authRes.user, buildingId)
+    if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
 
     const visitors = await getVisitors(buildingId)
     return NextResponse.json({ visitors })
@@ -32,7 +35,9 @@ export async function POST(request: Request) {
     if (authRes instanceof Response) return authRes
 
     const body = await request.json()
-    
+    const access = assertBuildingAccess(authRes.user, body.building_id)
+    if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
+
     const visitorData = {
       building_id: body.building_id,
       name: body.name,
@@ -57,7 +62,7 @@ export async function POST(request: Request) {
 
 export async function PUT(request: Request) {
   try {
-    const authRes = await requireAuth(request)
+    const authRes = await requireAuth(request, ['vigilante', 'admin', 'super_admin'])
     if (authRes instanceof Response) return authRes
 
     const body = await request.json()
@@ -65,6 +70,18 @@ export async function PUT(request: Request) {
 
     if (!id) {
       return NextResponse.json({ error: 'Visitor ID required' }, { status: 400 })
+    }
+
+    // Read the existing visitor row first to verify building access
+    const existingVisitor = await getVisitorById(id)
+    if (!existingVisitor) {
+      return NextResponse.json({ error: 'Visitor not found' }, { status: 404 })
+    }
+    const access = assertBuildingAccess(authRes.user, existingVisitor.building_id)
+    if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
+
+    if (updates.building_id !== undefined && updates.building_id !== existingVisitor.building_id) {
+      return NextResponse.json({ error: 'Forbidden: cannot change building_id' }, { status: 403 })
     }
 
     await updateVisitor(id, updates)
@@ -86,6 +103,14 @@ export async function DELETE(request: Request) {
     if (!id) {
       return NextResponse.json({ error: 'Visitor ID required' }, { status: 400 })
     }
+
+    // Read the existing visitor row first to verify building access
+    const existingVisitor = await getVisitorById(id)
+    if (!existingVisitor) {
+      return NextResponse.json({ error: 'Visitor not found' }, { status: 404 })
+    }
+    const access = assertBuildingAccess(authRes.user, existingVisitor.building_id)
+    if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
 
     await deleteVisitor(id)
     return NextResponse.json({ success: true, message: 'Visitor deleted successfully' })

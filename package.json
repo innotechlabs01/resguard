@@ -13,7 +13,6 @@
   },
   "dependencies": {
     "@ai-sdk/react": "3.0.41",
-    "@clerk/nextjs": "^7.0.6",
     "@hookform/resolvers": "^3.10.0",
     "@libsql/client": "^0.15.15",
     "@radix-ui/react-accordion": "1.2.2",
@@ -44,6 +43,7 @@
     "@radix-ui/react-toggle-group": "1.1.1",
     "@radix-ui/react-tooltip": "1.1.6",
     "@sentry/nextjs": "^10.69.0",
+    "@supabase/ssr": "^0.12.6",
     "@supabase/supabase-js": "^2.99.3",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.38.1",

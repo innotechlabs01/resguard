@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -34,6 +34,8 @@ import {
   User,
   Building2,
   Loader2,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react'
 
 const categoryLabels: Record<string, string> = {
@@ -118,18 +120,81 @@ interface PqrsStats {
   avg_response_hours: number | null
 }
 
-export function PqrsPanel({ buildingId }: { buildingId: string }) {
+interface PqrsEvent {
+  id: string
+  entity_type: string
+  entity_id: string
+  event_type: string
+  actor_name: string | null
+  old_value: string | null
+  new_value: string | null
+  note: string | null
+  created_at: string
+}
+
+export interface ResidentOption {
+  id: string
+  name: string
+  unit: string | null
+}
+
+const statusDisplayNames: Record<string, string> = {
+  open: 'Abierto',
+  in_progress: 'En progreso',
+  waiting: 'En espera',
+  resolved: 'Resuelto',
+  closed: 'Cerrado',
+  reopened: 'Reabierto',
+}
+
+function statusChangedLabel(event: PqrsEvent): string {
+  const oldLabel = event.old_value ? (statusDisplayNames[event.old_value] || event.old_value) : ''
+  const newLabel = event.new_value ? (statusDisplayNames[event.new_value] || event.new_value) : ''
+  return `Estado cambiado de ${oldLabel} a ${newLabel}`
+}
+
+function eventLabel(event: PqrsEvent): string {
+  switch (event.event_type) {
+    case 'created':
+      return 'Creado'
+    case 'status_changed':
+      return statusChangedLabel(event)
+    case 'assigned':
+      return event.new_value ? `Asignado a ${event.new_value}` : 'Asignado'
+    case 'comment':
+      return 'Comentario añadido'
+    default:
+      return event.event_type
+  }
+}
+
+export function PqrsPanel({
+  buildingId,
+  residents,
+  focusId,
+  onFocusConsumed,
+}: {
+  buildingId: string
+  residents?: ResidentOption[]
+  focusId?: string | null
+  onFocusConsumed?: () => void
+}) {
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin' || user?.role === 'super_admin'
 
   const [pqrsList, setPqrsList] = useState<PqrsItem[]>([])
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(1)
+  const pageSize = 20
   const [stats, setStats] = useState<PqrsStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<string>('open')
   const [selectedPqrs, setSelectedPqrs] = useState<PqrsItem | null>(null)
   const [comments, setComments] = useState<PqrsComment[]>([])
+  const [events, setEvents] = useState<PqrsEvent[]>([])
   const [loadingDetail, setLoadingDetail] = useState(false)
   const [newComment, setNewComment] = useState('')
+  const handledFocusRef = useRef<string | null>(null)
 
   // Create dialog
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
@@ -154,18 +219,21 @@ export function PqrsPanel({ buildingId }: { buildingId: string }) {
       if (activeTab !== 'all') params.set('status', activeTab)
       if (filterCategory !== 'all') params.set('category', filterCategory)
       if (filterPriority !== 'all') params.set('priority', filterPriority)
+      params.set('page', String(page))
+      params.set('pageSize', String(pageSize))
 
       const res = await fetch(`/api/pqrs?${params}`)
       if (res.ok) {
         const data = await res.json()
         setPqrsList(data.pqrs || [])
+        setTotal(data.total || 0)
       }
     } catch (err) {
       console.error('Error fetching PQRS:', err)
     } finally {
       setLoading(false)
     }
-  }, [buildingId, activeTab, filterCategory, filterPriority])
+  }, [buildingId, activeTab, filterCategory, filterPriority, page, pageSize])
 
   // Fetch stats (admin only)
   const fetchStats = useCallback(async () => {
@@ -193,6 +261,7 @@ export function PqrsPanel({ buildingId }: { buildingId: string }) {
       if (res.ok) {
         const data = await res.json()
         setComments(data.comments || [])
+        setEvents(data.events || [])
       }
     } catch (err) {
       console.error('Error fetching detail:', err)
@@ -200,6 +269,39 @@ export function PqrsPanel({ buildingId }: { buildingId: string }) {
       setLoadingDetail(false)
     }
   }
+
+  // Open a specific PQRS detail when navigated from another panel (e.g. Inbox)
+  useEffect(() => {
+    if (!focusId || handledFocusRef.current === focusId) return
+    handledFocusRef.current = focusId
+    onFocusConsumed?.()
+    setLoadingDetail(true)
+    fetch(`/api/pqrs/${focusId}`)
+      .then(res => (res.ok ? res.json() : null))
+      .then(data => {
+        if (data?.pqrs) {
+          setSelectedPqrs(data.pqrs)
+          setComments(data.comments || [])
+          setEvents(data.events || [])
+        }
+      })
+      .catch(err => console.error('Error fetching focused PQRS:', err))
+      .finally(() => setLoadingDetail(false))
+  }, [focusId])
+
+  // Refetch comments + events for the open detail (keeps timeline fresh after admin actions)
+  const reloadDetail = useCallback(async (pqrsId: string) => {
+    try {
+      const res = await fetch(`/api/pqrs/${pqrsId}`)
+      if (res.ok) {
+        const data = await res.json()
+        setComments(data.comments || [])
+        setEvents(data.events || [])
+      }
+    } catch (err) {
+      console.error('Error refreshing detail:', err)
+    }
+  }, [])
 
   // Create PQRS
   const handleCreate = async () => {
@@ -237,6 +339,7 @@ export function PqrsPanel({ buildingId }: { buildingId: string }) {
         const data = await res.json()
         setComments(prev => [...prev, data.comment])
         setNewComment('')
+        if (selectedPqrs) reloadDetail(selectedPqrs.id)
       }
     } catch (err) {
       console.error('Error adding comment:', err)
@@ -256,6 +359,7 @@ export function PqrsPanel({ buildingId }: { buildingId: string }) {
         fetchStats()
         if (selectedPqrs?.id === pqrsId) {
           setSelectedPqrs(prev => prev ? { ...prev, status: newStatus } : null)
+          reloadDetail(pqrsId)
         }
       }
     } catch (err) {
@@ -275,6 +379,7 @@ export function PqrsPanel({ buildingId }: { buildingId: string }) {
         fetchPqrs()
         if (selectedPqrs?.id === pqrsId) {
           setSelectedPqrs(prev => prev ? { ...prev, assigned_to: assignedTo } : null)
+          reloadDetail(pqrsId)
         }
       }
     } catch (err) {
@@ -288,14 +393,16 @@ export function PqrsPanel({ buildingId }: { buildingId: string }) {
       <PqrsDetail
         pqrs={selectedPqrs}
         comments={comments}
+        events={events}
         loading={loadingDetail}
         isAdmin={isAdmin}
+        residents={residents}
         newComment={newComment}
         onCommentChange={setNewComment}
         onAddComment={handleAddComment}
         onStatusChange={handleStatusChange}
         onAssign={handleAssign}
-        onBack={() => { setSelectedPqrs(null); setComments([]); fetchPqrs(); fetchStats(); }}
+        onBack={() => { setSelectedPqrs(null); setComments([]); setEvents([]); fetchPqrs(); fetchStats(); }}
       />
     )
   }
@@ -374,7 +481,7 @@ export function PqrsPanel({ buildingId }: { buildingId: string }) {
       {/* Filters */}
       {isAdmin && (
         <div className="flex gap-3">
-          <Select value={filterCategory} onValueChange={setFilterCategory}>
+          <Select value={filterCategory} onValueChange={v => { setFilterCategory(v); setPage(1) }}>
             <SelectTrigger className="w-48">
               <SelectValue placeholder="Categoria" />
             </SelectTrigger>
@@ -385,7 +492,7 @@ export function PqrsPanel({ buildingId }: { buildingId: string }) {
               ))}
             </SelectContent>
           </Select>
-          <Select value={filterPriority} onValueChange={setFilterPriority}>
+          <Select value={filterPriority} onValueChange={v => { setFilterPriority(v); setPage(1) }}>
             <SelectTrigger className="w-48">
               <SelectValue placeholder="Prioridad" />
             </SelectTrigger>
@@ -404,7 +511,7 @@ export function PqrsPanel({ buildingId }: { buildingId: string }) {
         {tabs.map(tab => (
           <button
             key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => { setActiveTab(tab.id); setPage(1) }}
             className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
               activeTab === tab.id
                 ? 'border-primary text-primary'
@@ -478,6 +585,33 @@ export function PqrsPanel({ buildingId }: { buildingId: string }) {
               </CardContent>
             </Card>
           ))}
+          {/* Pagination footer */}
+          <div className="flex items-center justify-between pt-2">
+            <span className="text-sm text-muted-foreground">{total} registros</span>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">
+                Página {page} de {Math.max(1, Math.ceil(total / pageSize))}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page <= 1}
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+              >
+                <ChevronLeft className="h-4 w-4 mr-1" />
+                Anterior
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page >= Math.max(1, Math.ceil(total / pageSize))}
+                onClick={() => setPage(p => p + 1)}
+              >
+                Siguiente
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -581,6 +715,7 @@ export function PqrsPanel({ buildingId }: { buildingId: string }) {
 function PqrsDetail({
   pqrs,
   comments,
+  events,
   loading,
   isAdmin,
   newComment,
@@ -589,9 +724,11 @@ function PqrsDetail({
   onStatusChange,
   onAssign,
   onBack,
+  residents,
 }: {
   pqrs: PqrsItem
   comments: PqrsComment[]
+  events: PqrsEvent[]
   loading: boolean
   isAdmin: boolean
   newComment: string
@@ -600,6 +737,7 @@ function PqrsDetail({
   onStatusChange: (id: string, status: string) => void
   onAssign: (id: string, assignedTo: string) => void
   onBack: () => void
+  residents?: ResidentOption[]
 }) {
   return (
     <div className="space-y-6">
@@ -659,15 +797,61 @@ function PqrsDetail({
                 ))}
               </SelectContent>
             </Select>
-            <Input
-              placeholder="Asignar a..."
-              defaultValue={pqrs.assigned_to || ''}
-              onBlur={e => onAssign(pqrs.id, e.target.value)}
-              className="w-64"
-            />
+            {residents && residents.length > 0 ? (
+              <Select value={pqrs.assigned_to || ''} onValueChange={v => onAssign(pqrs.id, v)}>
+                <SelectTrigger className="w-64">
+                  <SelectValue placeholder="Asignar a..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {residents.map(r => (
+                    <SelectItem key={r.id} value={r.name}>
+                      {r.unit ? `Unidad ${r.unit} — ${r.name}` : r.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <Input
+                placeholder="Asignar a..."
+                defaultValue={pqrs.assigned_to || ''}
+                onBlur={e => onAssign(pqrs.id, e.target.value)}
+                className="w-64"
+              />
+            )}
           </CardContent>
         </Card>
       )}
+
+      {/* Timeline / Historial */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Historial</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : events.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">Sin eventos registrados</p>
+          ) : (
+            <ol className="relative border-l border-border space-y-4">
+              {events.map(event => (
+                <li key={event.id} className="ml-4">
+                  <span className="absolute -left-1.5 mt-1.5 h-2 w-2 rounded-full bg-muted-foreground/40" />
+                  <div className="space-y-0.5">
+                    <p className="text-sm text-foreground">{eventLabel(event)}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {event.actor_name ? `${event.actor_name} · ` : ''}
+                      {new Date(event.created_at).toLocaleDateString('es-CO', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Comments */}
       <Card>

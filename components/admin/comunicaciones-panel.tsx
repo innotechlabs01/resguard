@@ -101,7 +101,7 @@ export function ComunicacionesPanel({ communications: propCommunications }: { co
 
     const comm: Communication = {
       id: `comm-${Date.now()}`,
-      buildingId: 'building-1',
+      buildingId: '11111111-1111-4111-8111-111111111111',
       authorId: 'admin-1',
       authorName: 'Maria Torres',
       title: form.title,

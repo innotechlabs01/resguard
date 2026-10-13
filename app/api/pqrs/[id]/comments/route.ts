@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireAuth, isAuthResponse } from '@/lib/auth/requireAuth'
-import { getPqrsComments, addPqrsComment } from '@/lib/db/queries/pqrs'
+import { assertBuildingAccess } from '@/lib/auth/assertBuildingAccess'
+import { getPqrsById, getPqrsComments, addPqrsComment } from '@/lib/db/queries/pqrs'
 import { logger } from '@/lib/logger'
 
 const log = logger.child({ module: 'api/pqrs/[id]/comments' })
@@ -12,8 +13,16 @@ export async function GET(
   try {
     const authResult = await requireAuth(request)
     if (isAuthResponse(authResult)) return authResult
+    const { user } = authResult
 
     const { id } = await params
+    const pqrs = await getPqrsById(id)
+    if (!pqrs) {
+      return NextResponse.json({ error: 'PQRS not found' }, { status: 404 })
+    }
+    const access = assertBuildingAccess(user, pqrs.building_id)
+    if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
+
     const comments = await getPqrsComments(id)
     return NextResponse.json({ comments })
   } catch (error) {
@@ -32,6 +41,13 @@ export async function POST(
     const { user } = authResult
 
     const { id } = await params
+    const pqrs = await getPqrsById(id)
+    if (!pqrs) {
+      return NextResponse.json({ error: 'PQRS not found' }, { status: 404 })
+    }
+    const access = assertBuildingAccess(user, pqrs.building_id)
+    if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
+
     const body = await request.json()
     const { content, is_internal } = body
 

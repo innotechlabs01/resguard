@@ -5,7 +5,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react'
-import { isClerkFullyConfigured } from '@/lib/env'
+import { isSupabaseConfigured } from '@/lib/env'
 
 function useAuthCheck() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
@@ -13,8 +13,8 @@ function useAuthCheck() {
 
   useEffect(() => {
     // Solo verificar una vez al cargar
-    const hasClerk = isClerkFullyConfigured()
-    setIsLoggedIn(hasClerk)
+    const hasSupabase = isSupabaseConfigured()
+    setIsLoggedIn(hasSupabase)
     setLoading(false)
   }, [])
 

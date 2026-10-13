@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth/requireAuth'
+import { requireAuth, isAuthResponse } from '@/lib/auth/requireAuth'
+import { assertBuildingAccess } from '@/lib/auth/assertBuildingAccess'
 import { getSupabaseAdmin } from '@/lib/db/supabase'
 import { logger } from '@/lib/logger'
 
@@ -10,8 +11,9 @@ export const dynamic = 'force-dynamic'
 // Registrar pago de alquiler
 export async function POST(request: Request) {
   try {
-    const authRes = await requireAuth(request)
-    if (authRes instanceof Response) return authRes
+    const authRes = await requireAuth(request, ['admin', 'super_admin'])
+    if (isAuthResponse(authRes)) return authRes
+    const { user } = authRes
 
     const body = await request.json()
     const { tenantId, paymentDate, notes } = body
@@ -24,6 +26,23 @@ export async function POST(request: Request) {
     if (!supabase) {
       return NextResponse.json({ error: 'Database not configured' }, { status: 500 })
     }
+
+    // Read the tenant row first to verify building access
+    const { data: tenant, error: fetchError } = await supabase
+      .from('tenants')
+      .select('id, building_id')
+      .eq('id', tenantId)
+      .maybeSingle()
+
+    if (fetchError) {
+      log.error({ error: fetchError }, 'Error fetching tenant')
+      return NextResponse.json({ error: fetchError.message }, { status: 500 })
+    }
+    if (!tenant) {
+      return NextResponse.json({ error: 'Tenant not found' }, { status: 404 })
+    }
+    const access = assertBuildingAccess(user, tenant.building_id)
+    if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
 
     const { error } = await supabase
       .from('tenants')

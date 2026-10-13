@@ -7,16 +7,27 @@ const log = logger.child({ module: 'api/notifications' })
 
 export const dynamic = 'force-dynamic'
 
+const ADMIN_ROLES = ['admin', 'super_admin']
+
+function canActOnUser(caller: { id: string; role: string }, targetUserId: string) {
+  return caller.id === targetUserId || ADMIN_ROLES.includes(caller.role)
+}
+
 export async function GET(request: Request) {
   try {
     const authRes = await requireAuth(request)
     if (authRes instanceof Response) return authRes
+    const { user } = authRes
 
     const { searchParams } = new URL(request.url)
     const userId = searchParams.get('userId')
 
     if (!userId) {
       return NextResponse.json({ error: 'userId required' }, { status: 400 })
+    }
+
+    if (!canActOnUser(user, userId)) {
+      return NextResponse.json({ error: 'Forbidden: cannot read another user\'s notifications' }, { status: 403 })
     }
 
     const supabase = getSupabaseAdmin()
@@ -47,12 +58,17 @@ export async function POST(request: Request) {
   try {
     const authRes = await requireAuth(request)
     if (authRes instanceof Response) return authRes
+    const { user } = authRes
 
     const body = await request.json()
     const { userId, title, body: notificationBody, type, data } = body
 
     if (!userId || !title || !notificationBody) {
       return NextResponse.json({ error: 'userId, title, and body required' }, { status: 400 })
+    }
+
+    if (!canActOnUser(user, userId)) {
+      return NextResponse.json({ error: 'Forbidden: cannot send notifications to another user' }, { status: 403 })
     }
 
     const supabase = getSupabaseAdmin()
@@ -85,6 +101,7 @@ export async function PUT(request: Request) {
   try {
     const authRes = await requireAuth(request)
     if (authRes instanceof Response) return authRes
+    const { user } = authRes
 
     const body = await request.json()
     const { id } = body
@@ -96,6 +113,24 @@ export async function PUT(request: Request) {
     const supabase = getSupabaseAdmin()
     if (!supabase) {
       return NextResponse.json({ error: 'Database not configured' }, { status: 500 })
+    }
+
+    // Verify notification ownership before marking read
+    const { data: existing, error: fetchError } = await supabase
+      .from('app_notifications')
+      .select('id, user_id')
+      .eq('id', id)
+      .maybeSingle()
+
+    if (fetchError) {
+      log.error({ error: fetchError }, 'Error fetching notification')
+      return NextResponse.json({ error: fetchError.message }, { status: 500 })
+    }
+    if (!existing) {
+      return NextResponse.json({ error: 'Notification not found' }, { status: 404 })
+    }
+    if (!canActOnUser(user, existing.user_id)) {
+      return NextResponse.json({ error: 'Forbidden: cannot modify another user\'s notification' }, { status: 403 })
     }
 
     const { error } = await supabase

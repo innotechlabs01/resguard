@@ -43,3 +43,6 @@ ResGuardMobile/mcp.json
 
 # sdd
 .atl/
+
+# supabase local temp artifacts (contain local dev start-secrets)
+supabase/.temp/

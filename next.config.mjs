@@ -2,14 +2,6 @@
 const nextConfig = {
   images: {
     remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: '**.clerk.com',
-      },
-      {
-        protocol: 'https',
-        hostname: '**.clerk.dev',
-      },
     ],
   },
   headers: async () => [
@@ -25,12 +17,12 @@ const nextConfig = {
           key: 'Content-Security-Policy',
           value: [
             "default-src 'self'",
-            "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://js.clerk.com https://challenges.cloudflare.com",
+            "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://challenges.cloudflare.com",
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-            "img-src 'self' data: blob: https://*.clerk.com https://*.clerk.dev https://images.clerk.dev",
+            "img-src 'self' data: blob:",
             "font-src 'self' https://fonts.gstatic.com",
-            "connect-src 'self' https://api.clerk.dev https://*.clerk.com https://*.supabase.co wss://*.supabase.co",
-            "frame-src 'self' https://js.clerk.com https://challenges.cloudflare.com",
+            "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
+            "frame-src 'self' https://challenges.cloudflare.com",
           ].join('; '),
         },
       ],

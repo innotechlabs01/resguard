@@ -4,7 +4,6 @@ export type UserRole = 'super_admin' | 'admin' | 'vigilante' | 'usuario'
 
 export interface User {
   id: string
-  clerkUserId?: string
   name: string
   email: string
   role: UserRole

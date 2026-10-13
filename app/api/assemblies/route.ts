@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireAuth, isAuthResponse } from '@/lib/auth/requireAuth'
+import { assertBuildingAccess } from '@/lib/auth/assertBuildingAccess'
 import { getAssemblies, createAssembly, getAssemblyById, updateAssemblyStatus } from '@/lib/db/queries/assemblies'
 import { logger } from '@/lib/logger'
 
@@ -18,6 +19,8 @@ export async function GET(request: Request) {
     if (!buildingId) {
       return NextResponse.json({ error: 'buildingId required' }, { status: 400 })
     }
+    const access = assertBuildingAccess(user, buildingId)
+    if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
 
     const assemblies = await getAssemblies(buildingId)
     return NextResponse.json({ assemblies })
@@ -48,7 +51,7 @@ export async function POST(request: Request) {
       time,
       location: location || '',
       status: 'scheduled',
-      created_by: user.clerk_user_id ?? user.id,
+      created_by: user.id,
     })
 
     return NextResponse.json({ id, message: 'Assembly created successfully' })

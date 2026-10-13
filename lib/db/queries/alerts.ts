@@ -15,23 +15,14 @@ export interface DbAlert {
 }
 
 export async function getAlertById(id: string): Promise<DbAlert | null> {
-  return queryOne<DbAlert>(
-    'SELECT * FROM alerts WHERE id = ?',
-    [id]
-  )
+  return queryOne<DbAlert>('SELECT * FROM alerts WHERE id = ?', [id])
 }
 
 export async function getAlerts(buildingId?: string): Promise<DbAlert[]> {
   if (buildingId) {
-    return queryMany<DbAlert>(
-      'SELECT * FROM alerts WHERE building_id = ? ORDER BY created_at DESC',
-      [buildingId]
-    )
+    return queryMany<DbAlert>('SELECT * FROM alerts WHERE building_id = ? ORDER BY created_at DESC', [buildingId])
   }
-  return queryMany<DbAlert>(
-    'SELECT * FROM alerts ORDER BY created_at DESC',
-    []
-  )
+  return queryMany<DbAlert>('SELECT * FROM alerts ORDER BY created_at DESC', [])
 }
 
 export async function createAlert(alert: {

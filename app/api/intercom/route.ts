@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth/requireAuth'
+import { assertBuildingAccess } from '@/lib/auth/assertBuildingAccess'
 import { getIntercomUnits, getIntercomCalls, createIntercomCall, respondToCall } from '@/lib/db/queries/intercom'
 import { getSupabaseAdmin } from '@/lib/db/supabase'
 import { logger } from '@/lib/logger'
@@ -78,10 +79,13 @@ async function sendPushToResident(unitNumber: string, callerType: string, caller
 
 export const dynamic = 'force-dynamic'
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
 export async function GET(request: Request) {
   try {
     const authRes = await requireAuth(request)
     if (authRes instanceof Response) return authRes
+    const { user } = authRes
 
     const { searchParams } = new URL(request.url)
     const buildingId = searchParams.get('buildingId')
@@ -91,6 +95,17 @@ export async function GET(request: Request) {
 
     if (!buildingId) {
       return NextResponse.json({ error: 'buildingId required' }, { status: 400 })
+    }
+
+    if (!UUID_REGEX.test(buildingId)) {
+      // Mock / non-UUID building id fallback to empty to avoid DB errors
+      if (type === 'poll') {
+        return NextResponse.json({ events: [], calls: [], timestamp: Date.now(), pollingInterval: POLL_INTERVAL_MS })
+      }
+      if (type === 'calls') {
+        return NextResponse.json({ calls: [] })
+      }
+      return NextResponse.json({ units: [] })
     }
 
     if (type === 'poll') {
@@ -135,6 +150,11 @@ export async function POST(request: Request) {
 
     const body = await request.json()
     const { buildingId, unitId, unitNumber, callerType, callerName, callerMessage, callId, response, note } = body
+
+    if (buildingId && !UUID_REGEX.test(buildingId)) {
+      // Mock building id, skip DB write
+      return NextResponse.json({ id: 'mock-' + Date.now(), message: 'Call initiated (mock)', polling: false })
+    }
 
     if (callId && response) {
       await respondToCall(callId, response, note)
