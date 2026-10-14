@@ -220,9 +220,9 @@ export function BuildingsPanel({ buildings, onRefresh }: BuildingsPanelProps) {
             </TableHeader>
             <TableBody>
               {filteredBuildings.map((building) => {
-                const status = statusConfig[building.status]
+                const status = statusConfig[building.status] ?? statusConfig.inactive
                 const StatusIcon = status.icon
-                const subscription = subscriptionConfig[building.subscriptionStatus]
+                const subscription = subscriptionConfig[building.subscriptionStatus] ?? subscriptionConfig.canceled
                 
                 return (
                   <TableRow key={building.id} className="border-border hover:bg-muted/50">
