@@ -1,28 +1,28 @@
 'use client'
 
 import { Suspense, useEffect, useState } from 'react'
-import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
+import { AlertCircle, CheckCircle, Lock, Mail, Eye, EyeOff } from 'lucide-react'
 
 function ExpiredState() {
+  const router = useRouter()
   return (
     <>
       <CardHeader>
-        <CardTitle className="text-2xl">El enlace expiró</CardTitle>
+        <CardTitle className="text-2xl">Código expirado o inválido</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-sm text-muted-foreground">
-          Los enlaces de recuperación vencen después de 60 minutos o dejan de
-          funcionar una vez usados. Solicita uno nuevo.
+          El código de recuperación venció (15 min) o ya fue usado. Solicita uno nuevo.
         </p>
         <Button asChild className="w-full">
-          <Link href="/forgot-password">Solicitar nuevo enlace</Link>
+          <a href="/forgot-password">Solicitar nuevo código</a>
         </Button>
       </CardContent>
     </>
@@ -33,61 +33,129 @@ function SuccessState() {
   return (
     <>
       <CardHeader>
-        <CardTitle className="text-2xl">Contraseña actualizada</CardTitle>
+        <div className="flex items-center justify-center mb-4">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
+            <CheckCircle className="h-6 w-6 text-green-600" />
+          </div>
+        </div>
+        <CardTitle className="text-2xl text-center">Contraseña actualizada</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <p className="text-sm text-muted-foreground">
-          Tu contraseña fue actualizada. Por seguridad, cerramos todas las
-          sesiones activas. Ya puedes iniciar sesión con tu nueva contraseña.
+        <p className="text-sm text-muted-foreground text-center">
+          Tu contraseña fue actualizada correctamente. Por seguridad, cerramos todas las sesiones activas.
         </p>
         <Button asChild className="w-full">
-          <Link href="/sign-in">Ir a iniciar sesión</Link>
+          <a href="/sign-in">Ir a iniciar sesión</a>
         </Button>
       </CardContent>
     </>
   )
 }
 
-function ResetPasswordForm() {
-  const searchParams = useSearchParams()
-  const [password, setPassword] = useState('')
-  const [confirm, setConfirm] = useState('')
+function VerifyOTPForm({ email, onVerified }: { email: string; onVerified: () => void }) {
+  const [code, setCode] = useState('')
   const [loading, setLoading] = useState(false)
-  const [checkingSession, setCheckingSession] = useState(true)
-  const [sessionValid, setSessionValid] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState(false)
+  const router = useRouter()
+  const supabase = createClient()
 
-  const linkFailed = searchParams.get('error') === 'expired'
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (code.length !== 6) {
+      setError('El código debe tener 6 dígitos')
+      return
+    }
+    setLoading(true)
+    setError(null)
+
+    try {
+      const { error: verifyError } = await supabase.auth.verifyOtp({
+        email: email,
+        token: code,
+        type: 'email',
+      })
+
+      if (verifyError) {
+        setError(verifyError.message.includes('expired') 
+          ? 'El código expiró. Solicita uno nuevo.' 
+          : 'Código inválido. Verifica e intenta de nuevo.')
+        return
+      }
+
+      onVerified()
+    } catch {
+      setError('Error de conexión. Intenta de nuevo.')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    const checkSession = async () => {
-      const supabase = createClient()
-      const { data } = await supabase.auth.getSession()
-      // Require proof this is a RECOVERY session, not a regular one: after
-      // verifyOtp({ type: 'recovery' }) GoTrue records an AMR entry with
-      // method 'recovery' on the user's amr claim. auth-js 2.99.3 returns it
-      // at runtime but only types it on JwtPayload, so we narrow it here.
-      // Without it, a logged-in user browsing to /reset-password would
-      // otherwise change their password outside the recovery flow (and we
-      // globally sign them out of every device on success).
-      const amr = (data.session?.user as { amr?: unknown } | undefined)?.amr
-      const isRecoverySession = Array.isArray(amr)
-        ? amr.some((entry) =>
-            typeof entry === 'string'
-              ? entry === 'recovery'
-              : entry?.method === 'recovery',
-          )
-        : false
-      setSessionValid(isRecoverySession)
-      setCheckingSession(false)
+    if (code.length === 6 && !loading) {
+      handleSubmit(new Event('submit') as any)
     }
-    checkSession()
-  }, [])
+  }, [code, loading])
+
+  return (
+    <>
+      <CardHeader>
+        <CardTitle className="text-2xl">Verificar código</CardTitle>
+        <p className="text-sm text-muted-foreground">
+          Enviamos un código de 6 dígitos a <strong>{email}</strong>
+        </p>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {error && (
+            <div className="flex items-center gap-2 text-destructive text-sm" role="alert">
+              <AlertCircle className="h-4 w-4" />
+              <span>{error}</span>
+            </div>
+          )}
+          <div className="space-y-2">
+            <Label htmlFor="code">Código de 6 dígitos</Label>
+            <Input
+              id="code"
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={6}
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+              required
+              autoComplete="one-time-code"
+              placeholder="0 0 0 0 0 0"
+              className="text-center text-2xl tracking-widest font-mono"
+              disabled={loading}
+            />
+          </div>
+          <p className="text-xs text-muted-foreground text-center">
+            El código expira en 15 minutos. No lo compartas.
+          </p>
+          <Button type="submit" disabled={loading || code.length !== 6} className="w-full">
+            {loading && <Spinner />}
+            {loading ? 'Verificando…' : 'Verificar y continuar'}
+          </Button>
+        </form>
+      </CardContent>
+    </>
+  )
+}
+
+function ResetPasswordForm() {
+  const [password, setPassword] = useState('')
+  const [confirm, setConfirm] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState(false)
+  const router = useRouter()
+  const supabase = createClient()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
+    
     if (password.length < 8) {
       setError('La contraseña debe tener al menos 8 caracteres')
       return
@@ -96,72 +164,106 @@ function ResetPasswordForm() {
       setError('Las contraseñas no coinciden')
       return
     }
+
     setLoading(true)
-    const supabase = createClient()
-    const { error: updateError } = await supabase.auth.updateUser({ password })
-    if (updateError) {
+    try {
+      const { error: updateError } = await supabase.auth.updateUser({ password })
+      if (updateError) {
+        setError('Error al actualizar. Intenta de nuevo.')
+        return
+      }
+      await supabase.auth.signOut({ scope: 'global' })
+      setSuccess(true)
+    } catch {
+      setError('Error de conexión. Intenta de nuevo.')
+    } finally {
       setLoading(false)
-      setError('Ocurrió un error. Intenta de nuevo en unos momentos.')
-      return
     }
-    // Invalidate every active session on all devices: after a recovery flow
-    // the account must be re-authenticated with the new password everywhere.
-    await supabase.auth.signOut({ scope: 'global' })
-    setLoading(false)
-    setSuccess(true)
   }
 
-  if (linkFailed) return <ExpiredState />
+  const strength = password.length === 0 ? 0 : 
+    password.length < 8 ? 1 : 
+    /[A-Z]/.test(password) && /[0-9]/.test(password) && /[^A-Za-z0-9]/.test(password) ? 3 : 2
+
   if (success) return <SuccessState />
-  if (checkingSession) {
-    return (
-      <CardContent className="flex justify-center py-8">
-        <Spinner />
-      </CardContent>
-    )
-  }
-  if (!sessionValid) return <ExpiredState />
 
   return (
     <>
       <CardHeader>
-        <CardTitle className="text-2xl">Nueva contraseña</CardTitle>
-        <p className="text-sm text-muted-foreground">
-          Ingresa tu nueva contraseña y confírmala.
-        </p>
+        <div className="flex items-center justify-center mb-4">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
+            <Lock className="h-6 w-6 text-blue-600" />
+          </div>
+        </div>
+        <CardTitle className="text-2xl text-center">Nueva contraseña</CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div aria-live="polite">
-            {error && (
-              <p className="text-destructive text-sm" role="alert">
-                {error}
-              </p>
-            )}
-          </div>
+          {error && (
+            <div className="flex items-center gap-2 text-destructive text-sm" role="alert">
+              <AlertCircle className="h-4 w-4" />
+              <span>{error}</span>
+            </div>
+          )}
+          
           <div className="space-y-2">
             <Label htmlFor="password">Nueva contraseña</Label>
-            <Input
-              id="password"
-              type="password"
-              autoComplete="new-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-            <p className="text-xs text-muted-foreground">Mínimo 8 caracteres</p>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="new-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                placeholder="Mínimo 8 caracteres"
+                className="pl-10 pr-10"
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="absolute right-2 top-1/2 -translate-y-1/2"
+                onClick={() => setShowPassword(!showPassword)}
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </Button>
+            </div>
+            <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+              <div 
+                className="h-full transition-all duration-300"
+                style={{
+                  width: `${strength * 33}%`,
+                  backgroundColor: strength === 1 ? 'red' : strength === 2 ? 'orange' : 'green'
+                }}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {strength === 0 ? 'Escribe tu contraseña' : strength === 1 ? 'Débil - usa mayúsculas, números y símbolos' : strength === 2 ? 'Media - añade más variedad' : 'Fuerte'}
+            </p>
           </div>
+
           <div className="space-y-2">
             <Label htmlFor="confirm">Confirmar contraseña</Label>
-            <Input
-              id="confirm"
-              type="password"
-              autoComplete="new-password"
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-              required
-            />
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                id="confirm"
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="new-password"
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
+                required
+                placeholder="Repite la contraseña"
+                className="pl-10"
+              />
+            </div>
+            {confirm && confirm !== password && (
+              <p className="text-xs text-destructive">Las contraseñas no coinciden</p>
+            )}
           </div>
+
           <Button type="submit" disabled={loading} className="w-full">
             {loading && <Spinner />}
             {loading ? 'Actualizando…' : 'Restablecer contraseña'}
@@ -172,20 +274,38 @@ function ResetPasswordForm() {
   )
 }
 
-export default function ResetPasswordPage() {
+// Wrapper that uses useSearchParams - needs Suspense boundary
+function ResetPasswordContent() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const email = searchParams.get('email') || ''
+  const [step, setStep] = useState<'verify' | 'reset'>('verify')
+
+  useEffect(() => {
+    if (!email) {
+      router.push('/forgot-password')
+    }
+  }, [email, router])
+
+  if (!email) return null
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-6">
       <Card className="w-full max-w-md">
-        <Suspense
-          fallback={
-            <CardContent className="flex justify-center py-8">
-              <Spinner />
-            </CardContent>
-          }
-        >
+        {step === 'verify' ? (
+          <VerifyOTPForm email={email} onVerified={() => setStep('reset')} />
+        ) : (
           <ResetPasswordForm />
-        </Suspense>
+        )}
       </Card>
     </div>
+  )
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Spinner /></div>}>
+      <ResetPasswordContent />
+    </Suspense>
   )
 }
