@@ -58,14 +58,23 @@ function ResetPasswordForm() {
 
     setLoading(true)
     try {
+      // First check if we have a session
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      if (sessionError || !session) {
+        setError('Sesión expirada. Solicita un nuevo enlace de recuperación.')
+        return
+      }
+      
       const { error: updateError } = await supabase.auth.updateUser({ password })
       if (updateError) {
-        setError('Error al actualizar. Intenta de nuevo.')
+        console.error('Update password error:', updateError)
+        setError(updateError.message || 'Error al actualizar. Intenta de nuevo.')
         return
       }
       await supabase.auth.signOut({ scope: 'global' })
       setSuccess(true)
-    } catch {
+    } catch (err) {
+      console.error('Password reset error:', err)
       setError('Error de conexión. Intenta de nuevo.')
     } finally {
       setLoading(false)
@@ -170,21 +179,77 @@ function ResetPasswordContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const email = searchParams.get('email') || ''
-  const [step, setStep] = useState<'ready'>('ready')
+  const [step, setStep] = useState<'ready' | 'no-session'>('ready')
+  const [checkingSession, setCheckingSession] = useState(true)
 
-  // Check for Supabase magic link token in URL
+  // Check for Supabase magic link token in URL AND verify session
   useEffect(() => {
-    const hash = window.location.hash
-    const params = new URLSearchParams(hash.replace('#', ''))
-    const token = params.get('access_token') || params.get('refresh_token')
-    const type = params.get('type')
-    
-    // If we have a recovery token from Supabase, the session is already set
-    // Just show the password form
-    if (token && type === 'recovery') {
-      setStep('ready')
+    const checkSession = async () => {
+      const supabase = createClient()
+      
+      // First check URL hash for tokens (Supabase puts them in hash)
+      const hash = window.location.hash
+      const params = new URLSearchParams(hash.replace('#', ''))
+      const token = params.get('access_token') || params.get('refresh_token')
+      const type = params.get('type')
+      
+      // If we have a recovery token, exchange it for a session
+      if (token && type === 'recovery') {
+        const { error } = await supabase.auth.setSession({
+          access_token: token,
+          refresh_token: params.get('refresh_token') || '',
+        })
+        if (error) {
+          console.error('Session set error:', error)
+        }
+      }
+      
+      // Now check if we have a valid session
+      const { data: { session }, error } = await supabase.auth.getSession()
+      
+      if (error || !session) {
+        setStep('no-session')
+      } else {
+        setStep('ready')
+      }
+      setCheckingSession(false)
     }
+    
+    checkSession()
   }, [])
+
+  if (checkingSession) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-6">
+        <Card className="w-full max-w-md">
+          <CardContent className="flex justify-center py-8">
+            <Spinner />
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  if (step === 'no-session') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-6">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="text-2xl text-center">Enlace expirado o inválido</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground text-center">
+              El enlace de recuperación ha expirado o ya fue usado. 
+              Los enlaces expiran en 1 hora y solo funcionan una vez.
+            </p>
+            <Button asChild className="w-full">
+              <a href="/forgot-password">Solicitar nuevo enlace</a>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-6">
