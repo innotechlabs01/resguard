@@ -8,26 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
-import { AlertCircle, CheckCircle, Lock, Mail, Eye, EyeOff } from 'lucide-react'
-
-function ExpiredState() {
-  const router = useRouter()
-  return (
-    <>
-      <CardHeader>
-        <CardTitle className="text-2xl">Código expirado o inválido</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <p className="text-sm text-muted-foreground">
-          El código de recuperación venció (15 min) o ya fue usado. Solicita uno nuevo.
-        </p>
-        <Button asChild className="w-full">
-          <a href="/forgot-password">Solicitar nuevo código</a>
-        </Button>
-      </CardContent>
-    </>
-  )
-}
+import { AlertCircle, CheckCircle, Lock, Eye, EyeOff, Mail } from 'lucide-react'
 
 function SuccessState() {
   return (
@@ -47,96 +28,6 @@ function SuccessState() {
         <Button asChild className="w-full">
           <a href="/sign-in">Ir a iniciar sesión</a>
         </Button>
-      </CardContent>
-    </>
-  )
-}
-
-function VerifyOTPForm({ email, onVerified }: { email: string; onVerified: () => void }) {
-  const [code, setCode] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const router = useRouter()
-  const supabase = createClient()
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (code.length !== 6) {
-      setError('El código debe tener 6 dígitos')
-      return
-    }
-    setLoading(true)
-    setError(null)
-
-    try {
-      const { error: verifyError } = await supabase.auth.verifyOtp({
-        email: email,
-        token: code,
-        type: 'email',
-      })
-
-      if (verifyError) {
-        setError(verifyError.message.includes('expired') 
-          ? 'El código expiró. Solicita uno nuevo.' 
-          : 'Código inválido. Verifica e intenta de nuevo.')
-        return
-      }
-
-      onVerified()
-    } catch {
-      setError('Error de conexión. Intenta de nuevo.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    if (code.length === 6 && !loading) {
-      handleSubmit(new Event('submit') as any)
-    }
-  }, [code, loading])
-
-  return (
-    <>
-      <CardHeader>
-        <CardTitle className="text-2xl">Verificar código</CardTitle>
-        <p className="text-sm text-muted-foreground">
-          Enviamos un código de 6 dígitos a <strong>{email}</strong>
-        </p>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {error && (
-            <div className="flex items-center gap-2 text-destructive text-sm" role="alert">
-              <AlertCircle className="h-4 w-4" />
-              <span>{error}</span>
-            </div>
-          )}
-          <div className="space-y-2">
-            <Label htmlFor="code">Código de 6 dígitos</Label>
-            <Input
-              id="code"
-              type="text"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              maxLength={6}
-              value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
-              required
-              autoComplete="one-time-code"
-              placeholder="0 0 0 0 0 0"
-              className="text-center text-2xl tracking-widest font-mono"
-              disabled={loading}
-            />
-          </div>
-          <p className="text-xs text-muted-foreground text-center">
-            El código expira en 15 minutos. No lo compartas.
-          </p>
-          <Button type="submit" disabled={loading || code.length !== 6} className="w-full">
-            {loading && <Spinner />}
-            {loading ? 'Verificando…' : 'Verificar y continuar'}
-          </Button>
-        </form>
       </CardContent>
     </>
   )
@@ -274,29 +165,39 @@ function ResetPasswordForm() {
   )
 }
 
-// Wrapper that uses useSearchParams - needs Suspense boundary
+// Wrapper that extracts email from URL params
 function ResetPasswordContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const email = searchParams.get('email') || ''
-  const [step, setStep] = useState<'verify' | 'reset'>('verify')
+  const [step, setStep] = useState<'ready'>('ready')
 
+  // Check for Supabase magic link token in URL
   useEffect(() => {
-    if (!email) {
-      router.push('/forgot-password')
+    const hash = window.location.hash
+    const params = new URLSearchParams(hash.replace('#', ''))
+    const token = params.get('access_token') || params.get('refresh_token')
+    const type = params.get('type')
+    
+    // If we have a recovery token from Supabase, the session is already set
+    // Just show the password form
+    if (token && type === 'recovery') {
+      setStep('ready')
     }
-  }, [email, router])
-
-  if (!email) return null
+  }, [])
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-6">
       <Card className="w-full max-w-md">
-        {step === 'verify' ? (
-          <VerifyOTPForm email={email} onVerified={() => setStep('reset')} />
-        ) : (
-          <ResetPasswordForm />
+        {email && (
+          <div className="mb-6 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center gap-2 text-sm text-blue-800">
+              <Mail className="h-4 w-4" />
+              <span>Recuperando para: <strong>{email}</strong></span>
+            </div>
+          </div>
         )}
+        <ResetPasswordForm />
       </Card>
     </div>
   )
