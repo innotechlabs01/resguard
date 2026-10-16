@@ -69,7 +69,7 @@ const statusColors: Record<string, string> = {
   inactive: 'bg-destructive/10 text-destructive border-destructive/20',
 }
 
-export function UsersPanel({ users: propUsers, buildings: propBuildings }: { users?: UserType[]; buildings?: BuildingStats[] } = {}) {
+export function UsersPanel({ users: propUsers, buildings: propBuildings, onRefresh }: { users?: UserType[]; buildings?: BuildingStats[]; onRefresh?: () => void } = {}) {
   const { user, isAuthenticated, isDemoMode, isLoaded } = useAuth()
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'vigilante'>('all')
@@ -79,6 +79,9 @@ export function UsersPanel({ users: propUsers, buildings: propBuildings }: { use
   )
   const [buildings, setBuildings] = useState<BuildingStats[]>(propBuildings || [])
   const [showCreateDialog, setShowCreateDialog] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [createError, setCreateError] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
   const [showDetailDialog, setShowDetailDialog] = useState(false)
   const [editMode, setEditMode] = useState(false)
   const [selectedUser, setSelectedUser] = useState<UserType | null>(null)
@@ -144,22 +147,48 @@ export function UsersPanel({ users: propUsers, buildings: propBuildings }: { use
     return buildings.find((b) => b.id === buildingId)
   }
 
-  const handleCreateUser = () => {
+  const handleCreateUser = async () => {
     if (!newUser.name || !newUser.email || !newUser.buildingId) return
-    const created: UserType = {
-      id: `user-${Date.now()}`,
-      name: newUser.name,
-      email: newUser.email,
-      role: newUser.role,
-      buildingId: newUser.buildingId,
+    setSaving(true)
+    setCreateError(null)
+    try {
+      const res = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newUser.name.trim(),
+          email: newUser.email.trim().toLowerCase(),
+          role: newUser.role,
+          building_id: newUser.buildingId,
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setCreateError(data.error || 'No se pudo crear el usuario. Intenta de nuevo.')
+        return
+      }
+      setNewUser({ name: '', email: '', phone: '', role: 'admin', buildingId: '', documentId: '' })
+      setShowCreateDialog(false)
+      onRefresh?.()
+    } catch {
+      setCreateError('Error de conexión. Intenta de nuevo.')
+    } finally {
+      setSaving(false)
     }
-    setUsers((prev) => [...prev, created])
-    setNewUser({ name: '', email: '', phone: '', role: 'admin', buildingId: '', documentId: '' })
-    setShowCreateDialog(false)
   }
 
-  const handleDeactivate = (userId: string) => {
-    setUsers((prev) => prev.filter((u) => u.id !== userId))
+  const handleDeactivate = async (userId: string) => {
+    try {
+      const res = await fetch(`/api/users?id=${encodeURIComponent(userId)}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setActionError(data.error || 'No se pudo desactivar el usuario.')
+        return
+      }
+      onRefresh?.()
+    } catch {
+      setActionError('Error de conexión. Intenta de nuevo.')
+    }
   }
 
   const handleOpenEdit = (u: UserType) => {
@@ -169,17 +198,30 @@ export function UsersPanel({ users: propUsers, buildings: propBuildings }: { use
     setShowDetailDialog(true)
   }
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (!selectedUser) return
-    setUsers((prev) =>
-      prev.map((u) =>
-        u.id === selectedUser.id
-          ? { ...u, name: editData.name, email: editData.email, buildingId: editData.buildingId, role: editData.role }
-          : u
-      )
-    )
-    setShowDetailDialog(false)
-    setEditMode(false)
+    try {
+      const res = await fetch('/api/users', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: selectedUser.id,
+          name: editData.name.trim(),
+          role: editData.role,
+          building_id: editData.buildingId || null,
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setActionError(data.error || 'No se pudo guardar los cambios.')
+        return
+      }
+      setShowDetailDialog(false)
+      setEditMode(false)
+      onRefresh?.()
+    } catch {
+      setActionError('Error de conexión. Intenta de nuevo.')
+    }
   }
 
   const adminCount = users.filter((u) => u.role === 'admin').length
@@ -318,11 +360,20 @@ export function UsersPanel({ users: propUsers, buildings: propBuildings }: { use
             </SelectContent>
           </Select>
         </div>
-        <Button size="sm" onClick={() => setShowCreateDialog(true)}>
+        <Button size="sm" onClick={() => { setCreateError(null); setShowCreateDialog(true) }}>
           <Plus className="mr-2 h-4 w-4" />
           Nuevo Usuario
         </Button>
       </div>
+
+      {/* Action error */}
+      {actionError && (
+        <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">
+          <XCircle className="h-4 w-4 shrink-0" />
+          <span>{actionError}</span>
+          <button className="ml-auto text-xs underline" onClick={() => setActionError(null)}>Cerrar</button>
+        </div>
+      )}
 
       {/* Users Table */}
       <Card className="bg-card border-border">
@@ -473,6 +524,7 @@ export function UsersPanel({ users: propUsers, buildings: propBuildings }: { use
                       className="h-6 px-2 text-xs border-primary/50 text-primary hover:bg-primary/10"
                       onClick={() => {
                         setNewUser((p) => ({ ...p, buildingId: b.id, role: 'admin' }))
+                        setCreateError(null)
                         setShowCreateDialog(true)
                       }}
                     >
@@ -581,15 +633,18 @@ export function UsersPanel({ users: propUsers, buildings: propBuildings }: { use
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
+            {createError && (
+              <p className="mr-auto text-sm text-destructive" role="alert">{createError}</p>
+            )}
+            <Button variant="outline" onClick={() => setShowCreateDialog(false)} disabled={saving}>
               Cancelar
             </Button>
             <Button
               onClick={handleCreateUser}
-              disabled={!newUser.name || !newUser.email || !newUser.buildingId}
+              disabled={saving || !newUser.name || !newUser.email || !newUser.buildingId}
             >
               <Plus className="mr-2 h-4 w-4" />
-              Crear usuario
+              {saving ? 'Creando…' : 'Crear usuario'}
             </Button>
           </DialogFooter>
         </DialogContent>
