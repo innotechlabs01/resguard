@@ -19,6 +19,10 @@ import {
   Pencil,
   CreditCard,
   UserCog,
+  Trash2,
+  UserPlus,
+  Check,
+  Copy,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -48,8 +52,15 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { BuildingForm } from '@/components/forms/building-form'
-import type { BuildingStats } from '@/lib/types'
+import type { BuildingStats, User as UserType } from '@/lib/types'
 
 interface BuildingsPanelProps {
   buildings: BuildingStats[]
@@ -63,6 +74,32 @@ function formatCurrency(amount: number): string {
     minimumFractionDigits: 0,
     notation: 'compact',
   }).format(amount)
+}
+
+function formatDate(value: string): string {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '-'
+  return date.toLocaleDateString('es-CO')
+}
+
+const dialogRoleConfig: Record<string, { label: string; className: string }> = {
+  admin: { label: 'Administrador', className: 'bg-info/10 text-info' },
+  vigilante: { label: 'Vigilante', className: 'bg-success/10 text-success' },
+}
+
+const paymentStatusConfig: Record<string, { label: string; className: string }> = {
+  succeeded: { label: 'Pagado', className: 'bg-success/10 text-success' },
+  pending: { label: 'Pendiente', className: 'bg-warning/10 text-warning' },
+  failed: { label: 'Fallido', className: 'bg-destructive/10 text-destructive' },
+  refunded: { label: 'Reembolsado', className: 'bg-muted text-muted-foreground' },
+}
+
+interface BuildingPayment {
+  id: string
+  amount: number
+  status: string
+  description: string
+  createdAt: string
 }
 
 const statusConfig = {
@@ -86,6 +123,38 @@ export function BuildingsPanel({ buildings, onRefresh }: BuildingsPanelProps) {
   const [showEditDialog, setShowEditDialog] = useState(false)
   const [showPaymentsDialog, setShowPaymentsDialog] = useState(false)
   const [showUsersDialog, setShowUsersDialog] = useState(false)
+  const [buildingUsers, setBuildingUsers] = useState<UserType[]>([])
+  const [loadingUsers, setLoadingUsers] = useState(false)
+  const [usersError, setUsersError] = useState<string | null>(null)
+  const [showAdminForm, setShowAdminForm] = useState(false)
+  const [newAdmin, setNewAdmin] = useState({ name: '', email: '' })
+  const [adminCredentials, setAdminCredentials] = useState<{ email: string; password: string } | null>(null)
+  const [copiedAdminPass, setCopiedAdminPass] = useState(false)
+
+  const closeAdminForm = () => {
+    setAdminCredentials(null)
+    setCopiedAdminPass(false)
+    setUsersError(null)
+    setShowAdminForm(false)
+  }
+
+  const handleCopyAdminPass = async () => {
+    if (!adminCredentials) return
+    try {
+      await navigator.clipboard.writeText(adminCredentials.password)
+      setCopiedAdminPass(true)
+      setTimeout(() => setCopiedAdminPass(false), 2000)
+    } catch {
+      // Clipboard unavailable; user can still copy manually
+    }
+  }
+  const [savingAdmin, setSavingAdmin] = useState(false)
+  const [editingUser, setEditingUser] = useState<UserType | null>(null)
+  const [editUserData, setEditUserData] = useState({ name: '', role: 'admin' as 'admin' | 'vigilante' })
+  const [savingEdit, setSavingEdit] = useState(false)
+  const [payments, setPayments] = useState<BuildingPayment[]>([])
+  const [loadingPayments, setLoadingPayments] = useState(false)
+  const [paymentsError, setPaymentsError] = useState<string | null>(null)
 
   const filteredBuildings = buildings.filter(
     (b) =>
@@ -107,18 +176,149 @@ export function BuildingsPanel({ buildings, onRefresh }: BuildingsPanelProps) {
     setShowEditDialog(true)
   }
 
+  const loadBuildingUsers = async (buildingId: string) => {
+    setLoadingUsers(true)
+    setUsersError(null)
+    try {
+      const res = await fetch('/api/users')
+      if (!res.ok) throw new Error('failed to load users')
+      const data = await res.json()
+      if (Array.isArray(data)) {
+        setBuildingUsers(
+          data.filter(
+            (u: UserType) =>
+              u.buildingId === buildingId && (u.role === 'admin' || u.role === 'vigilante')
+          )
+        )
+      } else {
+        setBuildingUsers([])
+      }
+    } catch {
+      setUsersError('No se pudieron cargar los usuarios.')
+      setBuildingUsers([])
+    } finally {
+      setLoadingUsers(false)
+    }
+  }
+
+  const loadPayments = async (buildingId: string) => {
+    setLoadingPayments(true)
+    setPaymentsError(null)
+    try {
+      const res = await fetch(`/api/payments?buildingId=${encodeURIComponent(buildingId)}`)
+      if (!res.ok) throw new Error('failed to load payments')
+      const data = await res.json()
+      setPayments(Array.isArray(data?.payments) ? data.payments : [])
+    } catch {
+      setPaymentsError('No se pudieron cargar los pagos.')
+      setPayments([])
+    } finally {
+      setLoadingPayments(false)
+    }
+  }
+
   const handleViewPayments = (building: BuildingStats) => {
     setSelectedBuilding(building)
     setShowPaymentsDialog(true)
+    loadPayments(building.id)
   }
 
   const handleManageUsers = (building: BuildingStats) => {
     setSelectedBuilding(building)
     setShowUsersDialog(true)
+    setShowAdminForm(false)
+    setEditingUser(null)
+    setNewAdmin({ name: '', email: '' })
+    loadBuildingUsers(building.id)
   }
 
   const handleBuildingCreated = () => {
     onRefresh?.()
+  }
+
+  const handleAssignAdmin = async () => {
+    if (!selectedBuilding || !newAdmin.name.trim() || !newAdmin.email.trim()) return
+    setSavingAdmin(true)
+    setUsersError(null)
+    try {
+      const res = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newAdmin.name.trim(),
+          email: newAdmin.email.trim().toLowerCase(),
+          role: 'admin',
+          building_id: selectedBuilding.id,
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setUsersError(data.error || 'No se pudo asignar el administrador.')
+        return
+      }
+      const data = await res.json().catch(() => ({}))
+      const createdEmail = newAdmin.email.trim().toLowerCase()
+      setNewAdmin({ name: '', email: '' })
+      await loadBuildingUsers(selectedBuilding.id)
+      onRefresh?.()
+      if (data.tempPassword) {
+        // Keep the form open to display the generated credential once
+        setAdminCredentials({ email: createdEmail, password: data.tempPassword })
+      } else {
+        setShowAdminForm(false)
+      }
+    } catch {
+      setUsersError('Error de conexión. Intenta de nuevo.')
+    } finally {
+      setSavingAdmin(false)
+    }
+  }
+
+  const handleSaveEdit = async () => {
+    if (!selectedBuilding || !editingUser) return
+    setSavingEdit(true)
+    setUsersError(null)
+    try {
+      const res = await fetch('/api/users', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editingUser.id,
+          name: editUserData.name.trim(),
+          role: editUserData.role,
+          building_id: selectedBuilding.id,
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setUsersError(data.error || 'No se pudo guardar los cambios.')
+        return
+      }
+      setEditingUser(null)
+      await loadBuildingUsers(selectedBuilding.id)
+      onRefresh?.()
+    } catch {
+      setUsersError('Error de conexión. Intenta de nuevo.')
+    } finally {
+      setSavingEdit(false)
+    }
+  }
+
+  const handleDeactivateUser = async (userId: string) => {
+    if (!selectedBuilding) return
+    setUsersError(null)
+    try {
+      const res = await fetch(`/api/users?id=${encodeURIComponent(userId)}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setUsersError(data.error || 'No se pudo desactivar el usuario.')
+        return
+      }
+      await loadBuildingUsers(selectedBuilding.id)
+      onRefresh?.()
+    } catch {
+      setUsersError('Error de conexión. Intenta de nuevo.')
+    }
   }
 
   return (
@@ -423,6 +623,18 @@ export function BuildingsPanel({ buildings, onRefresh }: BuildingsPanelProps) {
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
+            {paymentsError && (
+              <div
+                className="mb-3 flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+                role="alert"
+              >
+                <XCircle className="h-4 w-4 shrink-0" />
+                <span>{paymentsError}</span>
+                <button className="ml-auto text-xs underline" onClick={() => setPaymentsError(null)}>
+                  Cerrar
+                </button>
+              </div>
+            )}
             <Table>
               <TableHeader>
                 <TableRow className="border-border">
@@ -433,24 +645,33 @@ export function BuildingsPanel({ buildings, onRefresh }: BuildingsPanelProps) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                <TableRow className="border-border">
-                  <TableCell className="text-foreground">2026-03-20</TableCell>
-                  <TableCell className="text-foreground">Cuota administracion</TableCell>
-                  <TableCell className="text-foreground">{formatCurrency(selectedBuilding?.monthlyRevenue || 0)}</TableCell>
-                  <TableCell><Badge className="bg-success/10 text-success">Pagado</Badge></TableCell>
-                </TableRow>
-                <TableRow className="border-border">
-                  <TableCell className="text-foreground">2026-02-20</TableCell>
-                  <TableCell className="text-foreground">Cuota administracion</TableCell>
-                  <TableCell className="text-foreground">{formatCurrency(selectedBuilding?.monthlyRevenue || 0)}</TableCell>
-                  <TableCell><Badge className="bg-success/10 text-success">Pagado</Badge></TableCell>
-                </TableRow>
-                <TableRow className="border-border">
-                  <TableCell className="text-foreground">2026-01-20</TableCell>
-                  <TableCell className="text-foreground">Cuota administracion</TableCell>
-                  <TableCell className="text-foreground">{formatCurrency(selectedBuilding?.monthlyRevenue || 0)}</TableCell>
-                  <TableCell><Badge className="bg-success/10 text-success">Pagado</Badge></TableCell>
-                </TableRow>
+                {loadingPayments ? (
+                  <TableRow className="border-border">
+                    <TableCell colSpan={4} className="py-6 text-center text-muted-foreground">
+                      Cargando pagos...
+                    </TableCell>
+                  </TableRow>
+                ) : payments.length === 0 ? (
+                  <TableRow className="border-border">
+                    <TableCell colSpan={4} className="py-6 text-center text-muted-foreground">
+                      No hay pagos registrados para este edificio.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  payments.map((payment) => {
+                    const paymentStatus = paymentStatusConfig[payment.status] ?? paymentStatusConfig.pending
+                    return (
+                      <TableRow key={payment.id} className="border-border">
+                        <TableCell className="text-foreground">{formatDate(payment.createdAt)}</TableCell>
+                        <TableCell className="text-foreground">{payment.description}</TableCell>
+                        <TableCell className="text-foreground">{formatCurrency(payment.amount)}</TableCell>
+                        <TableCell>
+                          <Badge className={paymentStatus.className}>{paymentStatus.label}</Badge>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })
+                )}
               </TableBody>
             </Table>
           </div>
@@ -472,30 +693,206 @@ export function BuildingsPanel({ buildings, onRefresh }: BuildingsPanelProps) {
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
-            <Table>
-              <TableHeader>
-                <TableRow className="border-border">
-                  <TableHead className="text-muted-foreground">Nombre</TableHead>
-                  <TableHead className="text-muted-foreground">Email</TableHead>
-                  <TableHead className="text-muted-foreground">Rol</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow className="border-border">
-                  <TableCell className="text-foreground">Admin Demo</TableCell>
-                  <TableCell className="text-foreground">admin@demo.com</TableCell>
-                  <TableCell><Badge>Administrador</Badge></TableCell>
-                </TableRow>
-                <TableRow className="border-border">
-                  <TableCell className="text-foreground">Vigilante Demo</TableCell>
-                  <TableCell className="text-foreground">vigilante@demo.com</TableCell>
-                  <TableCell><Badge>Vigilante</Badge></TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-            <p className="text-xs text-muted-foreground mt-4">
-              Los usuarios se cargaran desde la base de datos cuando este conectado.
-            </p>
+            {usersError && (
+              <div
+                className="mb-3 flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+                role="alert"
+              >
+                <XCircle className="h-4 w-4 shrink-0" />
+                <span>{usersError}</span>
+                <button className="ml-auto text-xs underline" onClick={() => setUsersError(null)}>
+                  Cerrar
+                </button>
+              </div>
+            )}
+            {editingUser ? (
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <Label htmlFor="user-edit-name">Nombre completo</Label>
+                  <Input
+                    id="user-edit-name"
+                    value={editUserData.name}
+                    onChange={(e) => setEditUserData((p) => ({ ...p, name: e.target.value }))}
+                    className="bg-input border-border text-foreground"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="user-edit-role">Rol</Label>
+                  <Select
+                    value={editUserData.role}
+                    onValueChange={(v) => setEditUserData((p) => ({ ...p, role: v as 'admin' | 'vigilante' }))}
+                  >
+                    <SelectTrigger id="user-edit-role" className="bg-input border-border text-foreground">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="admin">Administrador</SelectItem>
+                      <SelectItem value="vigilante">Vigilante</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setEditingUser(null)} disabled={savingEdit}>
+                    Cancelar
+                  </Button>
+                  <Button onClick={handleSaveEdit} disabled={savingEdit || !editUserData.name.trim()}>
+                    {savingEdit ? 'Guardando…' : 'Guardar Cambios'}
+                  </Button>
+                </div>
+              </div>
+            ) : showAdminForm ? (
+              adminCredentials ? (
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    Administrador creado para {selectedBuilding?.name}. La contraseña se muestra
+                    solo una vez: compartela por un canal seguro.
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Cuenta:{' '}
+                    <span className="font-medium text-foreground">{adminCredentials.email}</span>
+                  </p>
+                  <div className="flex items-center justify-between gap-2 rounded-lg border border-border bg-muted/50 p-3">
+                    <code className="font-mono text-lg font-semibold tracking-widest text-foreground select-all">
+                      {adminCredentials.password}
+                    </code>
+                    <Button type="button" variant="outline" size="sm" onClick={handleCopyAdminPass}>
+                      {copiedAdminPass ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                      {copiedAdminPass ? 'Copiada' : 'Copiar'}
+                    </Button>
+                  </div>
+                  <div className="flex justify-end">
+                    <Button type="button" onClick={closeAdminForm}>
+                      Cerrar
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  Registra el administrador para {selectedBuilding?.name}.
+                </p>
+                <div className="space-y-2">
+                  <Label htmlFor="admin-name">Nombre completo</Label>
+                  <Input
+                    id="admin-name"
+                    placeholder="Ej: Maria Torres"
+                    value={newAdmin.name}
+                    onChange={(e) => setNewAdmin((p) => ({ ...p, name: e.target.value }))}
+                    className="bg-input border-border text-foreground"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="admin-email">Correo electronico</Label>
+                  <Input
+                    id="admin-email"
+                    type="email"
+                    placeholder="correo@ejemplo.com"
+                    value={newAdmin.email}
+                    onChange={(e) => setNewAdmin((p) => ({ ...p, email: e.target.value }))}
+                    className="bg-input border-border text-foreground"
+                  />
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={closeAdminForm} disabled={savingAdmin}>
+                    Cancelar
+                  </Button>
+                  <Button
+                    onClick={handleAssignAdmin}
+                    disabled={savingAdmin || !newAdmin.name.trim() || !newAdmin.email.trim()}
+                  >
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    {savingAdmin ? 'Asignando…' : 'Asignar admin'}
+                  </Button>
+                </div>
+              </div>
+              )
+            ) : (
+              <>
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-border">
+                      <TableHead className="text-muted-foreground">Nombre</TableHead>
+                      <TableHead className="text-muted-foreground">Email</TableHead>
+                      <TableHead className="text-muted-foreground">Rol</TableHead>
+                      <TableHead className="text-muted-foreground w-10"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {loadingUsers ? (
+                      <TableRow className="border-border">
+                        <TableCell colSpan={4} className="py-6 text-center text-muted-foreground">
+                          Cargando usuarios...
+                        </TableCell>
+                      </TableRow>
+                    ) : buildingUsers.length === 0 ? (
+                      <TableRow className="border-border">
+                        <TableCell colSpan={4} className="py-6 text-center text-muted-foreground">
+                          No hay usuarios asignados a este edificio.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      buildingUsers.map((u) => {
+                        const roleCfg = dialogRoleConfig[u.role]
+                        return (
+                          <TableRow key={u.id} className="border-border">
+                            <TableCell className="text-foreground">{u.name}</TableCell>
+                            <TableCell className="text-foreground">{u.email}</TableCell>
+                            <TableCell>
+                              {roleCfg ? (
+                                <Badge className={roleCfg.className}>{roleCfg.label}</Badge>
+                              ) : (
+                                <Badge>{u.role}</Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center justify-end gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  aria-label={`Editar ${u.name}`}
+                                  onClick={() => {
+                                    setEditingUser(u)
+                                    setEditUserData({ name: u.name, role: u.role as 'admin' | 'vigilante' })
+                                  }}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-destructive"
+                                  aria-label={`Desactivar ${u.name}`}
+                                  onClick={() => handleDeactivateUser(u.id)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })
+                    )}
+                  </TableBody>
+                </Table>
+                <div className="mt-4 flex justify-end">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setNewAdmin({ name: '', email: '' })
+                      setAdminCredentials(null)
+                      setCopiedAdminPass(false)
+                      setUsersError(null)
+                      setShowAdminForm(true)
+                    }}
+                  >
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    Asignar admin
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setShowUsersDialog(false)}>

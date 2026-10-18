@@ -19,6 +19,9 @@ import {
   Edit,
   Trash2,
   Users,
+  Check,
+  Copy,
+  ShieldAlert,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -94,6 +97,28 @@ export function UsersPanel({ users: propUsers, buildings: propBuildings, onRefre
     buildingId: '',
     documentId: '',
   })
+  const [createdCredentials, setCreatedCredentials] = useState<{ email: string; password: string } | null>(null)
+  const [copiedPass, setCopiedPass] = useState(false)
+
+  const handleCreateDialogOpenChange = (open: boolean) => {
+    if (!open) {
+      setCreatedCredentials(null)
+      setCopiedPass(false)
+      setCreateError(null)
+    }
+    setShowCreateDialog(open)
+  }
+
+  const handleCopyPassword = async () => {
+    if (!createdCredentials) return
+    try {
+      await navigator.clipboard.writeText(createdCredentials.password)
+      setCopiedPass(true)
+      setTimeout(() => setCopiedPass(false), 2000)
+    } catch {
+      // Clipboard unavailable; user can still copy manually
+    }
+  }
 
   useEffect(() => {
     if (!isAuthenticated || !isLoaded) return
@@ -167,9 +192,16 @@ export function UsersPanel({ users: propUsers, buildings: propBuildings, onRefre
         setCreateError(data.error || 'No se pudo crear el usuario. Intenta de nuevo.')
         return
       }
+      const data = await res.json().catch(() => ({}))
+      const createdEmail = newUser.email.trim().toLowerCase()
       setNewUser({ name: '', email: '', phone: '', role: 'admin', buildingId: '', documentId: '' })
-      setShowCreateDialog(false)
       onRefresh?.()
+      if (data.tempPassword) {
+        // Keep the dialog open to display the generated credential once
+        setCreatedCredentials({ email: createdEmail, password: data.tempPassword })
+      } else {
+        setShowCreateDialog(false)
+      }
     } catch {
       setCreateError('Error de conexión. Intenta de nuevo.')
     } finally {
@@ -538,14 +570,46 @@ export function UsersPanel({ users: propUsers, buildings: propBuildings, onRefre
       )}
 
       {/* Create User Dialog */}
-      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+      <Dialog open={showCreateDialog} onOpenChange={handleCreateDialogOpenChange}>
         <DialogContent className="bg-card border-border max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-foreground">Crear nuevo usuario operativo</DialogTitle>
+            <DialogTitle className="text-foreground">
+              {createdCredentials ? 'Usuario creado' : 'Crear nuevo usuario operativo'}
+            </DialogTitle>
             <DialogDescription className="text-muted-foreground">
-              Registra un administrador o vigilante y asignalo a un edificio.
+              {createdCredentials
+                ? 'Credenciales generadas. Compártelas por un canal seguro.'
+                : 'Registra un administrador o vigilante y asignalo a un edificio.'}
             </DialogDescription>
           </DialogHeader>
+          {createdCredentials ? (
+            <div className="space-y-4 py-2">
+              <p className="text-sm text-muted-foreground">
+                Cuenta creada para{' '}
+                <span className="font-medium text-foreground">{createdCredentials.email}</span>.
+                La contraseña se muestra solo una vez.
+              </p>
+              <div className="flex items-center justify-between gap-2 rounded-lg border border-border bg-muted/50 p-3">
+                <code className="font-mono text-lg font-semibold tracking-widest text-foreground select-all">
+                  {createdCredentials.password}
+                </code>
+                <Button type="button" variant="outline" size="sm" onClick={handleCopyPassword}>
+                  {copiedPass ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                  {copiedPass ? 'Copiada' : 'Copiar'}
+                </Button>
+              </div>
+              <div className="flex items-start gap-2 rounded-lg bg-warning/10 p-3 text-sm text-warning">
+                <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>Recomienda al usuario cambiar su contraseña tras el primer inicio.</span>
+              </div>
+              <div className="flex justify-end">
+                <Button type="button" onClick={() => handleCreateDialogOpenChange(false)}>
+                  Cerrar
+                </Button>
+              </div>
+            </div>
+          ) : (
+          <>
           <div className="space-y-4 py-2">
             <Tabs
               value={newUser.role}
@@ -646,7 +710,9 @@ export function UsersPanel({ users: propUsers, buildings: propBuildings, onRefre
               <Plus className="mr-2 h-4 w-4" />
               {saving ? 'Creando…' : 'Crear usuario'}
             </Button>
-          </DialogFooter>
+            </DialogFooter>
+          </>
+          )}
         </DialogContent>
       </Dialog>
 
