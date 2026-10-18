@@ -1,12 +1,26 @@
 import { NextResponse } from 'next/server'
+import { randomInt } from 'node:crypto'
 import { requireAuth } from '@/lib/auth/requireAuth'
 import { getUsers, createUser, updateUser, deleteUser } from '@/lib/db/queries/users'
+import { getSupabaseAdmin } from '@/lib/db/supabase'
 import { validateBody, CreateUserSchema } from '@/lib/validation'
 import { logger } from '@/lib/logger'
 
 const log = logger.child({ module: 'api/users' })
 
 export const dynamic = 'force-dynamic'
+
+// Alphanumeric charset without ambiguous glyphs (0/O, 1/l/I) so the
+// generated credential is easy to read aloud and hand over in person.
+const PASSWORD_ALPHABET = 'abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+
+function generateTempPassword(length = 9): string {
+  let password = ''
+  for (let i = 0; i < length; i++) {
+    password += PASSWORD_ALPHABET[randomInt(PASSWORD_ALPHABET.length)]
+  }
+  return password
+}
 
 export async function GET(request: Request) {
   try {
@@ -60,14 +74,51 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'building_id required' }, { status: 400 })
     }
 
-    await createUser({
-      id: crypto.randomUUID(),
+    const admin = getSupabaseAdmin()
+    if (!admin) {
+      log.error('Supabase admin client not configured (DATABASE_URL_SUPABASE / DATABASE_SERVICES_SUPABASE)')
+      return NextResponse.json({ error: 'User provisioning unavailable: server misconfigured' }, { status: 500 })
+    }
+
+    // Provision the Supabase Auth identity first: public.users.id MUST equal
+    // auth.users.id (requireAuth looks the profile up by the auth id), and the
+    // generated password is the only credential the new user will receive.
+    const tempPassword = generateTempPassword()
+    const { data: created, error: authError } = await admin.auth.admin.createUser({
       email: validation.data.email,
-      name: validation.data.name,
-      role: targetRole,
-      building_id: targetBuildingId ?? caller.building_id,
+      password: tempPassword,
+      email_confirm: true,
+      user_metadata: { name: validation.data.name, role: targetRole },
     })
-    return NextResponse.json({ success: true, message: 'User created successfully' }, { status: 201 })
+
+    if (authError || !created.user) {
+      if (authError?.status === 422) {
+        return NextResponse.json({ error: 'El correo ya está registrado' }, { status: 409 })
+      }
+      log.error({ error: authError }, 'Supabase Auth user creation failed')
+      return NextResponse.json({ error: 'Failed to create auth user' }, { status: 500 })
+    }
+
+    try {
+      await createUser({
+        id: created.user.id,
+        email: validation.data.email,
+        name: validation.data.name,
+        role: targetRole,
+        building_id: targetBuildingId ?? caller.building_id,
+      })
+    } catch (dbError) {
+      // Rollback the auth user so no orphan account can log in without a profile
+      log.error({ error: dbError }, 'public.users insert failed, rolling back auth user')
+      await admin.auth.admin.deleteUser(created.user.id).catch(() => undefined)
+      throw dbError
+    }
+
+    // tempPassword is returned once so the admin can hand it over; it is never logged.
+    return NextResponse.json(
+      { success: true, message: 'User created successfully', tempPassword },
+      { status: 201 }
+    )
   } catch (error) {
     log.error({ error }, 'Error creating user')
     return NextResponse.json({ error: 'Failed to create user' }, { status: 500 })
