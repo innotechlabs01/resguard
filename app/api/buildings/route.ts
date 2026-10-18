@@ -48,6 +48,16 @@ export async function POST(request: Request) {
     if (authRes instanceof Response) return authRes
     const { user } = authRes
 
+    // N4 fix: only super_admin can create buildings (CRM model, T-023 Phase 2.1).
+    // No auto-promotion: admin assignment is a separate, explicit flow
+    // (buildings-panel "Asignar admin" → POST /api/users).
+    if (user.role !== 'super_admin') {
+      return NextResponse.json(
+        { error: 'Forbidden: only super_admin can create buildings' },
+        { status: 403 }
+      )
+    }
+
     const body = await request.json()
     const validation = validateBody(CreateBuildingSchema, body)
     if (!validation.success) return validation.response
@@ -58,7 +68,7 @@ export async function POST(request: Request) {
     const currency = validation.data.currency ?? 'COP'
 
     const buildingId = crypto.randomUUID()
-    const createdId = await createBuilding({
+    await createBuilding({
       id: buildingId,
       name: validation.data.name,
       address: validation.data.address,
@@ -72,11 +82,6 @@ export async function POST(request: Request) {
       last_payment_date: null,
       subscription_status: 'pending',
     })
-
-    if (user.id) {
-      const { updateUser } = await import('@/lib/db/queries/users')
-      await updateUser(user.id, { role: 'admin', building_id: createdId })
-    }
 
     return NextResponse.json({ success: true, message: 'Building created successfully' }, { status: 201 })
   } catch (error) {

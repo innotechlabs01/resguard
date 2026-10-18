@@ -16,7 +16,7 @@ export const CreateUserSchema = z.object({
   email: z.string().email(),
   name: z.string().min(1).max(200),
   role: z.enum(['super_admin', 'admin', 'vigilante', 'usuario']),
-  building_id: z.string().uuid().optional().default(''),
+  building_id: z.string().uuid().optional(),
 })
 
 export const CreateVisitorSchema = z.object({

@@ -62,17 +62,37 @@ export async function POST(request: Request) {
     const targetRole = validation.data.role
     const targetBuildingId = validation.data.building_id || null
 
-    if (caller.role !== 'super_admin' && targetRole === 'super_admin') {
-      return NextResponse.json({ error: 'Forbidden: cannot create super_admin' }, { status: 403 })
-    }
-    if (caller.role !== 'super_admin' && caller.building_id) {
+    // N5 fix: authorization matrix derived from the CRM model (T-023 Phase 2.1)
+    // and the confirmed business flows:
+    //   super_admin → creates admin/vigilante/usuario in any building (and super_admin)
+    //   admin       → creates ONLY usuario (residents) in their OWN building
+    //   others      → cannot create anyone
+    if (caller.role === 'super_admin') {
+      // super_admin can create any role; building_id is validated by zod when present
+    } else if (caller.role === 'admin') {
+      if (targetRole !== 'usuario') {
+        return NextResponse.json(
+          { error: 'Forbidden: admin can only create residents' },
+          { status: 403 }
+        )
+      }
+      if (!caller.building_id) {
+        return NextResponse.json({ error: 'Forbidden: no building scope' }, { status: 403 })
+      }
       if (targetBuildingId && targetBuildingId !== caller.building_id) {
         return NextResponse.json({ error: 'Forbidden: building mismatch' }, { status: 403 })
       }
+    } else {
+      return NextResponse.json(
+        { error: 'Forbidden: insufficient privileges to create users' },
+        { status: 403 }
+      )
     }
-    if (caller.role !== 'super_admin' && !targetBuildingId) {
-      return NextResponse.json({ error: 'building_id required' }, { status: 400 })
-    }
+
+    // For admin callers, ALWAYS use their own building_id (never trust the client)
+    const finalBuildingId = caller.role === 'super_admin'
+      ? targetBuildingId
+      : caller.building_id
 
     const admin = getSupabaseAdmin()
     if (!admin) {
@@ -105,7 +125,7 @@ export async function POST(request: Request) {
         email: validation.data.email,
         name: validation.data.name,
         role: targetRole,
-        building_id: targetBuildingId ?? caller.building_id,
+        building_id: finalBuildingId,
       })
     } catch (dbError) {
       // Rollback the auth user so no orphan account can log in without a profile
