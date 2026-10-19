@@ -46,7 +46,7 @@ export async function queryMany<T>(sql: string, args: InValue[]): Promise<T[]> {
   }
 
   // Standard SELECT
-  let query: ReturnType<typeof client.from> extends never ? never : ReturnType<typeof client.from> = client.from(table).select('*') as never
+  const query: ReturnType<typeof client.from> extends never ? never : ReturnType<typeof client.from> = client.from(table).select('*') as never
   let q: any = client.from(table).select('*')
 
   // WHERE building_id = ? or id = ? etc.

@@ -63,7 +63,6 @@ export function AuthProvider({ children, onLogoutExtra }: AuthProviderProps) {
       mounted = false
       sub.subscription.unsubscribe()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const loadUserProfile = async (uid: string) => {

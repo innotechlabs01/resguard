@@ -22,8 +22,8 @@ export async function requireAuth(
       }
     }
   )
-  let user = null
   const authHeader = req.headers.get('authorization')
+  let user
   if (authHeader?.startsWith('Bearer ')) {
     const token = authHeader.substring(7)
     const { data } = await supabase.auth.getUser(token)
