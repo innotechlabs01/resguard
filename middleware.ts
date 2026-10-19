@@ -14,8 +14,10 @@ const PUBLIC_PATHS = [
 export default async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Allow public paths
-  if (PUBLIC_PATHS.some((path) => pathname.startsWith(path))) {
+  // Allow public paths. "/" is an exact match (never a prefix) because
+  // startsWith('/') would open every route. app/page.tsx self-gates: it
+  // renders <AppContainer/> for a session, <Landing/> for visitors.
+  if (pathname === '/' || PUBLIC_PATHS.some((path) => pathname.startsWith(path))) {
     return NextResponse.next()
   }
 

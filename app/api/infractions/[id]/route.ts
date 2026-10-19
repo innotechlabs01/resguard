@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireAuth, isAuthResponse } from '@/lib/auth/requireAuth'
+import { assertResourceBuilding } from '@/lib/auth/assertBuildingAccess'
 import { getInfractionById, getInfractionEvidences, insertInfractionEvidence, notifyInfractor, submitReply, decideInfraction } from '@/lib/db/queries/infractions'
 import { getTicketEvents } from '@/lib/db/queries/ticket-events'
 import { logger } from '@/lib/logger'
@@ -13,11 +14,18 @@ export async function GET(
   try {
     const authResult = await requireAuth(request)
     if (isAuthResponse(authResult)) return authResult
+    const { user } = authResult
 
     const { id } = await params
     const infraction = await getInfractionById(id)
     if (!infraction) {
       return NextResponse.json({ error: 'Infraction not found' }, { status: 404 })
+    }
+
+    // Building isolation: infraction must belong to caller's building
+    const access = assertResourceBuilding(user, infraction.building_id)
+    if (!access.ok) {
+      return NextResponse.json({ error: access.error }, { status: access.status })
     }
 
     const [evidences, events] = await Promise.all([
@@ -41,6 +49,17 @@ export async function PATCH(
     const { user } = authResult
 
     const { id } = await params
+    const infraction = await getInfractionById(id)
+    if (!infraction) {
+      return NextResponse.json({ error: 'Infraction not found' }, { status: 404 })
+    }
+
+    // Building isolation: infraction must belong to caller's building
+    const access = assertResourceBuilding(user, infraction.building_id)
+    if (!access.ok) {
+      return NextResponse.json({ error: access.error }, { status: access.status })
+    }
+
     const body = await request.json()
     const { action, reply, decision, notes, fine_amount, type, url } = body
 

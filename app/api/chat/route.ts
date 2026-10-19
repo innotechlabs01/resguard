@@ -35,7 +35,7 @@ async function handler(req: Request) {
     abortSignal: req.signal,
   })
 
-  let response = result.toUIMessageStreamResponse({
+  const response = result.toUIMessageStreamResponse({
     onFinish: async ({ isAborted }) => {
       if (isAborted) {
         log.info('Chat stream aborted')

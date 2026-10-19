@@ -148,7 +148,14 @@ export function useResidentApi() {
     return response.json()
   }, [])
 
-  return { createResident, updateResident }
+  const deleteResident = useCallback(async (id: string) => {
+    const response = await fetch(`/api/residents?id=${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    })
+    return response.json()
+  }, [])
+
+  return { createResident, updateResident, deleteResident }
 }
 
 export function useParkingApi() {

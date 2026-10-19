@@ -240,6 +240,16 @@ export async function checkPaymentStatus(boldLinkId: string): Promise<PaymentSta
   }
 }
 
+/**
+ * Secret para verificar firmas de webhooks de Bold, respetando el scoping
+ * PROD/TEST (APP_SCOPE). Los webhook handlers deben usar este helper en vez
+ * de leer env vars directamente, para no firmar/verificar con la llave
+ * equivocada en cada entorno.
+ */
+export function getBoldWebhookSecret(): string {
+  return getBoldSecretKey()
+}
+
 export function verifyBoldSignature(body: string, sig: string | null, secret: string): boolean {
   if (!sig || !secret) return false
   const expected = createHash('sha256').update(body + secret).digest('hex')
@@ -261,4 +271,66 @@ export function mapBoldStatusToApp(boldStatus: string): 'succeeded' | 'pending' 
     default:
       return 'pending'
   }
+}
+
+// ---------------------------------------------------------------------------
+// Suscripciones (T-024): link de pago por ciclo
+// ---------------------------------------------------------------------------
+
+const SUBSCRIPTION_REFERENCE_PREFIX = 'subscription:'
+const SUBSCRIPTION_REFERENCE_REGEX = /^subscription:([0-9a-fA-F-]{36}):(\d+)$/
+
+/**
+ * Construye la referencia que identifica el pago de un ciclo de suscripción.
+ * Formato: `subscription:<subscriptionId>:<period>` (máx 60 chars, límite Bold).
+ */
+export function buildSubscriptionReference(subscriptionId: string, period: number): string {
+  return `${SUBSCRIPTION_REFERENCE_PREFIX}${subscriptionId}:${period}`
+}
+
+/**
+ * Parsea una referencia de Bold. Devuelve null si no es de suscripción
+ * (los pagos puntuales de tenants usan referencias libres).
+ */
+export function parseSubscriptionReference(
+  reference: string | null | undefined
+): { subscriptionId: string; period: number } | null {
+  if (!reference) return null
+  const match = SUBSCRIPTION_REFERENCE_REGEX.exec(reference)
+  if (!match) return null
+  return { subscriptionId: match[1], period: Number(match[2]) }
+}
+
+export function isSubscriptionReference(reference: string | null | undefined): boolean {
+  return parseSubscriptionReference(reference) !== null
+}
+
+export interface CreateSubscriptionLinkParams {
+  subscriptionId: string
+  period: number
+  planName: string
+  amountCOP: number
+  payerEmail?: string
+}
+
+/**
+ * Crea el payment link de Bold para un ciclo de suscripción (monto cerrado
+ * en COP, referencia `subscription:<id>:<period>`). La activación real la
+ * hace el webhook firmado — este link solo cobra.
+ */
+export async function createSubscriptionPaymentLink(
+  params: CreateSubscriptionLinkParams
+): Promise<CreatePaymentLinkResult & { reference: string }> {
+  const { subscriptionId, period, planName, amountCOP, payerEmail } = params
+  const reference = buildSubscriptionReference(subscriptionId, period)
+
+  const result = await createPaymentLink({
+    amount: amountCOP,
+    amountType: 'CLOSE',
+    description: `Suscripción ${planName} - ResGuard`,
+    reference,
+    payerEmail,
+  })
+
+  return { ...result, reference }
 }

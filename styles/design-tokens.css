@@ -1,0 +1,199 @@
+/**
+ * Reserva App — Shared Design Tokens (single source of truth)
+ * ---------------------------------------------------------------------------
+ * Raw token layer consumed by app/globals.css via `@theme inline`.
+ *
+ * Naming contract:
+ *   - This file defines RAW variables (no `--color-` prefix). They change with
+ *     the active theme (`.dark` on <html> overrides `:root`).
+ *   - app/globals.css bridges them to Tailwind's `--color-*` theme namespace.
+ *     The two namespaces MUST stay distinct or the bridge self-references.
+ *
+ * Cross-platform:
+ *   - Web consumes these CSS variables.
+ *   - Mobile mirrors the same palette in ResGuardMobile/src/lib/theme.ts
+ *     (hand-synced, versioned — see styles/design-tokens.md). The two repos have
+ *     independent .git roots, so tokens are shared by specification, not by
+ *     package dependency.
+ */
+
+:root {
+  /* ---- Surfaces & text (light) ---- */
+  --background: #F5F7F8;
+  --foreground: #0F172A;
+  --card: #FFFFFF;
+  --card-foreground: #0F172A;
+  --popover: #FFFFFF;
+  --popover-foreground: #0F172A;
+  --surface-subtle: #F1F5F9;
+  --surface-hover: #E7EDF1;
+  --foreground-secondary: #475569;
+  --foreground-muted: #64748B;
+
+  /* ---- Brand & interactive (light) ---- */
+  --primary: #0F172A;
+  --primary-foreground: #FFFFFF;
+  --brand: #159A8C;
+  --brand-foreground: #FFFFFF;
+  --brand-soft: #D6F2EE;
+  --secondary: #F1F5F9;
+  --secondary-foreground: #0F172A;
+  --accent: #F1F5F9;
+  --accent-foreground: #0F172A;
+
+  /* ---- Lines & controls (light) ---- */
+  --border: #E2E8F0;
+  --border-strong: #CBD5E1;
+  --input: #FFFFFF;
+  --ring: #159A8C;
+
+  /* ---- Semantic status (light) ---- */
+  --success: #059669;
+  --success-foreground: #FFFFFF;
+  --success-container: #D1FAE5;
+  --success-on-container: #065F46;
+  --warning: #D97706;
+  --warning-foreground: #FFFFFF;
+  --warning-container: #FEF3C7;
+  --warning-on-container: #92400E;
+  --destructive: #DC2626;
+  --destructive-foreground: #FFFFFF;
+  --destructive-container: #FEE2E2;
+  --destructive-on-container: #991B1B;
+  --info: #0284C7;
+  --info-foreground: #FFFFFF;
+  --info-container: #E0F2FE;
+  --info-on-container: #075985;
+
+  /* ---- Charts (light) ---- */
+  --chart-1: #159A8C;
+  --chart-2: #0F172A;
+  --chart-3: #F59E0B;
+  --chart-4: #0284C7;
+  --chart-5: #7C3AED;
+
+  /* ---- Sidebar (light) ---- */
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: #0F172A;
+  --sidebar-primary: #0F172A;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #F1F5F9;
+  --sidebar-accent-foreground: #0F172A;
+  --sidebar-border: #E2E8F0;
+  --sidebar-ring: #159A8C;
+
+  /* ---- Radius ---- */
+  --radius: 0.75rem; /* 12px — base for cards/surfaces */
+
+  /* ---- Elevation (light) ---- */
+  --elevation-1: 0 1px 2px 0 rgb(15 23 42 / 0.06);
+  --elevation-2: 0 4px 10px -2px rgb(15 23 42 / 0.08);
+  --elevation-3: 0 12px 24px -6px rgb(15 23 42 / 0.12);
+
+  /* --- Spacing scale (reference; Tailwind's default 4px step matches) --- */
+  --space-0: 0px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* ---- Typography scale (reference; bridged in globals.css) ---- */
+  --text-display-size: 56px;
+  --text-display-line-height: 1.05;
+  --text-h1-size: 40px;
+  --text-h1-line-height: 1.15;
+  --text-h2-size: 32px;
+  --text-h2-line-height: 1.2;
+  --text-h3-size: 26px;
+  --text-h3-line-height: 1.25;
+  --text-h4-size: 22px;
+  --text-h4-line-height: 1.3;
+  --text-body-lg-size: 18px;
+  --text-body-lg-line-height: 1.6;
+  --text-body-size: 16px;
+  --text-body-line-height: 1.6;
+  --text-body-sm-size: 14px;
+  --text-body-sm-line-height: 1.5;
+  --text-caption-size: 12px;
+  --text-caption-line-height: 1.5;
+  --text-overline-size: 11px;
+  --text-overline-line-height: 1.5;
+  --text-overline-tracking: 0.06em;
+}
+
+.dark {
+  /* ---- Surfaces & text (dark) ---- */
+  --background: #020617;
+  --foreground: #F8FAFC;
+  --card: #0F172A;
+  --card-foreground: #F8FAFC;
+  --popover: #16203A;
+  --popover-foreground: #F8FAFC;
+  --surface-subtle: #1E293B;
+  --surface-hover: #24324A;
+  --foreground-secondary: #CBD5E1;
+  --foreground-muted: #94A3B8;
+
+  /* ---- Brand & interactive (dark) ---- */
+  --primary: #F1F5F9;
+  --primary-foreground: #0F172A;
+  --brand: #2DD4BF;
+  --brand-foreground: #03251F;
+  --brand-soft: #0F3D38;
+  --secondary: #1E293B;
+  --secondary-foreground: #F8FAFC;
+  --accent: #1E293B;
+  --accent-foreground: #F8FAFC;
+
+  /* ---- Lines & controls (dark) ---- */
+  --border: #1E293B;
+  --border-strong: #334155;
+  --input: #0F172A;
+  --ring: #2DD4BF;
+
+  /* ---- Semantic status (dark) ---- */
+  --success: #34D399;
+  --success-foreground: #052E22;
+  --success-container: #064E3B;
+  --success-on-container: #D1FAE5;
+  --warning: #FBBF24;
+  --warning-foreground: #3A2A05;
+  --warning-container: #78350F;
+  --warning-on-container: #FEF3C7;
+  --destructive: #F87171;
+  --destructive-foreground: #3A0A0A;
+  --destructive-container: #7F1D1D;
+  --destructive-on-container: #FEE2E2;
+  --info: #38BDF8;
+  --info-foreground: #062B3A;
+  --info-container: #0C4A6E;
+  --info-on-container: #E0F2FE;
+
+  /* ---- Charts (dark) ---- */
+  --chart-1: #2DD4BF;
+  --chart-2: #E2E8F0;
+  --chart-3: #FBBF24;
+  --chart-4: #38BDF8;
+  --chart-5: #A78BFA;
+
+  /* ---- Sidebar (dark) ---- */
+  --sidebar: #0F172A;
+  --sidebar-foreground: #F8FAFC;
+  --sidebar-primary: #F1F5F9;
+  --sidebar-primary-foreground: #0F172A;
+  --sidebar-accent: #1E293B;
+  --sidebar-accent-foreground: #F8FAFC;
+  --sidebar-border: #1E293B;
+  --sidebar-ring: #2DD4BF;
+
+  /* ---- Elevation (dark) ---- */
+  --elevation-1: 0 1px 2px 0 rgb(0 0 0 / 0.4);
+  --elevation-2: 0 4px 10px -2px rgb(0 0 0 / 0.5);
+  --elevation-3: 0 12px 24px -6px rgb(0 0 0 / 0.6);
+}

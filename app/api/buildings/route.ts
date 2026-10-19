@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth/requireAuth'
 import { logger } from '@/lib/logger'
 import { validateBody, CreateBuildingSchema } from '@/lib/validation'
+import { checkStrictRateLimit, getRateLimitIdentifier } from '@/lib/rate-limit'
 
 const log = logger.child({ module: 'api/buildings' })
 
@@ -42,11 +43,69 @@ export async function GET(request: Request) {
   }
 }
 
+export async function PUT(request: Request) {
+  try {
+    const authRes = await requireAuth(request)
+    if (authRes instanceof Response) return authRes
+    const { user } = authRes
+
+    // Only super_admin can update building configuration
+    if (user.role !== 'super_admin') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    const body = await request.json()
+    const { id, ...updates } = body
+
+    if (!id) {
+      return NextResponse.json({ error: 'Building ID required' }, { status: 400 })
+    }
+
+    // Whitelist updatable fields (prevent mass-assignment of sensitive fields)
+    const allowed = ['name', 'address', 'total_units', 'total_parking_spots', 'visitor_parking_spots', 'monthly_fee', 'currency', 'subscription_status']
+    const filtered: Record<string, unknown> = {}
+    for (const key of allowed) {
+      if (updates[key] !== undefined) {
+        filtered[key] = updates[key]
+      }
+    }
+
+    if (Object.keys(filtered).length === 0) {
+      return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 })
+    }
+
+    const { updateBuilding } = await import('@/lib/db/queries/buildings')
+    await updateBuilding(id, filtered)
+
+    return NextResponse.json({ success: true, message: 'Building updated successfully' })
+  } catch (error) {
+    log.error({ error }, 'Error updating building')
+    return NextResponse.json({ error: 'Failed to update building' }, { status: 500 })
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const authRes = await requireAuth(request)
     if (authRes instanceof Response) return authRes
     const { user } = authRes
+
+    // N4 fix: only super_admin can create buildings (CRM model, T-023 Phase 2.1).
+    // No auto-promotion: admin assignment is a separate, explicit flow
+    // (buildings-panel "Asignar admin" → POST /api/users).
+    if (user.role !== 'super_admin') {
+      return NextResponse.json(
+        { error: 'Forbidden: only super_admin can create buildings' },
+        { status: 403 }
+      )
+    }
+
+    // M3 fix: rate limit building creation (10 per hour per user)
+    const rlId = getRateLimitIdentifier(request, user.id)
+    const rl = await checkStrictRateLimit(`buildings:${rlId}`, 10, '1 h')
+    if (!rl.success) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+    }
 
     const body = await request.json()
     const validation = validateBody(CreateBuildingSchema, body)
@@ -58,7 +117,7 @@ export async function POST(request: Request) {
     const currency = validation.data.currency ?? 'COP'
 
     const buildingId = crypto.randomUUID()
-    const createdId = await createBuilding({
+    await createBuilding({
       id: buildingId,
       name: validation.data.name,
       address: validation.data.address,
@@ -72,11 +131,6 @@ export async function POST(request: Request) {
       last_payment_date: null,
       subscription_status: 'pending',
     })
-
-    if (user.id) {
-      const { updateUser } = await import('@/lib/db/queries/users')
-      await updateUser(user.id, { role: 'admin', building_id: createdId })
-    }
 
     return NextResponse.json({ success: true, message: 'Building created successfully' }, { status: 201 })
   } catch (error) {

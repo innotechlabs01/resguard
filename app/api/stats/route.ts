@@ -13,6 +13,15 @@ export async function GET(request: Request) {
     if (isAuthResponse(authResult)) return authResult
     const { user } = authResult
 
+    // R-fix: system_stats is a global snapshot; only super_admin can read it.
+    // Admins get a 403 (they have building-level panels, not platform stats).
+    if (user.role !== 'super_admin') {
+      return NextResponse.json(
+        { error: 'Forbidden: platform stats are super_admin only' },
+        { status: 403 }
+      )
+    }
+
     const stats = await getSystemStats()
     return NextResponse.json({ stats })
   } catch (error) {

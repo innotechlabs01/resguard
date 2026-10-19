@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   Calendar,
   Plus,
@@ -11,6 +11,7 @@ import {
   Utensils,
   Dumbbell,
   Waves,
+  Loader2,
 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -34,10 +35,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { useAuth } from '@/lib/auth-context'
 
 interface Reservation {
   id: string
   area: string
+  areaName?: string
   date: Date
   startTime: string
   endTime: string
@@ -84,8 +87,13 @@ const statusConfig = {
 }
 
 export function UsuarioReservations() {
+  const { user } = useAuth()
   const [reservations, setReservations] = useState<Reservation[]>([])
+  const [areas, setAreas] = useState<{ id: string; name: string; description: string | null; max_capacity: number }[]>([])
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
   const [newReservation, setNewReservation] = useState({
     area: '',
     date: '',
@@ -94,6 +102,37 @@ export function UsuarioReservations() {
     guests: '',
     notes: '',
   })
+
+  const fetchReservations = useCallback(async () => {
+    if (!user?.buildingId) return
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch(`/api/reservations?buildingId=${encodeURIComponent(user.buildingId)}`)
+      if (!res.ok) throw new Error('Error al cargar')
+      const data = await res.json()
+      setAreas(data.areas || [])
+      setReservations((data.reservations || []).map((r: Record<string, unknown>) => ({
+        id: r.id as string,
+        area: (r.area_id as string) || '',
+        areaName: (r.area_name as string) || '',
+        date: new Date(r.start_time as string),
+        startTime: (r.start_time as string)?.slice(11, 16) || '',
+        endTime: (r.end_time as string)?.slice(11, 16) || '',
+        status: r.status as Reservation['status'],
+        guests: (r.guests as number) || undefined,
+        notes: (r.notes as string) || undefined,
+      })))
+    } catch {
+      setError('Error al cargar las reservas. Intenta de nuevo.')
+    } finally {
+      setLoading(false)
+    }
+  }, [user?.buildingId])
+
+  useEffect(() => {
+    fetchReservations()
+  }, [fetchReservations])
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('es-CO', {
@@ -111,20 +150,51 @@ export function UsuarioReservations() {
     }).format(date)
   }
 
-  const handleSubmit = () => {
-    const reservation: Reservation = {
-      id: Date.now().toString(),
-      area: newReservation.area,
-      date: new Date(newReservation.date),
-      startTime: newReservation.startTime,
-      endTime: newReservation.endTime,
-      status: 'pending',
-      guests: Number.parseInt(newReservation.guests) || undefined,
-      notes: newReservation.notes || undefined,
+  const handleSubmit = async () => {
+    if (!user?.buildingId || !newReservation.area || !newReservation.date || !newReservation.startTime || !newReservation.endTime) return
+    setSaving(true)
+    setError(null)
+    try {
+      const start = new Date(`${newReservation.date}T${newReservation.startTime}`)
+      const end = new Date(`${newReservation.date}T${newReservation.endTime}`)
+      const res = await fetch('/api/reservations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          area_id: newReservation.area,
+          building_id: user.buildingId,
+          start_time: start.toISOString(),
+          end_time: end.toISOString(),
+          notes: newReservation.notes || undefined,
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setError(data.error || 'No se pudo crear la reserva.')
+        return
+      }
+      setDialogOpen(false)
+      setNewReservation({ area: '', date: '', startTime: '', endTime: '', guests: '', notes: '' })
+      await fetchReservations()
+    } catch {
+      setError('Error de conexión. Intenta de nuevo.')
+    } finally {
+      setSaving(false)
     }
-    setReservations([reservation, ...reservations])
-    setDialogOpen(false)
-    setNewReservation({ area: '', date: '', startTime: '', endTime: '', guests: '', notes: '' })
+  }
+
+  const handleCancelReservation = async (id: string) => {
+    try {
+      const res = await fetch(`/api/reservations?id=${encodeURIComponent(id)}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setError(data.error || 'No se pudo cancelar la reserva.')
+        return
+      }
+      await fetchReservations()
+    } catch {
+      setError('Error de conexión.')
+    }
   }
 
   return (
