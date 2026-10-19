@@ -6,6 +6,7 @@ import { AdminDashboard } from '@/components/admin/admin-dashboard'
 import { SuperAdminDashboard } from '@/components/super-admin/super-admin-dashboard'
 import { UsuarioDashboard } from '@/components/usuario/usuario-dashboard'
 import { Spinner } from '@/components/ui/spinner'
+import { ForcePasswordChange } from '@/components/auth/force-password-change'
 
 function DashboardByRole() {
   const { user } = useAuth()
@@ -42,5 +43,10 @@ export function AppContainer() {
 
   if (!user) return null
 
-  return <DashboardByRole />
+  return (
+    <>
+      <DashboardByRole />
+      <ForcePasswordChange />
+    </>
+  )
 }

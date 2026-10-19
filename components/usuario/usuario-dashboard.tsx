@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, Suspense, lazy } from 'react'
 import { UsuarioSidebar } from './usuario-sidebar'
 import { UsuarioHeader } from './usuario-header'
 import { UsuarioOverview } from './usuario-overview'
+import { WelcomeCard } from './welcome-card'
 import { ParkingRequests } from './parking-requests'
 import { UsuarioPayments } from './usuario-payments'
 import { UsuarioReservations } from './usuario-reservations'
@@ -234,16 +235,23 @@ export function UsuarioDashboard() {
     switch (activeTab) {
       case 'overview':
         return (
-          <UsuarioOverview
-            residentName={residentData.name}
-            unit={residentData.unit}
-            balance={residentData.balance}
-            pendingRequests={residentData.pendingRequests}
-            activeReservations={residentData.activeReservations}
-            notifications={residentData.notifications}
-            onTabChange={setActiveTab}
-            communications={notifications}
-          />
+          <div className="space-y-4">
+            <WelcomeCard
+              userName={residentData.name}
+              hasData={notifications.length > 0}
+              onNavigate={setActiveTab}
+            />
+            <UsuarioOverview
+              residentName={residentData.name}
+              unit={residentData.unit}
+              balance={residentData.balance}
+              pendingRequests={residentData.pendingRequests}
+              activeReservations={residentData.activeReservations}
+              notifications={residentData.notifications}
+              onTabChange={setActiveTab}
+              communications={notifications}
+            />
+          </div>
         )
       case 'parking':
         return <ParkingRequests />

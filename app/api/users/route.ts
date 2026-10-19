@@ -114,7 +114,11 @@ export async function POST(request: Request) {
       email: validation.data.email,
       password: tempPassword,
       email_confirm: true,
-      user_metadata: { name: validation.data.name, role: targetRole },
+      user_metadata: {
+        name: validation.data.name,
+        role: targetRole,
+        must_change_password: true,
+      },
     })
 
     if (authError || !created.user) {
