@@ -162,21 +162,31 @@ CREATE POLICY "tenants_delete_admin" ON public.tenants
   );
 
 -- ============================================================
--- 9. TENANT_VEHICLES: scope INSERT/UPDATE by building
+-- 9. TENANT_VEHICLES: scope INSERT/UPDATE by building (indirect via tenants)
 -- ============================================================
 
 DROP POLICY IF EXISTS "tenant_vehicles_insert_admin" ON public.tenant_vehicles;
 CREATE POLICY "tenant_vehicles_insert_admin" ON public.tenant_vehicles
   FOR INSERT WITH CHECK (
     public.get_user_role() = 'super_admin'
-    OR (public.get_user_role() = 'admin' AND building_id = public.get_user_building_id())
+    OR (
+      public.get_user_role() = 'admin'
+      AND tenant_id IN (
+        SELECT id FROM public.tenants WHERE building_id = public.get_user_building_id()
+      )
+    )
   );
 
 DROP POLICY IF EXISTS "tenant_vehicles_update_admin" ON public.tenant_vehicles;
 CREATE POLICY "tenant_vehicles_update_admin" ON public.tenant_vehicles
   FOR UPDATE USING (
     public.get_user_role() = 'super_admin'
-    OR (public.get_user_role() = 'admin' AND building_id = public.get_user_building_id())
+    OR (
+      public.get_user_role() = 'admin'
+      AND tenant_id IN (
+        SELECT id FROM public.tenants WHERE building_id = public.get_user_building_id()
+      )
+    )
   );
 
 -- ============================================================
@@ -360,16 +370,17 @@ CREATE POLICY "ticket_events_insert" ON public.ticket_events
 
 -- ============================================================
 -- 21. DEVICE_TOKENS (from 013): restrict admin SELECT to own building
+--     NOTE: device_tokens.user_id is TEXT, needs ::text cast on auth.uid()
 -- ============================================================
 
 DROP POLICY IF EXISTS "device_tokens_select_own" ON public.device_tokens;
 CREATE POLICY "device_tokens_select_own" ON public.device_tokens
   FOR SELECT USING (
-    user_id = auth.uid()
+    user_id = auth.uid()::text
     OR (
       public.get_user_role() IN ('admin', 'super_admin')
       AND user_id IN (
-        SELECT id FROM public.users WHERE building_id = public.get_user_building_id()
+        SELECT id::text FROM public.users WHERE building_id = public.get_user_building_id()
       )
     )
   );
