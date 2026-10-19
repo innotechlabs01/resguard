@@ -4,6 +4,7 @@ import { requireAuth } from '@/lib/auth/requireAuth'
 import { getUsers, createUser, updateUser, deleteUser } from '@/lib/db/queries/users'
 import { getSupabaseAdmin } from '@/lib/db/supabase'
 import { validateBody, CreateUserSchema } from '@/lib/validation'
+import { checkStrictRateLimit, getRateLimitIdentifier } from '@/lib/rate-limit'
 import { logger } from '@/lib/logger'
 
 const log = logger.child({ module: 'api/users' })
@@ -91,6 +92,13 @@ export async function POST(request: Request) {
     const finalBuildingId = caller.role === 'super_admin'
       ? targetBuildingId
       : caller.building_id
+
+    // M3 fix: rate limit user creation (20 per hour per admin)
+    const rlId = getRateLimitIdentifier(request, caller.id)
+    const rl = await checkStrictRateLimit(`users-create:${rlId}`, 20, '1 h')
+    if (!rl.success) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+    }
 
     const admin = getSupabaseAdmin()
     if (!admin) {

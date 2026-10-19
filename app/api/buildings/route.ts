@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth/requireAuth'
 import { logger } from '@/lib/logger'
 import { validateBody, CreateBuildingSchema } from '@/lib/validation'
+import { checkStrictRateLimit, getRateLimitIdentifier } from '@/lib/rate-limit'
 
 const log = logger.child({ module: 'api/buildings' })
 
@@ -97,6 +98,13 @@ export async function POST(request: Request) {
         { error: 'Forbidden: only super_admin can create buildings' },
         { status: 403 }
       )
+    }
+
+    // M3 fix: rate limit building creation (10 per hour per user)
+    const rlId = getRateLimitIdentifier(request, user.id)
+    const rl = await checkStrictRateLimit(`buildings:${rlId}`, 10, '1 h')
+    if (!rl.success) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
     }
 
     const body = await request.json()
