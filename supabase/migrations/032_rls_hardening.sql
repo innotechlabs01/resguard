@@ -18,6 +18,14 @@
 CREATE OR REPLACE FUNCTION public.prevent_role_escalation()
 RETURNS TRIGGER AS $$
 BEGIN
+  -- Exempt trusted server connections: service_role (web API routes have
+  -- their own authorization logic in requireAuth + assertBuildingAccess)
+  -- and postgres (Dashboard SQL Editor / migrations). The trigger is a
+  -- defense-in-depth for the MOBILE anon-key surface, not for server code.
+  IF current_user IN ('service_role', 'postgres', 'supabase_admin', 'authenticator') THEN
+    RETURN NEW
+  END IF;
+
   -- Only fire when role or building assignment changes
   IF (NEW.role IS DISTINCT FROM OLD.role)
      OR (NEW.building_id IS DISTINCT FROM OLD.building_id) THEN
