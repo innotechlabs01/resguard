@@ -89,18 +89,52 @@ export function SystemAlertsPanel() {
   const unreadCount = alerts.filter((a) => !a.read).length
   const criticalCount = alerts.filter((a) => a.priority === 'critical' && !a.read).length
 
-  const handleMarkRead = (alertId: string) => {
-    setAlerts((alerts) =>
-      alerts.map((a) => (a.id === alertId ? { ...a, read: true } : a))
-    )
+  const handleMarkRead = async (alertId: string) => {
+    try {
+      const res = await fetch('/api/alerts', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: alertId, read: 1 }),
+      })
+      if (!res.ok) throw new Error('Failed to mark alert as read')
+      setAlerts((alerts) =>
+        alerts.map((a) => (a.id === alertId ? { ...a, read: true } : a))
+      )
+    } catch (error) {
+      console.error('Error marking alert as read:', error)
+    }
   }
 
-  const handleMarkAllRead = () => {
-    setAlerts((alerts) => alerts.map((a) => ({ ...a, read: true })))
+  const handleMarkAllRead = async () => {
+    const unread = alerts.filter((a) => !a.read)
+    if (unread.length === 0) return
+    try {
+      const results = await Promise.all(
+        unread.map((a) =>
+          fetch('/api/alerts', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: a.id, read: 1 }),
+          })
+        )
+      )
+      if (!results.every((r) => r.ok)) throw new Error('Failed to mark some alerts as read')
+      setAlerts((alerts) => alerts.map((a) => ({ ...a, read: true })))
+    } catch (error) {
+      console.error('Error marking all alerts as read:', error)
+    }
   }
 
-  const handleDismiss = (alertId: string) => {
-    setAlerts((alerts) => alerts.filter((a) => a.id !== alertId))
+  const handleDismiss = async (alertId: string) => {
+    try {
+      const res = await fetch(`/api/alerts?id=${encodeURIComponent(alertId)}`, {
+        method: 'DELETE',
+      })
+      if (!res.ok) throw new Error('Failed to dismiss alert')
+      setAlerts((alerts) => alerts.filter((a) => a.id !== alertId))
+    } catch (error) {
+      console.error('Error dismissing alert:', error)
+    }
   }
 
   if (!isLoaded) {

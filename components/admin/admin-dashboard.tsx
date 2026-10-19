@@ -14,7 +14,8 @@ import type { ParkingSpot, Alert, BuildingStats } from '@/lib/types'
 import { useAuth } from '@/lib/auth-context'
 import { useAnalyticsTrack } from '@/lib/hooks/useAnalytics'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
-import { Menu, LayoutDashboard, Users, Car, CreditCard, FileText, Settings, Bell, LogOut, Building2, Send, CarFront, CalendarDays, Building, Bot, Ticket, MessageSquare, Wrench, ShieldAlert, Droplets, Store, ClipboardCheck, UserPlus, Inbox } from 'lucide-react'
+import { Menu, LayoutDashboard, Users, CreditCard, Bell, LogOut, Building2, Building, Inbox } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
@@ -39,9 +40,10 @@ const ReportsPanel = lazy(() => import('@/components/dashboard/reports-panel').t
 const tabTitles: Record<string, string> = {
   overview: 'Dashboard del Edificio',
   inbox: 'Inbox',
-  residents: 'Gestion de Residentes',
+  residents: 'Gestión de Residentes',
   parking: 'Parqueaderos Residentes',
   visitorParking: 'Parqueadero Visitantes',
+  parkingOwnership: 'Parqueaderos Asignados',
   payments: 'Pagos y Cobros',
   comunicaciones: 'Comunicaciones',
   assemblies: 'Asambleas',
@@ -53,64 +55,53 @@ const tabTitles: Record<string, string> = {
   chat: 'Mensajes',
   alerts: 'Alertas',
   reports: 'Reportes',
-  settings: 'Configuracion',
+  settings: 'Configuración',
   surveys: 'Encuestas',
   onboarding: 'Onboarding',
+  concierge: 'Concierge',
 }
 
-const navItems = [
-  { id: 'overview', icon: LayoutDashboard, label: 'Dashboard' },
-  { id: 'inbox', icon: Inbox, label: 'Inbox' },
+/**
+ * Primary destinations for the small-screen bottom bar. Secondary modules
+ * remain reachable from the sheet sidebar (hamburger), so no route is removed.
+ */
+const mobileNavItems: { id: string; icon: LucideIcon; label: string; badge?: boolean }[] = [
+  { id: 'overview', icon: LayoutDashboard, label: 'Inicio' },
   { id: 'residents', icon: Users, label: 'Residentes' },
-  { id: 'parking', icon: Car, label: 'Parqueaderos' },
-  { id: 'visitorParking', icon: CarFront, label: 'Visitantes' },
-  { id: 'parkingOwnership', icon: Car, label: 'Parqueaderos Asignados' },
   { id: 'payments', icon: CreditCard, label: 'Pagos' },
-  { id: 'comunicaciones', icon: Send, label: 'Comunicaciones' },
-  { id: 'assemblies', icon: CalendarDays, label: 'Asambleas' },
-  { id: 'pqrs', icon: Ticket, label: 'PQRS' },
-  { id: 'convivencia', icon: ShieldAlert, label: 'Convivencia' },
-  { id: 'maintenance', icon: Wrench, label: 'Mantenimiento' },
-  { id: 'utilities', icon: Droplets, label: 'Servicios' },
-  { id: 'providers', icon: Store, label: 'Proveedores' },
-  { id: 'chat', icon: MessageSquare, label: 'Mensajes' },
   { id: 'alerts', icon: Bell, label: 'Alertas', badge: true },
-  { id: 'reports', icon: FileText, label: 'Reportes' },
-  { id: 'concierge', icon: Bot, label: 'Concierge' },
-  { id: 'surveys', icon: ClipboardCheck, label: 'Encuestas' },
-  { id: 'onboarding', icon: UserPlus, label: 'Onboarding' },
-  { id: 'settings', icon: Settings, label: 'Configuracion' },
+  { id: 'inbox', icon: Inbox, label: 'Inbox' },
 ]
 
 function MobileNav({ activeTab, onTabChange, unreadAlerts }: { activeTab: string; onTabChange: (tab: string) => void; unreadAlerts: number }) {
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 flex items-center justify-between border-t border-border bg-card px-1 py-1.5 md:hidden overflow-x-auto">
-      <nav className="flex w-full justify-between gap-1">
-        {navItems.map((item) => {
-          const Icon = item.icon
-          const isActive = activeTab === item.id
-          return (
-            <button
-              key={item.id}
-              onClick={() => onTabChange(item.id)}
-              className={cn(
-                'flex flex-1 flex-col items-center gap-0.5 rounded-md px-1 py-1 text-[10px] min-w-0 transition-colors',
-                isActive ? 'text-primary bg-primary/10' : 'text-muted-foreground'
+    <div className="fixed bottom-0 left-0 right-0 z-40 flex items-center justify-around border-t border-border bg-card px-1 pb-[env(safe-area-inset-bottom)] pt-1.5 md:hidden">
+      {mobileNavItems.map((item) => {
+        const Icon = item.icon
+        const isActive = activeTab === item.id
+        return (
+          <button
+            key={item.id}
+            onClick={() => onTabChange(item.id)}
+            aria-label={item.label}
+            aria-current={isActive ? 'page' : undefined}
+            className={cn(
+              'flex flex-1 flex-col items-center gap-0.5 rounded-md px-1 py-1 text-[10px] min-w-0 transition-colors',
+              isActive ? 'text-brand' : 'text-muted-foreground',
+            )}
+          >
+            <div className="relative">
+              <Icon className="h-5 w-5" />
+              {item.badge && unreadAlerts > 0 && (
+                <Badge variant="destructive" className="absolute -right-2 -top-1.5 h-3.5 w-3.5 justify-center p-0 text-[8px]">
+                  {unreadAlerts > 9 ? '9+' : unreadAlerts}
+                </Badge>
               )}
-            >
-              <div className="relative">
-                <Icon className="h-4 w-4" />
-                {item.badge && unreadAlerts > 0 && (
-                  <Badge variant="destructive" className="absolute -right-1.5 -top-1 h-3.5 w-3.5 p-0 text-[8px]">
-                    {unreadAlerts > 9 ? '9+' : unreadAlerts}
-                  </Badge>
-                )}
-              </div>
-              <span className="truncate w-full text-center">{item.label}</span>
-            </button>
-          )
-        })}
-      </nav>
+            </div>
+            <span className="w-full truncate text-center">{item.label}</span>
+          </button>
+        )
+      })}
     </div>
   )
 }
@@ -119,29 +110,51 @@ function MobileHeader({ title, onMenuClick, unreadAlerts }: { title: string; onM
   const { user, logout } = useAuth()
   return (
     <header className="flex h-14 items-center justify-between border-b border-border bg-card px-3 md:hidden">
-      <div className="flex items-center gap-2 min-w-0">
-        <Button variant="ghost" size="icon" onClick={onMenuClick} className="h-8 w-8 flex-shrink-0">
+      <div className="flex min-w-0 items-center gap-2">
+        <Button variant="ghost" size="icon" onClick={onMenuClick} className="h-8 w-8 flex-shrink-0" aria-label="Abrir menú">
           <Menu className="h-5 w-5" />
         </Button>
-        <div className="flex flex-col min-w-0">
+        <div className="flex min-w-0 flex-col">
           <span className="text-xs font-semibold text-foreground">ResGuard</span>
-          <span className="text-[10px] text-muted-foreground truncate max-w-[120px]" title={title}>{title}</span>
+          <span className="max-w-[140px] truncate text-[10px] text-muted-foreground" title={title}>{title}</span>
         </div>
       </div>
-      <div className="flex items-center gap-1 flex-shrink-0">
-        <Button variant="ghost" size="icon" className="h-8 w-8 relative">
+      <div className="flex flex-shrink-0 items-center gap-1">
+        <Button variant="ghost" size="icon" className="relative h-8 w-8" aria-label={unreadAlerts > 0 ? `${unreadAlerts} alertas sin leer` : 'Notificaciones'}>
           <Bell className="h-4 w-4" />
           {unreadAlerts > 0 && (
-            <Badge variant="destructive" className="absolute -right-0.5 -top-0.5 h-4 w-4 p-0 text-[10px]">
+            <Badge variant="destructive" className="absolute -right-0.5 -top-0.5 h-4 w-4 justify-center p-0 text-[10px]">
               {unreadAlerts > 9 ? '9+' : unreadAlerts}
             </Badge>
           )}
         </Button>
-        <Button variant="ghost" size="icon" onClick={logout} className="h-8 w-8">
+        <Button variant="ghost" size="icon" onClick={logout} className="h-8 w-8" aria-label={`Cerrar sesión${user?.name ? ` de ${user.name}` : ''}`}>
           <LogOut className="h-4 w-4" />
         </Button>
       </div>
     </header>
+  )
+}
+
+/** Skeleton shown while the building snapshot is loading. */
+function OverviewSkeleton() {
+  return (
+    <div className="space-y-6">
+      <div className="space-y-2">
+        <SkeletonCard className="h-8 w-64" />
+        <SkeletonCard className="h-4 w-40" />
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <SkeletonCard key={i} className="h-36" />
+        ))}
+      </div>
+      <div className="grid gap-4 lg:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <SkeletonCard key={i} className="h-56" />
+        ))}
+      </div>
+    </div>
   )
 }
 
@@ -160,62 +173,7 @@ export function AdminDashboard() {
 
   useAnalyticsTrack(activeTab, 'admin')
 
-  // Show empty state if not logged in
-  if (!isLoaded) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-background">
-        <SkeletonCard className="h-64 w-64" />
-      </div>
-    )
-  }
-
-  if (isDemoMode || !user) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-background">
-        <Card className="max-w-md mx-4 bg-card border-border">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-foreground">
-              <Building className="h-6 w-6" />
-              Modo Demo
-            </CardTitle>
-            <CardDescription className="text-muted-foreground">
-              Inicia sesión con Clerk para ver los datos de tu edificio.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Currently showing demo data. Please sign in with Clerk to access real building data.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
-
-  if (isAuthenticated && !user.buildingId) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-background">
-        <Card className="max-w-md mx-4 bg-card border-border">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-foreground">
-              <Building2 className="h-6 w-6" />
-              Edificio no asignado
-            </CardTitle>
-            <CardDescription className="text-muted-foreground">
-              Tu cuenta no tiene un edificio asignado.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground mb-4">
-              Contacta al administrador del sistema para que asigne tu usuario a un edificio.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
-
-  // Fetch data from API
+  // Fetch building data from the API (unchanged data source / contract).
   useEffect(() => {
     let cancelled = false
     async function fetchData() {
@@ -226,7 +184,7 @@ export function AdminDashboard() {
           return
         }
 
-        const fetchOptions = { 
+        const fetchOptions = {
           next: { revalidate: 30, tags: [`building-${buildingId}`, 'buildings'] }
         }
 
@@ -278,12 +236,14 @@ export function AdminDashboard() {
 
         if (!cancelled && alertsRes.ok) {
           const data = await alertsRes.json()
-          setAlerts((data.alerts || []).map((a: any) => ({
+          // /api/alerts GET returns a bare array (DbAlert: created_at, read 0/1).
+          const alertsList = Array.isArray(data) ? data : (data.alerts || [])
+          setAlerts(alertsList.map((a: any) => ({
             id: a.id,
             type: a.type,
             title: a.title,
             message: a.message,
-            timestamp: new Date(a.timestamp),
+            timestamp: new Date(a.timestamp ?? a.created_at),
             read: Boolean(a.read),
             priority: a.priority,
             relatedId: a.related_id,
@@ -315,8 +275,6 @@ export function AdminDashboard() {
     return () => { cancelled = true }
   }, [user])
 
-  const unreadAlerts = alerts.filter((a) => !a.read).length
-
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === 'F1') { e.preventDefault(); setActiveTab('residents') }
     else if (e.key === 'F2') { e.preventDefault(); setActiveTab('payments') }
@@ -328,20 +286,121 @@ export function AdminDashboard() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [handleKeyDown])
 
-  const handleSpotUpdate = (spotId: string, updates: Partial<ParkingSpot>) => {
-    setParkingSpots((spots) =>
-      spots.map((spot) => (spot.id === spotId ? { ...spot, ...updates } : spot))
+  const unreadAlerts = alerts.filter((a) => !a.read).length
+
+  // ---- Auth/tenant guards (after all hooks to keep hook order stable) ----
+  if (!isLoaded) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <SkeletonCard className="h-64 w-64" />
+      </div>
     )
   }
 
-  const handleMarkAlertRead = (alertId: string) => {
-    setAlerts((alerts) =>
-      alerts.map((a) => (a.id === alertId ? { ...a, read: true } : a))
+  if (isDemoMode || !user) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background px-4">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-foreground">
+              <Building className="h-6 w-6 text-brand" />
+              Sesión requerida
+            </CardTitle>
+            <CardDescription>
+              Inicia sesión para ver los datos de tu edificio.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Al autenticarte podrás administrar residentes, pagos, parqueaderos y
+              comunicaciones de tu copropiedad.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
     )
   }
 
-  const handleMarkAllAlertsRead = () => {
-    setAlerts((alerts) => alerts.map((a) => ({ ...a, read: true })))
+  if (isAuthenticated && !user.buildingId) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background px-4">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-foreground">
+              <Building2 className="h-6 w-6 text-brand" />
+              Edificio no asignado
+            </CardTitle>
+            <CardDescription>Tu cuenta no tiene un edificio asignado.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Contacta al administrador del sistema para que asigne tu usuario a un edificio.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  // Spot updates persist via PUT /api/parking (protected by requireAuth +
+  // assertBuildingAccess on the server); local state only updates after the
+  // API confirms. timeRemaining/maxDuration stay local-only (not DB columns).
+  const handleSpotUpdate = async (spotId: string, updates: Partial<ParkingSpot>) => {
+    try {
+      const body: Record<string, unknown> = { id: spotId }
+      if (updates.status !== undefined) body.status = updates.status
+      if (updates.vehiclePlate !== undefined) body.vehicle_plate = updates.vehiclePlate || null
+      if (updates.visitorName !== undefined) body.visitor_name = updates.visitorName || null
+      if (updates.residentUnit !== undefined) body.resident_unit = updates.residentUnit || null
+      if (updates.entryTime !== undefined) body.entry_time = updates.entryTime ? updates.entryTime.toISOString() : null
+      const res = await fetch('/api/parking', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      if (!res.ok) throw new Error('Failed to update parking spot')
+      setParkingSpots((spots) =>
+        spots.map((spot) => (spot.id === spotId ? { ...spot, ...updates } : spot))
+      )
+    } catch (error) {
+      console.error('Error updating parking spot:', error)
+    }
+  }
+
+  const handleMarkAlertRead = async (alertId: string) => {
+    try {
+      const res = await fetch('/api/alerts', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: alertId, read: 1 }),
+      })
+      if (!res.ok) throw new Error('Failed to mark alert as read')
+      setAlerts((alerts) =>
+        alerts.map((a) => (a.id === alertId ? { ...a, read: true } : a))
+      )
+    } catch (error) {
+      console.error('Error marking alert as read:', error)
+    }
+  }
+
+  const handleMarkAllAlertsRead = async () => {
+    const unread = alerts.filter((a) => !a.read)
+    if (unread.length === 0) return
+    try {
+      const results = await Promise.all(
+        unread.map((a) =>
+          fetch('/api/alerts', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: a.id, read: 1 }),
+          })
+        )
+      )
+      if (!results.every((r) => r.ok)) throw new Error('Failed to mark some alerts as read')
+      setAlerts((alerts) => alerts.map((a) => ({ ...a, read: true })))
+    } catch (error) {
+      console.error('Error marking all alerts as read:', error)
+    }
   }
 
   const handleOpenTicketDetail = useCallback((type: 'pqrs' | 'infraction', id: string) => {
@@ -349,16 +408,16 @@ export function AdminDashboard() {
     setActiveTab(type === 'pqrs' ? 'pqrs' : 'convivencia')
   }, [])
 
-  const handleDismissAlert = (alertId: string) => {
-    setAlerts((alerts) => alerts.filter((a) => a.id !== alertId))
-  }
-
-  if (loading) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-background">
-        <p className="text-muted-foreground">Cargando datos...</p>
-      </div>
-    )
+  const handleDismissAlert = async (alertId: string) => {
+    try {
+      const res = await fetch(`/api/alerts?id=${encodeURIComponent(alertId)}`, {
+        method: 'DELETE',
+      })
+      if (!res.ok) throw new Error('Failed to dismiss alert')
+      setAlerts((alerts) => alerts.filter((a) => a.id !== alertId))
+    } catch (error) {
+      console.error('Error dismissing alert:', error)
+    }
   }
 
   const renderContent = () => {
@@ -369,6 +428,7 @@ export function AdminDashboard() {
             building={building}
             parkingSpots={parkingSpots}
             alerts={alerts}
+            onNavigate={setActiveTab}
           />
         ) : null
       case 'residents':
@@ -478,8 +538,8 @@ export function AdminDashboard() {
 
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Mobile Header */}
-        <MobileHeader 
-          title={tabTitles[activeTab]} 
+        <MobileHeader
+          title={tabTitles[activeTab]}
           onMenuClick={() => setSidebarOpen(true)}
           unreadAlerts={unreadAlerts}
         />
@@ -493,12 +553,16 @@ export function AdminDashboard() {
           />
         </div>
 
-        <main className="flex-1 overflow-auto p-4 md:p-6 pb-20 md:pb-6">{renderContent()}</main>
+        <main className="flex-1 overflow-auto p-4 pb-24 md:p-6 md:pb-6">
+          <div className="mx-auto w-full max-w-7xl">
+            {loading ? <OverviewSkeleton /> : renderContent()}
+          </div>
+        </main>
       </div>
 
       {/* Mobile Bottom Nav */}
-      <MobileNav 
-        activeTab={activeTab} 
+      <MobileNav
+        activeTab={activeTab}
         onTabChange={setActiveTab}
         unreadAlerts={unreadAlerts}
       />

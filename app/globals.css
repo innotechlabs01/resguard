@@ -1,91 +1,14 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
+@import '../styles/design-tokens.css';
 
 @custom-variant dark (&:is(.dark *));
-
-/* Vercel-inspired Dark Theme for ResGuard */
-:root {
-  --background: oklch(0.01 0 0);
-  --foreground: oklch(0.98 0 0);
-  --card: oklch(0.07 0 0);
-  --card-foreground: oklch(0.98 0 0);
-  --popover: oklch(0.07 0 0);
-  --popover-foreground: oklch(0.98 0 0);
-  --primary: oklch(0.98 0 0);
-  --primary-foreground: oklch(0.01 0 0);
-  --secondary: oklch(0.12 0 0);
-  --secondary-foreground: oklch(0.98 0 0);
-  --muted: oklch(0.12 0 0);
-  --muted-foreground: oklch(0.6 0 0);
-  --accent: oklch(0.16 0 0);
-  --accent-foreground: oklch(0.98 0 0);
-  --destructive: oklch(0.55 0.22 25);
-  --destructive-foreground: oklch(0.98 0 0);
-  --border: oklch(0.18 0 0);
-  --input: oklch(0.12 0 0);
-  --ring: oklch(0.98 0 0);
-  --chart-1: oklch(0.65 0.18 175);
-  --chart-2: oklch(0.7 0.15 140);
-  --chart-3: oklch(0.6 0.2 45);
-  --chart-4: oklch(0.55 0.22 25);
-  --chart-5: oklch(0.5 0.15 280);
-  --radius: 0.5rem;
-  --sidebar: oklch(0.04 0 0);
-  --sidebar-foreground: oklch(0.98 0 0);
-  --sidebar-primary: oklch(0.98 0 0);
-  --sidebar-primary-foreground: oklch(0.01 0 0);
-  --sidebar-accent: oklch(0.12 0 0);
-  --sidebar-accent-foreground: oklch(0.98 0 0);
-  --sidebar-border: oklch(0.15 0 0);
-  --sidebar-ring: oklch(0.98 0 0);
-
-  /* Custom colors */
-  --success: oklch(0.65 0.2 145);
-  --success-foreground: oklch(0.01 0 0);
-  --warning: oklch(0.75 0.18 85);
-  --warning-foreground: oklch(0.01 0 0);
-  --info: oklch(0.6 0.15 230);
-  --info-foreground: oklch(0.98 0 0);
-}
-
-.dark {
-  --background: oklch(0.01 0 0);
-  --foreground: oklch(0.98 0 0);
-  --card: oklch(0.07 0 0);
-  --card-foreground: oklch(0.98 0 0);
-  --popover: oklch(0.07 0 0);
-  --popover-foreground: oklch(0.98 0 0);
-  --primary: oklch(0.98 0 0);
-  --primary-foreground: oklch(0.01 0 0);
-  --secondary: oklch(0.12 0 0);
-  --secondary-foreground: oklch(0.98 0 0);
-  --muted: oklch(0.12 0 0);
-  --muted-foreground: oklch(0.6 0 0);
-  --accent: oklch(0.16 0 0);
-  --accent-foreground: oklch(0.98 0 0);
-  --destructive: oklch(0.55 0.22 25);
-  --destructive-foreground: oklch(0.98 0 0);
-  --border: oklch(0.18 0 0);
-  --input: oklch(0.12 0 0);
-  --ring: oklch(0.98 0 0);
-  --chart-1: oklch(0.65 0.18 175);
-  --chart-2: oklch(0.7 0.15 140);
-  --chart-3: oklch(0.6 0.2 45);
-  --chart-4: oklch(0.55 0.22 25);
-  --chart-5: oklch(0.5 0.15 280);
-  --sidebar: oklch(0.04 0 0);
-  --sidebar-foreground: oklch(0.98 0 0);
-  --sidebar-primary: oklch(0.98 0 0);
-  --sidebar-primary-foreground: oklch(0.01 0 0);
-  --sidebar-accent: oklch(0.12 0 0);
-  --sidebar-accent-foreground: oklch(0.98 0 0);
-  --sidebar-border: oklch(0.15 0 0);
-  --sidebar-ring: oklch(0.98 0 0);
-}
 
 @theme inline {
   --font-sans: var(--font-geist), 'Geist', system-ui, -apple-system, sans-serif;
   --font-mono: var(--font-geist-mono), 'Geist Mono', ui-monospace, monospace;
+
+  /* ---- Color bridge: Tailwind names -> ResGuard raw tokens ---- */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -94,15 +17,20 @@
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-brand-soft: var(--brand-soft);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--surface-subtle);
+  --color-muted-foreground: var(--foreground-muted);
+  --color-subtle-foreground: var(--foreground-secondary);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-chart-1: var(--chart-1);
@@ -110,10 +38,6 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
@@ -122,12 +46,55 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+
+  /* ---- Semantic status ---- */
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
+  --color-success-container: var(--success-container);
+  --color-success-on-container: var(--success-on-container);
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
+  --color-warning-container: var(--warning-container);
+  --color-warning-on-container: var(--warning-on-container);
   --color-info: var(--info);
   --color-info-foreground: var(--info-foreground);
+  --color-info-container: var(--info-container);
+  --color-info-on-container: var(--info-on-container);
+  --color-destructive-container: var(--destructive-container);
+  --color-destructive-on-container: var(--destructive-on-container);
+
+  /* ---- Radius ---- */
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  /* ---- Elevation ---- */
+  --shadow-elev1: var(--elevation-1);
+  --shadow-elev2: var(--elevation-2);
+  --shadow-elev3: var(--elevation-3);
+
+  /* ---- Typography scale ---- */
+  --text-display: var(--text-display-size);
+  --text-display--line-height: var(--text-display-line-height);
+  --text-h1: var(--text-h1-size);
+  --text-h1--line-height: var(--text-h1-line-height);
+  --text-h2: var(--text-h2-size);
+  --text-h2--line-height: var(--text-h2-line-height);
+  --text-h3: var(--text-h3-size);
+  --text-h3--line-height: var(--text-h3-line-height);
+  --text-h4: var(--text-h4-size);
+  --text-h4--line-height: var(--text-h4-line-height);
+  --text-body-lg: var(--text-body-lg-size);
+  --text-body-lg--line-height: var(--text-body-lg-line-height);
+  --text-body: var(--text-body-size);
+  --text-body--line-height: var(--text-body-line-height);
+  --text-body-sm: var(--text-body-sm-size);
+  --text-body-sm--line-height: var(--text-body-sm-line-height);
+  --text-caption: var(--text-caption-size);
+  --text-caption--line-height: var(--text-caption-line-height);
+  --text-overline: var(--text-overline-size);
+  --text-overline--line-height: var(--text-overline-line-height);
 }
 
 @layer base {
@@ -138,6 +105,28 @@
     @apply bg-background text-foreground antialiased;
   }
   html {
-    color-scheme: dark;
+    color-scheme: light dark;
+  }
+  /* Keep focus rings visible and consistent in both themes */
+  :focus-visible {
+    @apply outline-ring outline-2 outline-offset-2;
+  }
+}
+
+@layer utilities {
+  .surface {
+    background-color: var(--card);
+  }
+  .surface-elevated {
+    background-color: var(--popover);
+  }
+  .surface-hover:hover {
+    background-color: var(--surface-hover);
+  }
+  .text-subtle {
+    color: var(--foreground-secondary);
+  }
+  .text-muted {
+    color: var(--foreground-muted);
   }
 }

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { Search, Plus, Bell, Clock, Building2 } from 'lucide-react'
 
 interface HeaderProps {
@@ -58,14 +59,14 @@ export function Header({ title, onNewEntry, unreadAlerts, onNotificationsClick }
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search visitors, plates..."
-            className="w-full sm:w-64 bg-secondary pl-9"
+            placeholder="Buscar visitantes, placas..."
+            className="w-full pl-9 sm:w-64"
           />
         </div>
 
         {/* Current Time */}
-        <div className="flex items-center gap-2 rounded-lg bg-secondary px-4 py-2">
-          <Clock className="h-4 w-4 text-primary" />
+        <div className="flex items-center gap-2 rounded-lg bg-muted px-4 py-2">
+          <Clock className="h-4 w-4 text-brand" />
           <div className="text-right">
             <p className="font-mono text-lg font-semibold text-foreground">
               {formatTime(currentTime)}
@@ -74,16 +75,24 @@ export function Header({ title, onNewEntry, unreadAlerts, onNotificationsClick }
           </div>
         </div>
 
-        {/* Notifications & New Entry */}
+        {/* Theme, Notifications & New Entry */}
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" className="relative bg-transparent" onClick={onNotificationsClick}>
+          <ThemeToggle className="hidden sm:inline-flex" />
+
+          <Button
+            variant="outline"
+            size="icon"
+            className="relative bg-transparent"
+            onClick={onNotificationsClick}
+            aria-label={unreadAlerts > 0 ? `${unreadAlerts} alertas sin leer` : 'Notificaciones'}
+          >
             <Bell className="h-5 w-5" />
             {unreadAlerts > 0 && (
               <Badge
                 variant="destructive"
                 className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center p-0 text-xs"
               >
-                {unreadAlerts}
+                {unreadAlerts > 9 ? '9+' : unreadAlerts}
               </Badge>
             )}
           </Button>
@@ -91,8 +100,8 @@ export function Header({ title, onNewEntry, unreadAlerts, onNotificationsClick }
           {/* New Entry Button */}
           <Button onClick={onNewEntry} className="gap-2">
             <Plus className="h-4 w-4" />
-            <span className="hidden sm:inline">New Entry</span>
-            <kbd className="ml-1 rounded bg-primary-foreground/20 px-1.5 py-0.5 text-xs hidden sm:inline">F1</kbd>
+            <span className="hidden sm:inline">Nuevo Registro</span>
+            <kbd className="ml-1 hidden rounded bg-primary-foreground/20 px-1.5 py-0.5 text-xs sm:inline">F1</kbd>
           </Button>
         </div>
       </div>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import {
   Send,
   Plus,
@@ -16,6 +16,7 @@ import {
   ChevronDown,
   Eye,
   Search,
+  Loader2,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -41,6 +42,7 @@ import { Switch } from '@/components/ui/switch'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
 import type { Communication } from '@/lib/types'
+import { useAuth } from '@/lib/auth-context'
 
 const typeConfig: Record<
   Communication['type'],
@@ -69,8 +71,50 @@ function formatRelativeTime(date: Date) {
   return `Hace ${Math.floor(hrs / 24)} dias`
 }
 
-export function ComunicacionesPanel({ communications: propCommunications }: { communications?: Communication[] } = {}) {
-  const [communications, setCommunications] = useState<Communication[]>(propCommunications || [])
+type RawCommunication = {
+  id: string
+  building_id: string
+  author_id: string
+  author_name: string
+  title: string
+  message: string
+  type: string
+  priority: string
+  sent_at: string
+  target_roles?: string[] | null
+  includes_tenants?: boolean | null
+  read_by?: string[] | null
+}
+
+function mapDbCommunication(c: RawCommunication): Communication {
+  return {
+    id: c.id,
+    buildingId: c.building_id,
+    authorId: c.author_id,
+    authorName: c.author_name,
+    title: c.title,
+    message: c.message,
+    type: c.type as Communication['type'],
+    priority: c.priority as Communication['priority'],
+    targetRoles: (c.target_roles as Communication['targetRoles']) || [],
+    includesTenants: Boolean(c.includes_tenants),
+    sentAt: new Date(c.sent_at),
+    readBy: c.read_by || [],
+  }
+}
+
+export function ComunicacionesPanel({ 
+  communications: propCommunications, 
+  onRefresh 
+}: { 
+  communications?: RawCommunication[] 
+  onRefresh?: () => void 
+} = {}) {
+  const { user } = useAuth()
+  const buildingId = user?.buildingId
+  const [communications, setCommunications] = useState<Communication[]>(() =>
+    (propCommunications || []).map(mapDbCommunication)
+  )
   const [showCompose, setShowCompose] = useState(false)
   const [viewComm, setViewComm] = useState<Communication | null>(null)
   const [search, setSearch] = useState('')
@@ -84,6 +128,7 @@ export function ComunicacionesPanel({ communications: propCommunications }: { co
     targetResidents: true,
     targetVigilantes: false,
   })
+  const [sending, setSending] = useState(false)
 
   const filtered = communications.filter((c) => {
     const matchSearch =
@@ -93,37 +138,66 @@ export function ComunicacionesPanel({ communications: propCommunications }: { co
     return matchSearch && matchType
   })
 
-  const handleSend = () => {
-    if (!form.title || !form.message) return
+  const refreshCommunications = useCallback(async () => {
+    if (!buildingId) return
+    try {
+      const res = await fetch(`/api/communications?buildingId=${encodeURIComponent(buildingId)}`)
+      if (!res.ok) return
+      const data = await res.json()
+      if (data.communications) {
+        setCommunications((data.communications as RawCommunication[]).map(mapDbCommunication))
+      }
+    } catch (error) {
+      console.error('Error fetching communications:', error)
+    }
+  }, [buildingId])
+
+  const handleSend = async () => {
+    if (!form.title || !form.message || !buildingId || !user) return
     const roles: Communication['targetRoles'] = []
     if (form.targetResidents) roles.push('usuario')
     if (form.targetVigilantes) roles.push('vigilante')
 
-    const comm: Communication = {
-      id: `comm-${Date.now()}`,
-      buildingId: '11111111-1111-4111-8111-111111111111',
-      authorId: 'admin-1',
-      authorName: 'Maria Torres',
-      title: form.title,
-      message: form.message,
-      type: form.type,
-      priority: form.priority,
-      targetRoles: roles,
-      includesTenants: form.includesTenants,
-      sentAt: new Date(),
-      readBy: [],
+    setSending(true)
+    try {
+      const response = await fetch('/api/communications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          building_id: buildingId,
+          author_id: user.id,
+          author_name: user.name,
+          author_email: user.email,
+          title: form.title,
+          message: form.message,
+          type: form.type,
+          priority: form.priority,
+          target_roles: roles,
+          includes_tenants: form.includesTenants,
+        }),
+      })
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to create communication')
+      }
+      await refreshCommunications()
+      onRefresh?.()
+      setForm({
+        title: '',
+        message: '',
+        type: 'announcement',
+        priority: 'normal',
+        includesTenants: true,
+        targetResidents: true,
+        targetVigilantes: false,
+      })
+      setShowCompose(false)
+    } catch (error) {
+      console.error('Error sending communication:', error)
+      alert('Error al enviar la comunicación: ' + (error instanceof Error ? error.message : 'Error desconocido'))
+    } finally {
+      setSending(false)
     }
-    setCommunications((prev) => [comm, ...prev])
-    setForm({
-      title: '',
-      message: '',
-      type: 'announcement',
-      priority: 'normal',
-      includesTenants: true,
-      targetResidents: true,
-      targetVigilantes: false,
-    })
-    setShowCompose(false)
   }
 
   const totalResidents = 115
@@ -355,9 +429,9 @@ export function ComunicacionesPanel({ communications: propCommunications }: { co
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCompose(false)}>Cancelar</Button>
-            <Button onClick={handleSend} disabled={!form.title || !form.message}>
-              <Send className="mr-2 h-4 w-4" />
-              Enviar notificacion
+            <Button onClick={handleSend} disabled={!form.title || !form.message || sending || !buildingId || !user}>
+              {sending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+              {sending ? 'Enviando...' : 'Enviar notificacion'}
             </Button>
           </DialogFooter>
         </DialogContent>

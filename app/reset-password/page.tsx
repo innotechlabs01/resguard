@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
-import { AlertCircle, CheckCircle, Lock, Eye, EyeOff, Mail } from 'lucide-react'
+import { AlertCircle, CheckCircle, Lock, Eye, EyeOff, Mail, RefreshCw } from 'lucide-react'
 
 function SuccessState() {
   return (
@@ -33,7 +33,102 @@ function SuccessState() {
   )
 }
 
-function ResetPasswordForm() {
+function OtpInputStep({ email, onResend }: { email: string; onResend: () => void }) {
+  const [code, setCode] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const router = useRouter()
+  const supabase = createClient()
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError(null)
+
+    if (code.length !== 6 || !/^\d{6}$/.test(code)) {
+      setError('El código debe ser de 6 dígitos')
+      return
+    }
+
+    setLoading(true)
+    try {
+      const { error: verifyError } = await supabase.auth.verifyOtp({
+        email: email.trim().toLowerCase(),
+        token: code,
+        type: 'recovery',
+      })
+
+      if (verifyError) {
+        setError(verifyError.message.includes('expired') 
+          ? 'El código ha expirado. Solicita uno nuevo.' 
+          : 'Código inválido. Verifica e inténtalo de nuevo.')
+        return
+      }
+
+      // Session established - navigate to password form (same page, will re-render)
+      router.refresh()
+    } catch {
+      setError('Error de conexión. Intenta de nuevo.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <>
+      <CardHeader>
+        <div className="flex items-center justify-center mb-4">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
+            <Mail className="h-6 w-6 text-blue-600" />
+          </div>
+        </div>
+        <CardTitle className="text-2xl text-center">Verificar código</CardTitle>
+        <p className="text-sm text-muted-foreground text-center">
+          Ingresa el código de 6 dígitos que enviamos a <strong>{email}</strong>
+        </p>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {error && (
+            <div className="flex items-center gap-2 text-destructive text-sm" role="alert">
+              <AlertCircle className="h-4 w-4" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <Label htmlFor="code">Código de verificación</Label>
+            <Input
+              id="code"
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              autoComplete="one-time-code"
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              required
+              placeholder="000000"
+              className="text-center text-2xl tracking-widest"
+              maxLength={6}
+              disabled={loading}
+            />
+          </div>
+
+          <Button type="submit" disabled={loading || code.length !== 6} className="w-full">
+            {loading && <Spinner />}
+            {loading ? 'Verificando…' : 'Verificar código'}
+          </Button>
+
+          <Button variant="ghost" className="w-full" onClick={onResend} disabled={loading}>
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Reenviar código
+          </Button>
+        </form>
+      </CardContent>
+    </>
+  )
+}
+
+function ResetPasswordForm({ email }: { email: string }) {
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -46,7 +141,7 @@ function ResetPasswordForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
-    
+
     if (password.length < 8) {
       setError('La contraseña debe tener al menos 8 caracteres')
       return
@@ -58,13 +153,6 @@ function ResetPasswordForm() {
 
     setLoading(true)
     try {
-      // First check if we have a session
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-      if (sessionError || !session) {
-        setError('Sesión expirada. Solicita un nuevo enlace de recuperación.')
-        return
-      }
-      
       const { error: updateError } = await supabase.auth.updateUser({ password })
       if (updateError) {
         console.error('Update password error:', updateError)
@@ -81,8 +169,8 @@ function ResetPasswordForm() {
     }
   }
 
-  const strength = password.length === 0 ? 0 : 
-    password.length < 8 ? 1 : 
+  const strength = password.length === 0 ? 0 :
+    password.length < 8 ? 1 :
     /[A-Z]/.test(password) && /[0-9]/.test(password) && /[^A-Za-z0-9]/.test(password) ? 3 : 2
 
   if (success) return <SuccessState />
@@ -105,7 +193,7 @@ function ResetPasswordForm() {
               <span>{error}</span>
             </div>
           )}
-          
+
           <div className="space-y-2">
             <Label htmlFor="password">Nueva contraseña</Label>
             <div className="relative">
@@ -131,7 +219,7 @@ function ResetPasswordForm() {
               </Button>
             </div>
             <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-              <div 
+              <div
                 className="h-full transition-all duration-300"
                 style={{
                   width: `${strength * 33}%`,
@@ -174,49 +262,29 @@ function ResetPasswordForm() {
   )
 }
 
-// Wrapper that extracts email from URL params
 function ResetPasswordContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const email = searchParams.get('email') || ''
-  const [step, setStep] = useState<'ready' | 'no-session'>('ready')
+  const [step, setStep] = useState<'otp' | 'password'>('otp')
+  const [hasSession, setHasSession] = useState(false)
   const [checkingSession, setCheckingSession] = useState(true)
 
-  // Check for Supabase magic link token in URL AND verify session
+  // Check for existing recovery session (from verifyOtp)
   useEffect(() => {
     const checkSession = async () => {
       const supabase = createClient()
-      
-      // First check URL hash for tokens (Supabase puts them in hash)
-      const hash = window.location.hash
-      const params = new URLSearchParams(hash.replace('#', ''))
-      const token = params.get('access_token') || params.get('refresh_token')
-      const type = params.get('type')
-      
-      // If we have a recovery token, exchange it for a session
-      if (token && type === 'recovery') {
-        const { error } = await supabase.auth.setSession({
-          access_token: token,
-          refresh_token: params.get('refresh_token') || '',
-        })
-        if (error) {
-          console.error('Session set error:', error)
-        }
-      }
-      
-      // Now check if we have a valid session
-      const { data: { session }, error } = await supabase.auth.getSession()
-      
-      if (error || !session) {
-        setStep('no-session')
-      } else {
-        setStep('ready')
-      }
+      const { data: { session } } = await supabase.auth.getSession()
+      setHasSession(!!session)
       setCheckingSession(false)
     }
-    
     checkSession()
   }, [])
+
+  const handleResend = async () => {
+    const supabase = createClient()
+    await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase())
+  }
 
   if (checkingSession) {
     return (
@@ -230,20 +298,20 @@ function ResetPasswordContent() {
     )
   }
 
-  if (step === 'no-session') {
+  // If no email in URL and no session, send back to forgot-password
+  if (!email && !hasSession) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-6">
         <Card className="w-full max-w-md">
           <CardHeader>
-            <CardTitle className="text-2xl text-center">Enlace expirado o inválido</CardTitle>
+            <CardTitle className="text-2xl text-center">Enlace inválido</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground text-center">
-              El enlace de recuperación ha expirado o ya fue usado. 
-              Los enlaces expiran en 1 hora y solo funcionan una vez.
+              Falta el correo en el enlace. Solicita un nuevo código.
             </p>
             <Button asChild className="w-full">
-              <a href="/forgot-password">Solicitar nuevo enlace</a>
+              <a href="/forgot-password">Solicitar código</a>
             </Button>
           </CardContent>
         </Card>
@@ -251,18 +319,30 @@ function ResetPasswordContent() {
     )
   }
 
+  // If we have a session (from verifyOtp), show password form
+  if (hasSession) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-6">
+        <Card className="w-full max-w-md">
+          {email && (
+            <div className="mb-6 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center gap-2 text-sm text-blue-800">
+                <Mail className="h-4 w-4" />
+                <span>Restableciendo para: <strong>{email}</strong></span>
+              </div>
+            </div>
+          )}
+          <ResetPasswordForm email={email} />
+        </Card>
+      </div>
+    )
+  }
+
+  // Otherwise show OTP input
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-6">
       <Card className="w-full max-w-md">
-        {email && (
-          <div className="mb-6 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <div className="flex items-center gap-2 text-sm text-blue-800">
-              <Mail className="h-4 w-4" />
-              <span>Recuperando para: <strong>{email}</strong></span>
-            </div>
-          </div>
-        )}
-        <ResetPasswordForm />
+        <OtpInputStep email={email} onResend={handleResend} />
       </Card>
     </div>
   )

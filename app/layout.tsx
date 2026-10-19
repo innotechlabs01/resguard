@@ -40,8 +40,11 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  // Matches --background in globals.css and manifest background/theme color.
-  themeColor: '#050505',
+  // Matches the semantic tokens: --background light/dark in styles/design-tokens.css.
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#F5F7F8' },
+    { media: '(prefers-color-scheme: dark)', color: '#020617' },
+  ],
   width: 'device-width',
   initialScale: 1,
 }
@@ -52,7 +55,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="es" className="dark">
+    <html lang="es" suppressHydrationWarning>
       <body className={`${geist.variable} ${geistMono.variable} font-sans antialiased`}>
         <ErrorBoundary>
           <AppProviders>{children}</AppProviders>
