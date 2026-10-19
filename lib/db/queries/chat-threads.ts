@@ -33,6 +33,15 @@ export async function getThreadsByBuilding(buildingId: string): Promise<DbChatTh
   )
 }
 
+// ── Get a single thread by ID (for building access checks) ──
+
+export async function getThreadById(threadId: string): Promise<DbChatThread | null> {
+  return queryOne<DbChatThread>(
+    'SELECT * FROM chat_threads WHERE id = ?',
+    [threadId]
+  )
+}
+
 // ── Get threads by unit (resident view: their unit only) ──
 
 export async function getThreadsByUnit(buildingId: string, unitNumber: string): Promise<DbChatThread[]> {

@@ -20,9 +20,7 @@ function generateTempPassword(length = 9): string {
     password += PASSWORD_ALPHABET[randomInt(PASSWORD_ALPHABET.length)]
   }
   return password
-}
-
-export async function GET(request: Request) {
+}export async function GET(request: Request) {
   try {
     const authRes = await requireAuth(request)
     if (authRes instanceof Response) return authRes
@@ -189,6 +187,19 @@ export async function DELETE(request: Request) {
 
     if (!id) {
       return NextResponse.json({ error: 'User ID required' }, { status: 400 })
+    }
+
+    // N6 fix: delete the Auth identity too, not just the profile row.
+    // Without this, the account remains logueable with no profile (orphan).
+    const admin = getSupabaseAdmin()
+    if (admin) {
+      const { error: authDeleteError } = await admin.auth.admin.deleteUser(id)
+      if (authDeleteError) {
+        log.error({ error: authDeleteError, userId: id }, 'Failed to delete Supabase Auth user')
+        return NextResponse.json({ error: 'Failed to delete auth user' }, { status: 500 })
+      }
+    } else {
+      log.warn('Supabase admin client not configured; deleting profile row only (auth user will be orphaned)')
     }
 
     await deleteUser(id)

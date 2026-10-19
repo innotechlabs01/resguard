@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireAuth, isAuthResponse } from '@/lib/auth/requireAuth'
+import { assertResourceBuilding } from '@/lib/auth/assertBuildingAccess'
 import { getWorkOrderById, updateWorkOrderStatus } from '@/lib/db/queries/maintenance'
 import { logger } from '@/lib/logger'
 
@@ -19,6 +20,11 @@ export async function GET(
       return NextResponse.json({ error: 'Work order not found' }, { status: 404 })
     }
 
+    const access = assertResourceBuilding(authResult.user, workOrder.building_id)
+    if (!access.ok) {
+      return NextResponse.json({ error: access.error }, { status: access.status })
+    }
+
     return NextResponse.json({ workOrder })
   } catch (error) {
     log.error({ error }, 'Error fetching work order')
@@ -35,6 +41,15 @@ export async function PATCH(
     if (isAuthResponse(authResult)) return authResult
 
     const { id } = await params
+    const existing = await getWorkOrderById(id)
+    if (!existing) {
+      return NextResponse.json({ error: 'Work order not found' }, { status: 404 })
+    }
+    const access = assertResourceBuilding(authResult.user, existing.building_id)
+    if (!access.ok) {
+      return NextResponse.json({ error: access.error }, { status: access.status })
+    }
+
     const body = await request.json()
     const { status, notes } = body
 

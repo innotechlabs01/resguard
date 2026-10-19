@@ -95,16 +95,8 @@ export function AuthProvider({ children, onLogoutExtra }: AuthProviderProps) {
   }
 
   const login = async (userId: string) => {
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-    if (!uuidRegex.test(userId)) {
-      // Mock login fallback
-      const { mockUsers } = await import('@/lib/mock-data')
-      const mock = mockUsers.find(u => u.id === userId)
-      if (mock) {
-        setUser(mock)
-        return
-      }
-    }
+    // T-036: mock login fallback removed. Only real Supabase Auth profiles
+    // are accepted; non-UUID or unknown IDs return no session.
     await loadUserProfile(userId)
   }
 

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireAuth, isAuthResponse } from '@/lib/auth/requireAuth'
+import { assertResourceBuilding } from '@/lib/auth/assertBuildingAccess'
 import { getSurveyById, getSurveyQuestions, submitResponse, getSurveyResults, hasUserResponded } from '@/lib/db/queries/surveys'
 import { logger } from '@/lib/logger'
 
@@ -17,6 +18,11 @@ export async function GET(
     const survey = await getSurveyById(id)
     if (!survey) {
       return NextResponse.json({ error: 'Survey not found' }, { status: 404 })
+    }
+
+    const access = assertResourceBuilding(authResult.user, survey.building_id)
+    if (!access.ok) {
+      return NextResponse.json({ error: access.error }, { status: access.status })
     }
 
     const questions = await getSurveyQuestions(id)
@@ -42,6 +48,11 @@ export async function POST(
     const survey = await getSurveyById(id)
     if (!survey) {
       return NextResponse.json({ error: 'Survey not found' }, { status: 404 })
+    }
+
+    const access = assertResourceBuilding(user, survey.building_id)
+    if (!access.ok) {
+      return NextResponse.json({ error: access.error }, { status: access.status })
     }
 
     if (survey.status !== 'active') {

@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server'
 import { updatePayment, getPaymentByBoldLinkId } from '@/lib/db/queries/payments'
-import { mapBoldStatusToApp, verifyBoldSignature } from '@/lib/bold-client'
+import { mapBoldStatusToApp, verifyBoldSignature, parseSubscriptionReference } from '@/lib/bold-client'
+import {
+  activateSubscription,
+  getSubscriptionById,
+  markSubscriptionPastDue,
+} from '@/lib/billing/subscriptions'
 import { z } from 'zod'
 import { logger } from '@/lib/logger'
 
@@ -57,10 +62,39 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Datos de webhook incompletos', details: body.error.flatten() }, { status: 400 })
     }
 
-    const { id: boldLinkId, status: boldStatus } = body.data
+    const { id: boldLinkId, status: boldStatus, reference } = body.data
 
     const existingPayment = await getPaymentByBoldLinkId(boldLinkId)
     if (!existingPayment) {
+      // No es pago puntual → revisar si es suscripción.
+      const subRef = parseSubscriptionReference(reference)
+      if (subRef) {
+        const subscription = await getSubscriptionById(subRef.subscriptionId)
+        if (subscription) {
+          switch (boldStatus) {
+            case 'PAID': {
+              // Idempotent: solo activa una vez (guard: 1 vez por suscripción)
+              await activateSubscription(subRef.subscriptionId, { actor: 'bold_webhook' })
+              return NextResponse.json({
+                success: true,
+                action: 'subscription_activated',
+              })
+            }
+            case 'REJECTED':
+            case 'EXPIRED':
+            case 'CANCELLED': {
+              if (subscription.status === 'active') {
+                await markSubscriptionPastDue(subRef.subscriptionId)
+                return NextResponse.json({ success: true, action: 'subscription_past_due' })
+              }
+              return NextResponse.json({ success: true, action: 'subscription_ignored' })
+            }
+            default:
+              // PROCESSING / ACTIVE → sin efecto
+              return NextResponse.json({ success: true, action: 'pending' })
+          }
+        }
+      }
       return NextResponse.json({ message: 'Pago no encontrado' })
     }
 

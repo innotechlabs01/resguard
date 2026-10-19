@@ -51,6 +51,21 @@ export async function getAssemblyById(id: string): Promise<DbAssembly | null> {
   )
 }
 
+/**
+ * Resolves the building_id that owns an agenda item (via its assembly).
+ * Used by API routes to enforce building isolation on vote operations.
+ */
+export async function getAgendaItemBuildingId(agendaItemId: string): Promise<string | null> {
+  const row = await queryOne<{ building_id: string }>(
+    `SELECT a.building_id
+     FROM agenda_items ai
+     JOIN assemblies a ON a.id = ai.assembly_id
+     WHERE ai.id = ?`,
+    [agendaItemId]
+  )
+  return row ? row.building_id : null
+}
+
 export interface DbAgendaItem {
   id: string
   assembly_id: string
