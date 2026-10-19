@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { User, Phone, Mail, Lock, Bell, Save } from 'lucide-react'
+import { User, Phone, Mail, Lock, Bell, Save, Loader2, CheckCircle2 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,7 +11,7 @@ import { Separator } from '@/components/ui/separator'
 import { useAuth } from '@/lib/auth-context'
 
 export function UsuarioSettings() {
-  const { user } = useAuth()
+  const { user, hydrateUser } = useAuth()
   const [profile, setProfile] = useState({
     name: user?.name || '',
     email: user?.email || '',
@@ -24,6 +24,37 @@ export function UsuarioSettings() {
     payments: true,
     announcements: true,
   })
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+
+  const handleSave = async () => {
+    setSaving(true)
+    setSaveError(null)
+    setSaved(false)
+    try {
+      const res = await fetch('/api/user/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: profile.name }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setSaveError(data.error || 'No se pudo guardar el perfil.')
+        return
+      }
+      setSaved(true)
+      // Update auth context so header shows the new name
+      if (user) {
+        hydrateUser({ ...user, name: profile.name })
+      }
+      setTimeout(() => setSaved(false), 3000)
+    } catch {
+      setSaveError('Error de conexión. Intenta de nuevo.')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -84,9 +115,20 @@ export function UsuarioSettings() {
               </div>
             </div>
           </div>
-          <Button className="gap-2">
-            <Save className="h-4 w-4" />
-            Guardar Cambios
+          {saveError && (
+            <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-lg" role="alert">
+              {saveError}
+            </div>
+          )}
+          {saved && (
+            <div className="bg-success/10 text-success text-sm p-3 rounded-lg flex items-center gap-2" role="status">
+              <CheckCircle2 className="h-4 w-4" />
+              Perfil actualizado
+            </div>
+          )}
+          <Button className="gap-2" onClick={handleSave} disabled={saving}>
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            {saving ? 'Guardando…' : 'Guardar Cambios'}
           </Button>
         </CardContent>
       </Card>

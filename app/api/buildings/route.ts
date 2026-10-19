@@ -42,6 +42,47 @@ export async function GET(request: Request) {
   }
 }
 
+export async function PUT(request: Request) {
+  try {
+    const authRes = await requireAuth(request)
+    if (authRes instanceof Response) return authRes
+    const { user } = authRes
+
+    // Only super_admin can update building configuration
+    if (user.role !== 'super_admin') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    const body = await request.json()
+    const { id, ...updates } = body
+
+    if (!id) {
+      return NextResponse.json({ error: 'Building ID required' }, { status: 400 })
+    }
+
+    // Whitelist updatable fields (prevent mass-assignment of sensitive fields)
+    const allowed = ['name', 'address', 'total_units', 'total_parking_spots', 'visitor_parking_spots', 'monthly_fee', 'currency', 'subscription_status']
+    const filtered: Record<string, unknown> = {}
+    for (const key of allowed) {
+      if (updates[key] !== undefined) {
+        filtered[key] = updates[key]
+      }
+    }
+
+    if (Object.keys(filtered).length === 0) {
+      return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 })
+    }
+
+    const { updateBuilding } = await import('@/lib/db/queries/buildings')
+    await updateBuilding(id, filtered)
+
+    return NextResponse.json({ success: true, message: 'Building updated successfully' })
+  } catch (error) {
+    log.error({ error }, 'Error updating building')
+    return NextResponse.json({ error: 'Failed to update building' }, { status: 500 })
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const authRes = await requireAuth(request)

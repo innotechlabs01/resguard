@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Bell,
   Megaphone,
@@ -69,10 +69,40 @@ interface UsuarioNotificationsProps {
 export function UsuarioNotifications({ communications: propCommunications }: UsuarioNotificationsProps = {}) {
   const { user } = useAuth()
   const myUserId = user?.id ?? ''
-  
+
   const [communications, setCommunications] = useState<Communication[]>(propCommunications || [])
   const [filter, setFilter] = useState<'all' | 'unread' | 'urgent'>('all')
   const [selectedComm, setSelectedComm] = useState<Communication | null>(null)
+  const [loading, setLoading] = useState(!propCommunications)
+
+  useEffect(() => {
+    // T-034: fetch real communications when not passed as props
+    if (propCommunications || !user?.buildingId || !myUserId) return
+    setLoading(true)
+    fetch(`/api/communications?buildingId=${encodeURIComponent(user.buildingId)}`)
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setCommunications(data.map((c: Record<string, unknown>) => ({
+            id: c.id as string,
+            buildingId: c.building_id as string,
+            authorId: (c.created_by as string) || '',
+            authorName: (c.author_name as string) || '',
+            title: c.title as string,
+            message: c.message as string,
+            type: c.type as Communication['type'],
+            priority: c.priority as Communication['priority'],
+            targetRoles: (c.target_roles as Communication['targetRoles']) || [],
+            includesTenants: (c.includes_tenants as boolean) || false,
+            sentAt: new Date(c.created_at as string),
+            createdAt: c.created_at as string,
+            readBy: (c.read_by as string[]) || [],
+          })))
+        }
+      })
+      .catch(() => setCommunications([]))
+      .finally(() => setLoading(false))
+  }, [propCommunications, user?.buildingId, myUserId])
 
   const markAsRead = (id: string) => {
     setCommunications((prev) =>
