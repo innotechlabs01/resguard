@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   Home,
   Car,
@@ -74,6 +74,9 @@ export function AlquilerPanel({ tenants: propTenants, listings: propListings }: 
   const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null)
   const [showTenantDetail, setShowTenantDetail] = useState(false)
   const [showAddListing, setShowAddListing] = useState(false)
+  const [loading, setLoading] = useState(!propListings)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [listingForm, setListingForm] = useState({
     type: 'apartment' as RentalListing['type'],
     title: '',
@@ -88,32 +91,81 @@ export function AlquilerPanel({ tenants: propTenants, listings: propListings }: 
     amenities: '',
   })
 
-  const handleAddListing = () => {
-    if (!listingForm.title || !listingForm.price) return
-    const listing: RentalListing = {
-      id: `rental-${Date.now()}`,
-      type: listingForm.type,
-      ownerId: myId,
-      ownerName: user?.name ?? 'Residente',
-      ownerUnit: '301',
-      buildingId: '11111111-1111-4111-8111-111111111111',
-      title: listingForm.title,
-      description: listingForm.description,
-      price: parseInt(listingForm.price.replace(/\D/g, '')) || 0,
-      currency: 'COP',
-      period: listingForm.period,
-      available: true,
-      availableFrom: listingForm.availableFrom ? new Date(listingForm.availableFrom) : new Date(),
-      rooms: listingForm.rooms ? parseInt(listingForm.rooms) : undefined,
-      bathrooms: listingForm.bathrooms ? parseInt(listingForm.bathrooms) : undefined,
-      area: listingForm.area ? parseInt(listingForm.area) : undefined,
-      contactPhone: listingForm.contactPhone,
-      amenities: listingForm.amenities.split(',').map((a) => a.trim()).filter(Boolean),
-      status: 'active',
+  const fetchListings = useCallback(async () => {
+    if (propListings || !user?.buildingId) return
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/rentals?buildingId=${encodeURIComponent(user.buildingId)}`)
+      const data = await res.json()
+      if (Array.isArray(data.listings)) {
+        setListings(data.listings.map((l: Record<string, unknown>) => ({
+          id: l.id as string,
+          type: l.type as RentalListing['type'],
+          ownerId: l.owner_id as string,
+          ownerName: l.owner_name as string,
+          ownerUnit: l.owner_unit as string,
+          buildingId: l.building_id as string,
+          title: l.title as string,
+          description: l.description as string,
+          price: l.price as number,
+          currency: (l.currency as string) || 'COP',
+          period: l.period as RentalListing['period'],
+          available: l.available as boolean,
+          availableFrom: l.available_from ? new Date(l.available_from as string) : undefined,
+          rooms: l.rooms as number || undefined,
+          bathrooms: l.bathrooms as number || undefined,
+          area: l.area as number || undefined,
+          contactPhone: l.contact_phone as string,
+          amenities: (l.amenities as string[]) || [],
+          status: (l.status as string) || 'active',
+        })).filter((l: RentalListing) => l.ownerId === myId))
+      }
+    } catch {
+      setListings([])
+    } finally {
+      setLoading(false)
     }
-    setListings((prev) => [listing, ...prev])
-    setShowAddListing(false)
-    setListingForm({ type: 'apartment', title: '', description: '', price: '', period: 'monthly', rooms: '', bathrooms: '', area: '', contactPhone: '', availableFrom: '', amenities: '' })
+  }, [propListings, user?.buildingId, myId])
+
+  useEffect(() => {
+    fetchListings()
+  }, [fetchListings])
+
+  const handleAddListing = async () => {
+    if (!listingForm.title || !listingForm.price || !user?.buildingId) return
+    setSaving(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/rentals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          building_id: user.buildingId,
+          type: listingForm.type,
+          title: listingForm.title,
+          description: listingForm.description || 'Sin descripción',
+          price: parseInt(listingForm.price.replace(/\D/g, '')) || 0,
+          period: listingForm.period,
+          rooms: listingForm.rooms ? parseInt(listingForm.rooms) : undefined,
+          bathrooms: listingForm.bathrooms ? parseInt(listingForm.bathrooms) : undefined,
+          area: listingForm.area ? parseInt(listingForm.area) : undefined,
+          contact_phone: listingForm.contactPhone || undefined,
+          available_from: listingForm.availableFrom || undefined,
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setError(data.error || 'No se pudo publicar el anuncio.')
+        return
+      }
+      setShowAddListing(false)
+      setListingForm({ type: 'apartment', title: '', description: '', price: '', period: 'monthly', rooms: '', bathrooms: '', area: '', contactPhone: '', availableFrom: '', amenities: '' })
+      await fetchListings()
+    } catch {
+      setError('Error de conexión. Intenta de nuevo.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const leaseExpiringSoon = tenants.filter((t) => {
