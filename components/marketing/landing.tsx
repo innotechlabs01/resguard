@@ -17,7 +17,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { LandingHeader } from '@/components/marketing/landing-header'
-import { WaitlistForm } from '@/components/marketing/waitlist-form'
+import { ContactForm } from '@/components/marketing/contact-form'
 import { PwaInstallBanner } from '@/components/pwa/pwa-install-banner'
 
 const PROBLEMS = [
@@ -244,44 +244,114 @@ export function Landing() {
       {/* Planes */}
       <section id="planes" className="border-t border-border">
         <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 md:py-24">
-          <h2 className="text-center text-3xl font-bold tracking-tight">Planes</h2>
-          <div className="mx-auto mt-10 max-w-sm">
-            <Card>
+          <h2 className="text-center text-3xl font-bold tracking-tight">Planes de afiliación mensual</h2>
+          <p className="mx-auto mt-4 max-w-xl text-center text-muted-foreground">
+            Elige según el tamaño de tu operación. El precio final se ajusta a tu
+            número de edificios y unidades — hablemos y te damos una propuesta.
+          </p>
+
+          <div className="mt-12 grid gap-6 md:grid-cols-3">
+            {/* Básico */}
+            <Card className="relative">
               <CardHeader>
-                <CardTitle>ResGuard para tu copropiedad</CardTitle>
-                <CardDescription>
-                  Contáctanos para conocer los planes disponibles
-                </CardDescription>
+                <CardTitle className="text-xl">Básico</CardTitle>
+                <CardDescription>Para un edificio que empieza</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                <p className="text-3xl font-bold text-foreground">
+                  $99.000
+                  <span className="text-sm font-normal text-muted-foreground"> /mes</span>
+                </p>
                 <ul className="space-y-2 text-sm text-muted-foreground">
-                  {MODULES.map((module) => (
-                    <li key={module.title} className="flex items-center gap-2">
-                      <span aria-hidden>•</span> {module.title}
-                    </li>
-                  ))}
+                  <li>✓ 1 edificio, hasta 100 unidades</li>
+                  <li>✓ Residentes y visitantes</li>
+                  <li>✓ Parqueaderos</li>
+                  <li>✓ Comunicados y avisos</li>
+                  <li>✓ Notificaciones</li>
+                  <li>✓ Soporte por email</li>
+                </ul>
+                <Button asChild variant="outline" className="w-full">
+                  <a href="#hablemos">Hablemos</a>
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Profesional */}
+            <Card className="relative border-primary/50 shadow-lg">
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                <span className="rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground">
+                  Más popular
+                </span>
+              </div>
+              <CardHeader>
+                <CardTitle className="text-xl">Profesional</CardTitle>
+                <CardDescription>Para administradores con portafolio</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-3xl font-bold text-foreground">
+                  $199.000
+                  <span className="text-sm font-normal text-muted-foreground"> /mes</span>
+                </p>
+                <ul className="space-y-2 text-sm text-muted-foreground">
+                  <li>✓ Hasta 5 edificios</li>
+                  <li>✓ Todo lo del plan Básico</li>
+                  <li>✓ Pagos y cobros (Bold)</li>
+                  <li>✓ Reservas zonas comunes</li>
+                  <li>✓ Reportes de vigilancia</li>
+                  <li>✓ PQRS y mesa de ayuda</li>
+                  <li>✓ Soporte prioritario</li>
                 </ul>
                 <Button asChild className="w-full">
-                  <a href="#waitlist">Únete a la lista</a>
+                  <a href="#hablemos">Hablemos</a>
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Corporativo */}
+            <Card className="relative">
+              <CardHeader>
+                <CardTitle className="text-xl">Corporativo</CardTitle>
+                <CardDescription>Para grandes portafolios (6+ edificios)</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-3xl font-bold text-foreground">
+                  Custom
+                  <span className="text-sm font-normal text-muted-foreground"> /mes</span>
+                </p>
+                <ul className="space-y-2 text-sm text-muted-foreground">
+                  <li>✓ Edificios ilimitados (24, 50, 100+)</li>
+                  <li>✓ Todo lo del plan Profesional</li>
+                  <li>✓ Panel multi-edificio centralizado</li>
+                  <li>✓ Onboarding asistido</li>
+                  <li>✓ Soporte dedicado</li>
+                  <li>✓ Capacitación del equipo</li>
+                </ul>
+                <Button asChild variant="outline" className="w-full">
+                  <a href="#hablemos">Hablemos</a>
                 </Button>
               </CardContent>
             </Card>
           </div>
+
+          <p className="mt-8 text-center text-sm text-muted-foreground">
+            Todos los planes incluyen la PWA instalable, actualizaciones y seguridad.
+            Sin contratos de permanencia.
+          </p>
         </div>
       </section>
 
-      {/* CTA final + waitlist */}
-      <section id="waitlist" className="border-t border-border">
-        <div className="mx-auto flex max-w-6xl flex-col items-center px-4 py-16 text-center sm:px-6 md:py-24">
-          <h2 className="text-3xl font-bold tracking-tight">
+      {/* CTA final + contact form */}
+      <section id="hablemos" className="border-t border-border bg-muted/30">
+        <div className="mx-auto flex max-w-6xl flex-col items-center px-4 py-16 sm:px-6 md:py-24">
+          <h2 className="text-3xl font-bold tracking-tight text-center">
             ¿Administras una copropiedad? Hablemos.
           </h2>
-          <p className="mt-4 max-w-xl text-muted-foreground">
-            Déjanos tu correo y te contactaremos para mostrarte ResGuard en tu
-            edificio.
+          <p className="mt-4 max-w-xl text-center text-muted-foreground">
+            Cuéntanos qué necesitas y te mostramos ResGuard funcionando con tus
+            edificios. Sin compromiso — la demo es gratis.
           </p>
-          <div className="mt-8 flex w-full justify-center">
-            <WaitlistForm />
+          <div className="mt-10 w-full max-w-2xl">
+            <ContactForm />
           </div>
         </div>
       </section>

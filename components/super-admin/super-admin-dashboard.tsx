@@ -10,10 +10,11 @@ import { BuildingsPanel } from './buildings-panel'
 import { GlobalPaymentsPanel } from './global-payments-panel'
 import { UsersPanel } from './users-panel'
 import { SystemAlertsPanel } from './system-alerts-panel'
+import { LeadsPanel } from './leads-panel'
 import { SystemSettingsPanel } from './system-settings-panel'
 import type { BuildingStats, SystemStats } from '@/lib/types'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
-import { Menu, LayoutGrid, Building2, Car, CreditCard, Users, BarChart3, Bell, Settings, LogOut, Shield } from 'lucide-react'
+import { Menu, LayoutGrid, Building2, Car, CreditCard, Users, BarChart3, Bell, Settings, LogOut, Shield, Inbox } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
@@ -31,6 +32,7 @@ const tabTitles: Record<string, string> = {
   users: 'Gestion de Usuarios',
   analytics: 'Analiticas del Sistema',
   alerts: 'Alertas del Sistema',
+  leads: 'Solicitudes de Contacto',
   settings: 'Configuracion del Sistema',
 }
 
@@ -40,6 +42,7 @@ const navItems = [
   { id: 'parking', icon: Car, label: 'Parqueaderos' },
   { id: 'payments', icon: CreditCard, label: 'Pagos' },
   { id: 'users', icon: Users, label: 'Usuarios' },
+  { id: 'leads', icon: Inbox, label: 'Solicitudes', badge: true },
   { id: 'analytics', icon: BarChart3, label: 'Analiticas' },
   { id: 'alerts', icon: Bell, label: 'Alertas', badge: true },
   { id: 'settings', icon: Settings, label: 'Configuracion' },
@@ -305,6 +308,8 @@ export function SuperAdminDashboard() {
         )
       case 'alerts':
         return <SystemAlertsPanel />
+      case 'leads':
+        return <LeadsPanel />
       case 'settings':
         return <SystemSettingsPanel />
       default:
