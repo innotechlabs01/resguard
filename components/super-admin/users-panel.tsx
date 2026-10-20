@@ -21,7 +21,7 @@ import {
   Users,
   Check,
   Copy,
-  ShieldAlert,
+  ShieldCheck,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -97,7 +97,7 @@ export function UsersPanel({ users: propUsers, buildings: propBuildings, onRefre
     buildingId: '',
     documentId: '',
   })
-  const [createdCredentials, setCreatedCredentials] = useState<{ email: string; password: string } | null>(null)
+  const [createdCredentials, setCreatedCredentials] = useState<{ email: string; password?: string } | null>(null)
   const [copiedPass, setCopiedPass] = useState(false)
 
   const handleCreateDialogOpenChange = (open: boolean) => {
@@ -107,17 +107,6 @@ export function UsersPanel({ users: propUsers, buildings: propBuildings, onRefre
       setCreateError(null)
     }
     setShowCreateDialog(open)
-  }
-
-  const handleCopyPassword = async () => {
-    if (!createdCredentials) return
-    try {
-      await navigator.clipboard.writeText(createdCredentials.password)
-      setCopiedPass(true)
-      setTimeout(() => setCopiedPass(false), 2000)
-    } catch {
-      // Clipboard unavailable; user can still copy manually
-    }
   }
 
   useEffect(() => {
@@ -196,9 +185,9 @@ export function UsersPanel({ users: propUsers, buildings: propBuildings, onRefre
       const createdEmail = newUser.email.trim().toLowerCase()
       setNewUser({ name: '', email: '', phone: '', role: 'admin', buildingId: '', documentId: '' })
       onRefresh?.()
-      if (data.tempPassword) {
-        // Keep the dialog open to display the generated credential once
-        setCreatedCredentials({ email: createdEmail, password: data.tempPassword })
+      if (data.invitationSent || data.success) {
+        // Keep the dialog open to show the invitation confirmation
+        setCreatedCredentials({ email: createdEmail })
       } else {
         setShowCreateDialog(false)
       }
@@ -574,37 +563,38 @@ export function UsersPanel({ users: propUsers, buildings: propBuildings, onRefre
         <DialogContent className="bg-card border-border max-w-md">
           <DialogHeader>
             <DialogTitle className="text-foreground">
-              {createdCredentials ? 'Usuario creado' : 'Crear nuevo usuario operativo'}
+              {createdCredentials ? 'Invitación enviada' : 'Crear nuevo usuario operativo'}
             </DialogTitle>
             <DialogDescription className="text-muted-foreground">
               {createdCredentials
-                ? 'Credenciales generadas. Compártelas por un canal seguro.'
+                ? 'El usuario recibirá un enlace seguro por correo.'
                 : 'Registra un administrador o vigilante y asignalo a un edificio.'}
             </DialogDescription>
           </DialogHeader>
           {createdCredentials ? (
             <div className="space-y-4 py-2">
               <p className="text-sm text-muted-foreground">
-                Cuenta creada para{' '}
+                Enviamos un enlace seguro a{' '}
                 <span className="font-medium text-foreground">{createdCredentials.email}</span>.
-                La contraseña se muestra solo una vez.
+                El usuario hace clic, define su contraseña y entra.
               </p>
-              <div className="flex items-center justify-between gap-2 rounded-lg border border-border bg-muted/50 p-3">
-                <code className="font-mono text-lg font-semibold tracking-widest text-foreground select-all">
-                  {createdCredentials.password}
-                </code>
-                <Button type="button" variant="outline" size="sm" onClick={handleCopyPassword}>
-                  {copiedPass ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                  {copiedPass ? 'Copiada' : 'Copiar'}
-                </Button>
+              <div className="flex items-start gap-2 rounded-lg bg-primary/5 border border-primary/20 p-3 text-sm">
+                <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                <div className="text-muted-foreground">
+                  <p className="font-medium text-foreground">Enlace de un solo uso</p>
+                  <p className="text-xs mt-1">
+                    Expira en 1 hora. Sin contraseñas compartidas — el usuario define la suya.
+                  </p>
+                </div>
               </div>
-              <div className="flex items-start gap-2 rounded-lg bg-warning/10 p-3 text-sm text-warning">
-                <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
-                <span>Recomienda al usuario cambiar su contraseña tras el primer inicio.</span>
+              <div className="text-xs text-muted-foreground space-y-1 border-t border-border pt-3">
+                <p>Si el correo no llega:</p>
+                <p>• Revisar spam/promociones</p>
+                <p>• El usuario puede usar "Olvidé mi contraseña" en el login</p>
               </div>
               <div className="flex justify-end">
                 <Button type="button" onClick={() => handleCreateDialogOpenChange(false)}>
-                  Cerrar
+                  Entendido
                 </Button>
               </div>
             </div>

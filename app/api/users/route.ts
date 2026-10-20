@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server'
-import { randomInt } from 'node:crypto'
 import { requireAuth } from '@/lib/auth/requireAuth'
 import { getUsers, createUser, updateUser, deleteUser } from '@/lib/db/queries/users'
 import { getSupabaseAdmin } from '@/lib/db/supabase'
@@ -11,17 +10,7 @@ const log = logger.child({ module: 'api/users' })
 
 export const dynamic = 'force-dynamic'
 
-// Alphanumeric charset without ambiguous glyphs (0/O, 1/l/I) so the
-// generated credential is easy to read aloud and hand over in person.
-const PASSWORD_ALPHABET = 'abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'
-
-function generateTempPassword(length = 9): string {
-  let password = ''
-  for (let i = 0; i < length; i++) {
-    password += PASSWORD_ALPHABET[randomInt(PASSWORD_ALPHABET.length)]
-  }
-  return password
-}export async function GET(request: Request) {
+export async function GET(request: Request) {
   try {
     const authRes = await requireAuth(request)
     if (authRes instanceof Response) return authRes
@@ -109,44 +98,64 @@ export async function POST(request: Request) {
     // Provision the Supabase Auth identity first: public.users.id MUST equal
     // auth.users.id (requireAuth looks the profile up by the auth id), and the
     // generated password is the only credential the new user will receive.
-    const tempPassword = generateTempPassword()
-    const { data: created, error: authError } = await admin.auth.admin.createUser({
-      email: validation.data.email,
-      password: tempPassword,
-      email_confirm: true,
-      user_metadata: {
-        name: validation.data.name,
-        role: targetRole,
-        must_change_password: true,
-      },
-    })
+    // ─── Invitation flow: email link instead of temp password ───
+    // The user receives a single-use, time-limited link (1h expiry).
+    // They click it → verify identity → set their OWN password.
+    // No plaintext password is ever transmitted through the admin.
+    const origin = process.env.NEXT_PUBLIC_APP_URL || new URL(request.url).origin
 
-    if (authError || !created.user) {
-      if (authError?.status === 422) {
+    const { data: inviteData, error: inviteError } = await admin.auth.admin.inviteUserByEmail(
+      validation.data.email,
+      {
+        redirectTo: `${origin}/auth/confirm`,
+        data: {
+          name: validation.data.name,
+          role: targetRole,
+        },
+      }
+    )
+
+    if (inviteError || !inviteData?.user) {
+      if (inviteError?.status === 422 || inviteError?.message?.includes('already registered')) {
         return NextResponse.json({ error: 'El correo ya está registrado' }, { status: 409 })
       }
-      log.error({ error: authError }, 'Supabase Auth user creation failed')
-      return NextResponse.json({ error: 'Failed to create auth user' }, { status: 500 })
+      log.error({ error: inviteError }, 'Supabase invite failed')
+      return NextResponse.json({ error: 'Failed to send invitation' }, { status: 500 })
     }
 
+    // The handle_new_user trigger creates the public.users profile with
+    // role='usuario' and building_id=null. Update it with the actual
+    // role and building the admin selected (service_role bypasses the
+    // prevent_role_escalation trigger — it's exempted for trusted connections).
     try {
       await createUser({
-        id: created.user.id,
+        id: inviteData.user.id,
         email: validation.data.email,
         name: validation.data.name,
         role: targetRole,
         building_id: finalBuildingId,
       })
     } catch (dbError) {
-      // Rollback the auth user so no orphan account can log in without a profile
-      log.error({ error: dbError }, 'public.users insert failed, rolling back auth user')
-      await admin.auth.admin.deleteUser(created.user.id).catch(() => undefined)
-      throw dbError
+      // The trigger already created a basic profile; try updating instead
+      log.warn({ error: dbError }, 'Profile insert conflict, attempting update')
+      const { error: updateError } = await admin
+        .from('users')
+        .update({ name: validation.data.name, role: targetRole, building_id: finalBuildingId })
+        .eq('id', inviteData.user.id)
+      if (updateError) {
+        log.error({ error: updateError }, 'Failed to update user profile after invite')
+        // Don't fail the request — the invite was sent; admin can edit the user
+      }
     }
 
-    // tempPassword is returned once so the admin can hand it over; it is never logged.
+    // Invitation sent — no password to display (email link is the credential)
     return NextResponse.json(
-      { success: true, message: 'User created successfully', tempPassword },
+      {
+        success: true,
+        message: 'Invitación enviada',
+        invitationSent: true,
+        email: validation.data.email,
+      },
       { status: 201 }
     )
   } catch (error) {

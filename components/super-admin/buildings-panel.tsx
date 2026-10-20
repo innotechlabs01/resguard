@@ -23,6 +23,7 @@ import {
   UserPlus,
   Check,
   Copy,
+  ShieldCheck,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -128,7 +129,7 @@ export function BuildingsPanel({ buildings, onRefresh }: BuildingsPanelProps) {
   const [usersError, setUsersError] = useState<string | null>(null)
   const [showAdminForm, setShowAdminForm] = useState(false)
   const [newAdmin, setNewAdmin] = useState({ name: '', email: '' })
-  const [adminCredentials, setAdminCredentials] = useState<{ email: string; password: string } | null>(null)
+  const [adminCredentials, setAdminCredentials] = useState<{ email: string; password?: string } | null>(null)
   const [copiedAdminPass, setCopiedAdminPass] = useState(false)
 
   const closeAdminForm = () => {
@@ -136,17 +137,6 @@ export function BuildingsPanel({ buildings, onRefresh }: BuildingsPanelProps) {
     setCopiedAdminPass(false)
     setUsersError(null)
     setShowAdminForm(false)
-  }
-
-  const handleCopyAdminPass = async () => {
-    if (!adminCredentials) return
-    try {
-      await navigator.clipboard.writeText(adminCredentials.password)
-      setCopiedAdminPass(true)
-      setTimeout(() => setCopiedAdminPass(false), 2000)
-    } catch {
-      // Clipboard unavailable; user can still copy manually
-    }
   }
   const [savingAdmin, setSavingAdmin] = useState(false)
   const [editingUser, setEditingUser] = useState<UserType | null>(null)
@@ -261,9 +251,9 @@ export function BuildingsPanel({ buildings, onRefresh }: BuildingsPanelProps) {
       setNewAdmin({ name: '', email: '' })
       await loadBuildingUsers(selectedBuilding.id)
       onRefresh?.()
-      if (data.tempPassword) {
-        // Keep the form open to display the generated credential once
-        setAdminCredentials({ email: createdEmail, password: data.tempPassword })
+      if (data.invitationSent || data.success) {
+        // Keep the form open to show the invitation confirmation
+        setAdminCredentials({ email: createdEmail })
       } else {
         setShowAdminForm(false)
       }
@@ -744,25 +734,25 @@ export function BuildingsPanel({ buildings, onRefresh }: BuildingsPanelProps) {
               adminCredentials ? (
                 <div className="space-y-3">
                   <p className="text-sm text-muted-foreground">
-                    Administrador creado para {selectedBuilding?.name}. La contraseña se muestra
-                    solo una vez: compartela por un canal seguro.
+                    Invitación enviada para administrar {selectedBuilding?.name}. El administrador
+                    recibirá un enlace seguro por correo.
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    Cuenta:{' '}
+                    Correo:{' '}
                     <span className="font-medium text-foreground">{adminCredentials.email}</span>
                   </p>
-                  <div className="flex items-center justify-between gap-2 rounded-lg border border-border bg-muted/50 p-3">
-                    <code className="font-mono text-lg font-semibold tracking-widest text-foreground select-all">
-                      {adminCredentials.password}
-                    </code>
-                    <Button type="button" variant="outline" size="sm" onClick={handleCopyAdminPass}>
-                      {copiedAdminPass ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                      {copiedAdminPass ? 'Copiada' : 'Copiar'}
-                    </Button>
+                  <div className="flex items-start gap-2 rounded-lg bg-primary/5 border border-primary/20 p-3 text-sm">
+                    <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                    <div className="text-muted-foreground">
+                      <p className="font-medium text-foreground">Enlace de un solo uso</p>
+                      <p className="text-xs mt-1">
+                        Expira en 1 hora. El administrador define su propia contraseña al hacer clic.
+                      </p>
+                    </div>
                   </div>
                   <div className="flex justify-end">
                     <Button type="button" onClick={closeAdminForm}>
-                      Cerrar
+                      Entendido
                     </Button>
                   </div>
                 </div>
