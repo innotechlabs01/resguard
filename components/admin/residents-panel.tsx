@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   Search,
   Plus,
@@ -20,6 +20,7 @@ import {
   Edit,
   Send,
   History,
+  Trash2,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -49,6 +50,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { useResidentApi } from '@/hooks/useApiMutations'
+import { useAuth } from '@/lib/auth-context'
 import {
   Select,
   SelectContent,
@@ -172,40 +174,118 @@ export function ResidentsPanel({ residents: propResidents }: { residents?: Resid
     email: '',
     isTenant: false,
   })
-  const { createResident } = useResidentApi()
+  const { createResident, updateResident, deleteResident } = useResidentApi()
+  const { user } = useAuth()
+  const buildingId = user?.buildingId
+
+  const [editingResident, setEditingResident] = useState<Resident | null>(null)
+  const [showEditDialog, setShowEditDialog] = useState(false)
+  const [editData, setEditData] = useState({
+    name: '',
+    unit: '',
+    phone: '',
+    email: '',
+    isTenant: false,
+  })
+  const [savingEdit, setSavingEdit] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  type RawResident = {
+    id: string
+    building_id: string
+    name: string
+    unit: string
+    phone: string | null
+    email: string | null
+    parking_spots: string | null
+    balance: number
+    is_tenant: number
+  }
+
+  function mapDbResident(r: RawResident): Resident {
+    return {
+      id: r.id,
+      buildingId: r.building_id,
+      name: r.name,
+      unit: r.unit,
+      phone: r.phone ?? '',
+      email: r.email ?? '',
+      parkingSpots: typeof r.parking_spots === 'string' ? r.parking_spots.split(',').filter(Boolean) : [],
+      balance: Number(r.balance) || 0,
+      isTenant: r.is_tenant === 1,
+    }
+  }
+
+  const refreshResidents = useCallback(async () => {
+    if (!buildingId) return
+    try {
+      const res = await fetch(`/api/residents?buildingId=${encodeURIComponent(buildingId)}`)
+      if (!res.ok) return
+      const data = await res.json() as { residents?: RawResident[] }
+      setResidents((data.residents || []).map(mapDbResident))
+    } catch (error) {
+      console.error('Error fetching residents:', error)
+    }
+  }, [buildingId])
+
+  useEffect(() => {
+    refreshResidents()
+  }, [refreshResidents])
 
   const handleAddResident = async () => {
     if (!newResident.name || !newResident.unit || !newResident.email) return
-    
+    if (!buildingId) return
+
     setSaving(true)
     try {
       await createResident({
-        building_id: 'default',
+        building_id: buildingId,
         name: newResident.name,
         unit: newResident.unit,
         phone: newResident.phone,
         email: newResident.email,
       })
-      
-      const resident: Resident = {
-        id: Math.random().toString(36).slice(2),
-        buildingId: 'default',
-        name: newResident.name,
-        unit: newResident.unit,
-        phone: newResident.phone,
-        email: newResident.email,
-        parkingSpots: [],
-        balance: 0,
-        isTenant: newResident.isTenant,
-      }
-      
-      setResidents([resident, ...residents])
+
+      await refreshResidents()
       setNewResident({ name: '', unit: '', phone: '', email: '', isTenant: false })
       setShowNewResident(false)
     } catch (error) {
       console.error('Error creating resident:', error)
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleEditResident = async () => {
+    if (!editingResident) return
+    setSavingEdit(true)
+    try {
+      await updateResident(editingResident.id, {
+        name: editData.name,
+        unit: editData.unit,
+        phone: editData.phone,
+        email: editData.email,
+      })
+      await refreshResidents()
+      setEditingResident(null)
+      setShowEditDialog(false)
+    } catch (error) {
+      console.error('Error updating resident:', error)
+    } finally {
+      setSavingEdit(false)
+    }
+  }
+
+  const handleDeleteResident = async (resident: Resident) => {
+    if (!window.confirm(`¿Eliminar a ${resident.name}?`)) return
+    setDeletingId(resident.id)
+    try {
+      await deleteResident(resident.id)
+      await refreshResidents()
+    } catch (error) {
+      console.error('Error deleting resident:', error)
+    } finally {
+      setDeletingId(null)
     }
   }
 
@@ -443,13 +523,34 @@ export function ResidentsPanel({ residents: propResidents }: { residents?: Resid
                           <User className="mr-2 h-4 w-4" />
                           Ver perfil completo
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="cursor-pointer">
+                        <DropdownMenuItem
+                          className="cursor-pointer"
+                          onClick={() => {
+                            setEditingResident(resident)
+                            setEditData({
+                              name: resident.name,
+                              unit: resident.unit,
+                              phone: resident.phone,
+                              email: resident.email,
+                              isTenant: resident.isTenant === true,
+                            })
+                            setShowEditDialog(true)
+                          }}
+                        >
                           <Edit className="mr-2 h-4 w-4" />
                           Editar datos
                         </DropdownMenuItem>
                         <DropdownMenuItem className="cursor-pointer">
                           <History className="mr-2 h-4 w-4" />
                           Historial de pagos
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="cursor-pointer text-destructive"
+                          onClick={() => handleDeleteResident(resident)}
+                          disabled={deletingId === resident.id}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Eliminar residente
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem className="cursor-pointer text-primary">
@@ -548,6 +649,90 @@ export function ResidentsPanel({ residents: propResidents }: { residents?: Resid
             </Button>
             <Button onClick={handleAddResident} disabled={saving || !newResident.name || !newResident.unit || !newResident.email}>
               {saving ? 'Guardando...' : 'Agregar Residente'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="bg-card border-border max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Editar Residente</DialogTitle>
+            <DialogDescription className="text-muted-foreground">
+              Modifica los datos del residente
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-name">Nombre completo</Label>
+              <Input
+                id="edit-name"
+                value={editData.name}
+                onChange={(e) => setEditData({ ...editData, name: e.target.value })}
+                placeholder="Juan Perez"
+                className="bg-input border-border text-foreground"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-unit">Unidad</Label>
+              <Input
+                id="edit-unit"
+                value={editData.unit}
+                onChange={(e) => setEditData({ ...editData, unit: e.target.value })}
+                placeholder="101"
+                className="bg-input border-border text-foreground"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-email">Correo electronico</Label>
+              <Input
+                id="edit-email"
+                type="email"
+                value={editData.email}
+                onChange={(e) => setEditData({ ...editData, email: e.target.value })}
+                placeholder="juan@correo.com"
+                className="bg-input border-border text-foreground"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-phone">Telefono</Label>
+              <Input
+                id="edit-phone"
+                value={editData.phone}
+                onChange={(e) => setEditData({ ...editData, phone: e.target.value })}
+                placeholder="3001234567"
+                className="bg-input border-border text-foreground"
+              />
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="edit-isTenant"
+                checked={editData.isTenant}
+                onCheckedChange={(checked) => setEditData({ ...editData, isTenant: checked === true })}
+              />
+              <label
+                htmlFor="edit-isTenant"
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-foreground"
+              >
+                Es inquilino (arrendatario)
+              </label>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEditDialog(false)} disabled={savingEdit}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleEditResident}
+              disabled={savingEdit || !editData.name || !editData.unit || !editData.email}
+            >
+              {savingEdit ? 'Guardando...' : 'Guardar cambios'}
             </Button>
           </DialogFooter>
         </DialogContent>

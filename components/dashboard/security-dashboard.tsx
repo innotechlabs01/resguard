@@ -22,6 +22,40 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 
+// Shared API→domain mappers. The /api/alerts GET returns a bare array of
+// DbAlert (created_at, read as 0/1); /api/visitors returns { visitors: [...] }.
+// Centralizing the mapping keeps the initial load and post-mutation refreshes
+// consistent and derives UI counts from real server data.
+function mapAlertFromApi(a: any): Alert {
+  return {
+    id: a.id,
+    type: a.type,
+    title: a.title,
+    message: a.message,
+    timestamp: new Date(a.timestamp ?? a.created_at),
+    read: Boolean(a.read),
+    priority: a.priority,
+    relatedId: a.related_id,
+    actionRequired: Boolean(a.action_required),
+  }
+}
+
+function mapVisitorFromApi(v: any): Visitor {
+  return {
+    id: v.id,
+    name: v.name,
+    documentId: v.document_id,
+    type: v.type,
+    vehiclePlate: v.vehicle_plate,
+    destinationUnit: v.destination_unit,
+    residentName: v.resident_name,
+    entryTime: new Date(v.entry_time),
+    exitTime: v.exit_time ? new Date(v.exit_time) : undefined,
+    parkingSpot: v.parking_spot,
+    status: v.status,
+  }
+}
+
 const tabTitles: Record<string, string> = {
   overview: 'Dashboard de Turno',
   parking: 'Mapa de Parqueaderos',
@@ -157,34 +191,13 @@ export function SecurityDashboard() {
 
         if (!cancelled && visitorsRes.ok) {
           const data = await visitorsRes.json()
-          setVisitors((data.visitors || []).map((v: any) => ({
-            id: v.id,
-            name: v.name,
-            documentId: v.document_id,
-            type: v.type,
-            vehiclePlate: v.vehicle_plate,
-            destinationUnit: v.destination_unit,
-            residentName: v.resident_name,
-            entryTime: new Date(v.entry_time),
-            exitTime: v.exit_time ? new Date(v.exit_time) : undefined,
-            parkingSpot: v.parking_spot,
-            status: v.status,
-          })))
+          setVisitors((data.visitors || []).map(mapVisitorFromApi))
         }
 
         if (!cancelled && alertsRes.ok) {
           const data = await alertsRes.json()
-          setAlerts((data.alerts || []).map((a: any) => ({
-            id: a.id,
-            type: a.type,
-            title: a.title,
-            message: a.message,
-            timestamp: new Date(a.timestamp),
-            read: Boolean(a.read),
-            priority: a.priority,
-            relatedId: a.related_id,
-            actionRequired: Boolean(a.action_required),
-          })))
+          const alertsList = Array.isArray(data) ? data : (data.alerts || [])
+          setAlerts(alertsList.map(mapAlertFromApi))
         }
         if (!cancelled && tenantsRes.ok) {
           const data = await tenantsRes.json()
@@ -230,78 +243,177 @@ export function SecurityDashboard() {
     return () => clearInterval(timer)
   }, [])
 
+  // Post-mutation refreshes: /api POST/PUT only return { success, message },
+  // so after creating rows we refetch to get the server-generated ids and
+  // derive the UI counts from the real API response.
+  const refreshAlerts = useCallback(async () => {
+    const buildingId = user?.buildingId
+    if (!buildingId) return
+    try {
+      const res = await fetch(`/api/alerts?buildingId=${buildingId}`)
+      if (!res.ok) return
+      const data = await res.json()
+      const alertsList = Array.isArray(data) ? data : (data.alerts || [])
+      setAlerts(alertsList.map(mapAlertFromApi))
+    } catch (error) {
+      console.error('Error refreshing alerts:', error)
+    }
+  }, [user])
+
+  const refreshVisitors = useCallback(async () => {
+    const buildingId = user?.buildingId
+    if (!buildingId) return
+    try {
+      const res = await fetch(`/api/visitors?buildingId=${buildingId}`)
+      if (!res.ok) return
+      const data = await res.json()
+      setVisitors((data.visitors || []).map(mapVisitorFromApi))
+    } catch (error) {
+      console.error('Error refreshing visitors:', error)
+    }
+  }, [user])
+
   const handleSpotUpdate = (spotId: string, updates: Partial<ParkingSpot>) => {
     setParkingSpots((spots) =>
       spots.map((spot) => (spot.id === spotId ? { ...spot, ...updates } : spot))
     )
   }
 
-  const handleVisitorExit = (visitorId: string) => {
-    setVisitors((visitors) =>
-      visitors.map((v) =>
-        v.id === visitorId ? { ...v, status: 'exited', exitTime: new Date() } : v
+  const handleVisitorExit = async (visitorId: string) => {
+    try {
+      const res = await fetch('/api/visitors', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: visitorId,
+          status: 'exited',
+          exit_time: new Date().toISOString(),
+        }),
+      })
+      if (!res.ok) throw new Error('Failed to register visitor exit')
+      setVisitors((visitors) =>
+        visitors.map((v) =>
+          v.id === visitorId ? { ...v, status: 'exited', exitTime: new Date() } : v
+        )
       )
-    )
-    const visitor = visitors.find((v) => v.id === visitorId)
-    if (visitor?.parkingSpot) {
-      const spot = parkingSpots.find((s) => s.code === visitor.parkingSpot)
-      if (spot) {
-        handleSpotUpdate(spot.id, {
-          status: 'available',
-          vehiclePlate: undefined,
-          visitorName: undefined,
-          residentUnit: undefined,
-          entryTime: undefined,
-          timeRemaining: undefined,
-        })
+      const visitor = visitors.find((v) => v.id === visitorId)
+      if (visitor?.parkingSpot) {
+        const spot = parkingSpots.find((s) => s.code === visitor.parkingSpot)
+        if (spot) {
+          handleSpotUpdate(spot.id, {
+            status: 'available',
+            vehiclePlate: undefined,
+            visitorName: undefined,
+            residentUnit: undefined,
+            entryTime: undefined,
+            timeRemaining: undefined,
+          })
+        }
       }
+    } catch (error) {
+      console.error('Error registering visitor exit:', error)
     }
   }
 
-  const handleMarkAlertRead = (alertId: string) => {
-    setAlerts((alerts) => alerts.map((a) => (a.id === alertId ? { ...a, read: true } : a)))
-  }
-
-  const handleMarkAllAlertsRead = () => {
-    setAlerts((alerts) => alerts.map((a) => ({ ...a, read: true })))
-  }
-
-  const handleDismissAlert = (alertId: string) => {
-    setAlerts((alerts) => alerts.filter((a) => a.id !== alertId))
-  }
-
-  const handleNewEntry = (visitorData: Omit<Visitor, 'id' | 'entryTime' | 'status'>) => {
-    const newVisitor: Visitor = {
-      ...visitorData,
-      id: Date.now().toString(),
-      entryTime: new Date(),
-      status: 'inside',
+  const handleMarkAlertRead = async (alertId: string) => {
+    try {
+      const res = await fetch('/api/alerts', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: alertId, read: 1 }),
+      })
+      if (!res.ok) throw new Error('Failed to mark alert as read')
+      setAlerts((alerts) => alerts.map((a) => (a.id === alertId ? { ...a, read: true } : a)))
+    } catch (error) {
+      console.error('Error marking alert as read:', error)
     }
-    setVisitors((v) => [newVisitor, ...v])
-    if (visitorData.type === 'vehicle' && visitorData.parkingSpot) {
-      const spot = parkingSpots.find((s) => s.code === visitorData.parkingSpot)
-      if (spot) {
-        handleSpotUpdate(spot.id, {
-          status: 'occupied',
-          vehiclePlate: visitorData.vehiclePlate,
-          visitorName: visitorData.name,
-          residentUnit: visitorData.destinationUnit,
-          entryTime: new Date(),
-          timeRemaining: 120,
-        })
+  }
+
+  const handleMarkAllAlertsRead = async () => {
+    const unread = alerts.filter((a) => !a.read)
+    if (unread.length === 0) return
+    try {
+      const results = await Promise.all(
+        unread.map((a) =>
+          fetch('/api/alerts', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: a.id, read: 1 }),
+          })
+        )
+      )
+      if (!results.every((r) => r.ok)) throw new Error('Failed to mark some alerts as read')
+      setAlerts((alerts) => alerts.map((a) => ({ ...a, read: true })))
+    } catch (error) {
+      console.error('Error marking all alerts as read:', error)
+    }
+  }
+
+  const handleDismissAlert = async (alertId: string) => {
+    try {
+      const res = await fetch(`/api/alerts?id=${encodeURIComponent(alertId)}`, {
+        method: 'DELETE',
+      })
+      if (!res.ok) throw new Error('Failed to dismiss alert')
+      setAlerts((alerts) => alerts.filter((a) => a.id !== alertId))
+    } catch (error) {
+      console.error('Error dismissing alert:', error)
+    }
+  }
+
+  const handleNewEntry = async (visitorData: Omit<Visitor, 'id' | 'entryTime' | 'status'>) => {
+    const buildingId = user?.buildingId
+    if (!buildingId) return
+    try {
+      const visitorRes = await fetch('/api/visitors', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          building_id: buildingId,
+          name: visitorData.name,
+          document_id: visitorData.documentId,
+          type: visitorData.type,
+          vehicle_plate: visitorData.vehiclePlate || null,
+          destination_unit: visitorData.destinationUnit,
+          resident_name: visitorData.residentName,
+          parking_spot: visitorData.parkingSpot || null,
+          status: 'inside',
+        }),
+      })
+      if (!visitorRes.ok) throw new Error('Failed to register visitor')
+
+      const alertRes = await fetch('/api/alerts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          building_id: buildingId,
+          type: 'visitor_entry',
+          title: 'Nueva entrada de visitante',
+          message: `${visitorData.name} (${visitorData.type}) ingresó para visitar la unidad ${visitorData.destinationUnit}.`,
+          priority: 'low',
+          related_id: null,
+        }),
+      })
+      if (!alertRes.ok) throw new Error('Failed to create visitor entry alert')
+
+      await Promise.all([refreshVisitors(), refreshAlerts()])
+
+      if (visitorData.type === 'vehicle' && visitorData.parkingSpot) {
+        const spot = parkingSpots.find((s) => s.code === visitorData.parkingSpot)
+        if (spot) {
+          handleSpotUpdate(spot.id, {
+            status: 'occupied',
+            vehiclePlate: visitorData.vehiclePlate,
+            visitorName: visitorData.name,
+            residentUnit: visitorData.destinationUnit,
+            entryTime: new Date(),
+            timeRemaining: 120,
+          })
+        }
       }
+    } catch (error) {
+      console.error('Error registering new entry:', error)
     }
-    const newAlert: Alert = {
-      id: Date.now().toString(),
-      type: 'visitor_entry',
-      title: 'New Visitor Entry',
-      message: `${visitorData.name} (${visitorData.type}) has entered to visit unit ${visitorData.destinationUnit}.`,
-      timestamp: new Date(),
-      read: false,
-      priority: 'low',
-      relatedId: newVisitor.id,
-    }
-    setAlerts((a) => [newAlert, ...a])
   }
 
   if (loading) {

@@ -174,7 +174,9 @@ export async function POST(request: Request) {
       if (supabase) {
         try {
           await supabase.from('intercom_calls').update({ responded_at: new Date().toISOString() }).eq('id', callId)
-        } catch (e) {}
+        } catch {
+          // Non-critical update; intercom response still succeeds
+        }
       }
       
       return NextResponse.json({ message: 'Call response recorded' })

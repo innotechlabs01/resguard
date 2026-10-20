@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireAuth, isAuthResponse } from '@/lib/auth/requireAuth'
+import { assertResourceBuilding } from '@/lib/auth/assertBuildingAccess'
 import { getProviderById, addReview } from '@/lib/db/queries/providers'
 import { logger } from '@/lib/logger'
 
@@ -17,6 +18,11 @@ export async function GET(
     const result = await getProviderById(id)
     if (!result) {
       return NextResponse.json({ error: 'Provider not found' }, { status: 404 })
+    }
+
+    const access = assertResourceBuilding(authResult.user, result.provider.building_id)
+    if (!access.ok) {
+      return NextResponse.json({ error: access.error }, { status: access.status })
     }
 
     return NextResponse.json(result)
@@ -43,10 +49,14 @@ export async function POST(
       return NextResponse.json({ error: 'Rating must be between 1 and 5' }, { status: 400 })
     }
 
-    // Check provider exists
+    // Check provider exists + building isolation
     const existing = await getProviderById(id)
     if (!existing) {
       return NextResponse.json({ error: 'Provider not found' }, { status: 404 })
+    }
+    const access = assertResourceBuilding(user, existing.provider.building_id)
+    if (!access.ok) {
+      return NextResponse.json({ error: access.error }, { status: access.status })
     }
 
     const review = await addReview({

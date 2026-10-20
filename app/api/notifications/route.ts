@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth/requireAuth'
 import { getSupabaseAdmin } from '@/lib/db/supabase'
+import { getUserById } from '@/lib/db/queries/users'
 import { logger } from '@/lib/logger'
 
 const log = logger.child({ module: 'api/notifications' })
@@ -9,8 +10,21 @@ export const dynamic = 'force-dynamic'
 
 const ADMIN_ROLES = ['admin', 'super_admin']
 
-function canActOnUser(caller: { id: string; role: string }, targetUserId: string) {
-  return caller.id === targetUserId || ADMIN_ROLES.includes(caller.role)
+/**
+ * R2 fix: admin can only act on users within their own building.
+ * A building check is performed against the target user's building_id.
+ */
+async function canActOnUser(
+  caller: { id: string; role: string; building_id: string | null },
+  targetUserId: string
+): Promise<boolean> {
+  if (caller.id === targetUserId) return true
+  if (!ADMIN_ROLES.includes(caller.role)) return false
+  if (caller.role === 'super_admin') return true
+  // admin: target user must be in caller's building
+  const target = await getUserById(targetUserId)
+  if (!target) return false
+  return target.building_id === caller.building_id
 }
 
 export async function GET(request: Request) {
@@ -26,7 +40,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'userId required' }, { status: 400 })
     }
 
-    if (!canActOnUser(user, userId)) {
+    if (!(await canActOnUser(user, userId))) {
       return NextResponse.json({ error: 'Forbidden: cannot read another user\'s notifications' }, { status: 403 })
     }
 
@@ -67,7 +81,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'userId, title, and body required' }, { status: 400 })
     }
 
-    if (!canActOnUser(user, userId)) {
+    if (!(await canActOnUser(user, userId))) {
       return NextResponse.json({ error: 'Forbidden: cannot send notifications to another user' }, { status: 403 })
     }
 
@@ -129,7 +143,7 @@ export async function PUT(request: Request) {
     if (!existing) {
       return NextResponse.json({ error: 'Notification not found' }, { status: 404 })
     }
-    if (!canActOnUser(user, existing.user_id)) {
+    if (!(await canActOnUser(user, existing.user_id))) {
       return NextResponse.json({ error: 'Forbidden: cannot modify another user\'s notification' }, { status: 403 })
     }
 

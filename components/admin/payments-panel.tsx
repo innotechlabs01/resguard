@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Search,
   CreditCard,
@@ -100,6 +100,7 @@ export function PaymentsPanel({ payments: propPayments }: { payments?: Payment[]
   const [showSendLinkDialog, setShowSendLinkDialog] = useState(false)
   const [selectedPaymentForLink, setSelectedPaymentForLink] = useState<any>(null)
   const [sendingLink, setSendingLink] = useState(false)
+  const [creating, setCreating] = useState(false)
   const [createdLink, setCreatedLink] = useState<PaymentLink | null>(null)
   const [newPayment, setNewPayment] = useState({
     description: '',
@@ -113,44 +114,73 @@ export function PaymentsPanel({ payments: propPayments }: { payments?: Payment[]
 
   const allPayments = propPayments || dbPayments
 
-  useState(() => {
-    if (user?.buildingId && !propPayments) {
-      setLoadingDb(true)
-      fetch(`/api/payments?buildingId=${user.buildingId}`)
-        .then(res => res.json())
-        .then(data => {
-          if (data.payments) {
-            setDbPayments(data.payments)
-          }
-        })
-        .catch(console.error)
-        .finally(() => setLoadingDb(false))
-    }
-  })
+  useEffect(() => {
+    if (!isAuthenticated || !user?.buildingId || propPayments) return
+
+    setLoadingDb(true)
+    const controller = new AbortController()
+
+    fetch(`/api/payments?buildingId=${user.buildingId}`, { signal: controller.signal })
+      .then(res => res.json())
+      .then(data => {
+        if (data.payments) {
+          setDbPayments(data.payments)
+        }
+      })
+      .catch(err => {
+        if (err.name === 'AbortError') return
+        console.error(err)
+      })
+      .finally(() => setLoadingDb(false))
+
+    return () => controller.abort()
+  }, [isAuthenticated, user?.buildingId, propPayments])
 
   const buildingPayments = allPayments.filter(
     (p) => p.buildingId === user?.buildingId || p.buildingId === '11111111-1111-4111-8111-111111111111'
   )
 
-  const handleAddPayment = () => {
-    if (!newPayment.description || !newPayment.amount || !newPayment.residentUnit) return
-    
-    const payment: Payment = {
-      id: Math.random().toString(36).slice(2),
-      buildingId: '11111111-1111-4111-8111-111111111111',
-      buildingName: 'Torres del Parque',
-      amount: parseInt(newPayment.amount),
-      currency: 'COP',
-      status: 'pending',
-      type: newPayment.type,
-      description: newPayment.description,
-      residentUnit: newPayment.residentUnit,
-      createdAt: new Date(),
+  const handleAddPayment = async () => {
+    if (!newPayment.description || !newPayment.amount || !newPayment.residentUnit || !user?.buildingId) return
+
+    setCreating(true)
+    try {
+      const response = await fetch('/api/payments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: parseInt(newPayment.amount) || 0,
+          amountType: newPayment.amountType,
+          description: newPayment.description,
+          residentEmail: newPayment.residentEmail || undefined,
+          residentUnit: newPayment.residentUnit,
+          buildingId: user.buildingId,
+          paymentType: newPayment.type,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Error al crear el cobro')
+      }
+
+      await response.json()
+
+      // Refresh from the API after success
+      if (user.buildingId) {
+        const res = await fetch(`/api/payments?buildingId=${user.buildingId}`)
+        const data = await res.json()
+        if (data.payments) {
+          setDbPayments(data.payments)
+        }
+      }
+
+      setNewPayment({ description: '', amount: '', type: 'subscription', residentUnit: '', amountType: 'CLOSE', sendLink: true, residentEmail: '' })
+      setShowNewPayment(false)
+    } catch (error) {
+      console.error('Error creating payment:', error)
+    } finally {
+      setCreating(false)
     }
-    
-    setDbPayments([payment, ...dbPayments])
-    setNewPayment({ description: '', amount: '', type: 'subscription', residentUnit: '', amountType: 'CLOSE', sendLink: true, residentEmail: '' })
-    setShowNewPayment(false)
   }
 
   const handleCreatePaymentLink = async () => {
@@ -444,9 +474,14 @@ export function PaymentsPanel({ payments: propPayments }: { payments?: Payment[]
             ) : (
               <Button 
                 onClick={handleAddPayment} 
-                disabled={!newPayment.description || !newPayment.amount || !newPayment.residentUnit}
+                disabled={
+                  creating || 
+                  !newPayment.description || 
+                  !newPayment.amount || 
+                  !newPayment.residentUnit
+                }
               >
-                Crear Cobro
+                {creating ? 'Creando...' : 'Crear Cobro'}
               </Button>
             )}
           </DialogFooter>

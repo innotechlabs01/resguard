@@ -89,10 +89,36 @@ export function ParkingConfigPanel() {
     setEditDialogOpen(true)
   }
 
-  const handleSave = () => {
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+
+  const handleSave = async () => {
     if (!editForm) return
-    setConfigs(configs.map(c => c.id === editForm.id ? editForm : c))
-    setEditDialogOpen(false)
+    setSaving(true)
+    setSaveError(null)
+    try {
+      // T-035: persist parking config to the building record via PUT /api/buildings
+      const res = await fetch('/api/buildings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editForm.buildingId,
+          visitor_parking_spots: editForm.visitorSpots,
+          total_parking_spots: editForm.visitorSpots + editForm.residentSpots,
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setSaveError(data.error || 'No se pudo guardar la configuración.')
+        return
+      }
+      setConfigs(configs.map(c => c.id === editForm.id ? editForm : c))
+      setEditDialogOpen(false)
+    } catch {
+      setSaveError('Error de conexión. Intenta de nuevo.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const totalVisitorSpots = configs.reduce((sum, c) => sum + c.visitorSpots, 0)
@@ -390,12 +416,15 @@ export function ParkingConfigPanel() {
           )}
           
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+            {saveError && (
+              <p className="mr-auto text-sm text-destructive" role="alert">{saveError}</p>
+            )}
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)} disabled={saving}>
               Cancelar
             </Button>
-            <Button onClick={handleSave}>
+            <Button onClick={handleSave} disabled={saving}>
               <Save className="mr-2 h-4 w-4" />
-              Guardar Cambios
+              {saving ? 'Guardando…' : 'Guardar Cambios'}
             </Button>
           </DialogFooter>
         </DialogContent>

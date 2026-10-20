@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -74,70 +74,6 @@ const severityConfig: Record<Incident['severity'], { label: string; className: s
   grave: { label: 'Grave', className: 'bg-destructive/10 text-destructive border-destructive/20' },
 }
 
-const mockReports: ShiftReport[] = [
-  {
-    id: '1',
-    date: '2026-02-28',
-    shiftStart: '06:00',
-    shiftEnd: '14:00',
-    guard: 'Carlos Rodriguez',
-    incidents: 2,
-    status: 'enviado',
-    text: 'Turno sin novedades mayores. Se registraron 2 incidentes menores: vehiculo en tiempo extra cupo V-04 y visitante sin documentos. Ambos resueltos satisfactoriamente.',
-    incidentDetails: [
-      { id: 'i1', type: 'parqueo', description: 'Vehiculo XYZ-789 supero tiempo en cupo V-04', unit: '502', severity: 'leve' },
-      { id: 'i2', type: 'visitante', description: 'Visitante sin cedula intento ingresar a apto 205', unit: '205', severity: 'moderado' },
-    ],
-  },
-  {
-    id: '2',
-    date: '2026-02-28',
-    shiftStart: '14:00',
-    shiftEnd: '22:00',
-    guard: 'Juan Rodriguez',
-    incidents: 0,
-    status: 'pendiente',
-  },
-  {
-    id: '3',
-    date: '2026-02-27',
-    shiftStart: '22:00',
-    shiftEnd: '06:00',
-    guard: 'Ana Martinez',
-    incidents: 1,
-    status: 'enviado',
-    text: 'Turno nocturno. Un residente del apto 605 llego despues de la 1am con ruido excesivo. Se le hizo llamado de atencion. Sin mas novedades.',
-    incidentDetails: [
-      { id: 'i3', type: 'seguridad', description: 'Residente con ruido excesivo a la 1:15am', unit: '605', severity: 'leve' },
-    ],
-  },
-  {
-    id: '4',
-    date: '2026-02-27',
-    shiftStart: '14:00',
-    shiftEnd: '22:00',
-    guard: 'Juan Rodriguez',
-    incidents: 3,
-    status: 'enviado',
-    text: 'Turno con alta actividad. 3 incidentes registrados. Se contacto a administracion por daño en la barrera de parqueo.',
-    incidentDetails: [
-      { id: 'i4', type: 'infraestructura', description: 'Barrera de parqueo daño por vehiculo al salir', severity: 'grave' },
-      { id: 'i5', type: 'parqueo', description: 'Vehiculo sin tarjeta intento acceder', severity: 'leve' },
-      { id: 'i6', type: 'visitante', description: 'Visitante permanecion mas de 4 horas', unit: '301', severity: 'leve' },
-    ],
-  },
-  {
-    id: '5',
-    date: '2026-02-27',
-    shiftStart: '06:00',
-    shiftEnd: '14:00',
-    guard: 'Carlos Rodriguez',
-    incidents: 0,
-    status: 'enviado',
-    text: 'Turno sin novedades. Mantenimiento de ascensor realizado por tecnico externo (8am-11am). Todo en orden.',
-  },
-]
-
 const emptyIncident = (): Incident => ({
   id: Math.random().toString(36).slice(2),
   type: 'parqueo',
@@ -167,25 +103,49 @@ export function ReportsPanel() {
   const currentShift =
     hour >= 6 && hour < 14 ? '06:00 - 14:00' : hour >= 14 && hour < 22 ? '14:00 - 22:00' : '22:00 - 06:00'
 
+  // Fetch reports on mount
+  useEffect(() => {
+    const fetchReports = async () => {
+      if (!user?.buildingId) return
+      const res = await fetch(`/api/shift-reports?buildingId=${user.buildingId}`)
+      if (res.ok) {
+        const data = await res.json()
+        setReports(data.reports)
+      }
+    }
+    fetchReports()
+  }, [user?.buildingId])
+
   const addIncident = () => setIncidents((prev) => [...prev, emptyIncident()])
   const removeIncident = (id: string) => setIncidents((prev) => prev.filter((i) => i.id !== id))
   const updateIncident = (id: string, field: keyof Incident, value: string) => {
     setIncidents((prev) => prev.map((i) => (i.id === id ? { ...i, [field]: value } : i)))
   }
 
-  const handleSubmit = () => {
-    const newReport: ShiftReport = {
-      id: Math.random().toString(36).slice(2),
-      date: new Date().toISOString().split('T')[0],
-      shiftStart: currentShift.split(' - ')[0],
-      shiftEnd: currentShift.split(' - ')[1],
-      guard: user?.name ?? 'Vigilante',
-      incidents: incidents.length,
-      status: 'enviado',
-      text: reportText,
-      incidentDetails: incidents,
+  const handleSubmit = async () => {
+    await fetch('/api/shift-reports', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        building_id: user?.buildingId,
+        guard_name: user?.name ?? 'Vigilante',
+        shift_start: currentShift.split(' - ')[0],
+        shift_end: currentShift.split(' - ')[1],
+        incidents: incidents.length,
+        notes: reportText,
+      }),
+    })
+
+    // Refetch reports after successful submit
+    const { user: fresherUser } = useAuth()
+    if (fresherUser?.buildingId) {
+      const res = await fetch(`/api/shift-reports?buildingId=${fresherUser.buildingId}`)
+      if (res.ok) {
+        const data = await res.json()
+        setReports(data.reports)
+      }
     }
-    setReports((prev) => [newReport, ...prev])
+
     setReportText('')
     setIncidents([])
     setSubmitted(true)
@@ -358,9 +318,7 @@ export function ReportsPanel() {
         {reports.map((report) => (
           <Card
             key={report.id}
-            className={`border-border bg-card cursor-pointer hover:bg-muted/20 transition-colors ${
-              report.status === 'pendiente' ? 'border-warning/30' : ''
-            }`}
+            className={`border-border bg-card cursor-pointer hover:bg-muted/20 transition-colors ${report.status === 'pendiente' ? 'border-warning/30' : ''}` }
             onClick={() => { setSelectedReport(report); setShowDetail(true) }}
           >
             <CardContent className="p-4">

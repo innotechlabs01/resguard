@@ -19,6 +19,9 @@ import {
   Edit,
   Trash2,
   Users,
+  Check,
+  Copy,
+  ShieldAlert,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -69,7 +72,7 @@ const statusColors: Record<string, string> = {
   inactive: 'bg-destructive/10 text-destructive border-destructive/20',
 }
 
-export function UsersPanel({ users: propUsers, buildings: propBuildings }: { users?: UserType[]; buildings?: BuildingStats[] } = {}) {
+export function UsersPanel({ users: propUsers, buildings: propBuildings, onRefresh }: { users?: UserType[]; buildings?: BuildingStats[]; onRefresh?: () => void } = {}) {
   const { user, isAuthenticated, isDemoMode, isLoaded } = useAuth()
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'vigilante'>('all')
@@ -79,6 +82,9 @@ export function UsersPanel({ users: propUsers, buildings: propBuildings }: { use
   )
   const [buildings, setBuildings] = useState<BuildingStats[]>(propBuildings || [])
   const [showCreateDialog, setShowCreateDialog] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [createError, setCreateError] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
   const [showDetailDialog, setShowDetailDialog] = useState(false)
   const [editMode, setEditMode] = useState(false)
   const [selectedUser, setSelectedUser] = useState<UserType | null>(null)
@@ -91,6 +97,28 @@ export function UsersPanel({ users: propUsers, buildings: propBuildings }: { use
     buildingId: '',
     documentId: '',
   })
+  const [createdCredentials, setCreatedCredentials] = useState<{ email: string; password: string } | null>(null)
+  const [copiedPass, setCopiedPass] = useState(false)
+
+  const handleCreateDialogOpenChange = (open: boolean) => {
+    if (!open) {
+      setCreatedCredentials(null)
+      setCopiedPass(false)
+      setCreateError(null)
+    }
+    setShowCreateDialog(open)
+  }
+
+  const handleCopyPassword = async () => {
+    if (!createdCredentials) return
+    try {
+      await navigator.clipboard.writeText(createdCredentials.password)
+      setCopiedPass(true)
+      setTimeout(() => setCopiedPass(false), 2000)
+    } catch {
+      // Clipboard unavailable; user can still copy manually
+    }
+  }
 
   useEffect(() => {
     if (!isAuthenticated || !isLoaded) return
@@ -144,22 +172,55 @@ export function UsersPanel({ users: propUsers, buildings: propBuildings }: { use
     return buildings.find((b) => b.id === buildingId)
   }
 
-  const handleCreateUser = () => {
+  const handleCreateUser = async () => {
     if (!newUser.name || !newUser.email || !newUser.buildingId) return
-    const created: UserType = {
-      id: `user-${Date.now()}`,
-      name: newUser.name,
-      email: newUser.email,
-      role: newUser.role,
-      buildingId: newUser.buildingId,
+    setSaving(true)
+    setCreateError(null)
+    try {
+      const res = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newUser.name.trim(),
+          email: newUser.email.trim().toLowerCase(),
+          role: newUser.role,
+          building_id: newUser.buildingId,
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setCreateError(data.error || 'No se pudo crear el usuario. Intenta de nuevo.')
+        return
+      }
+      const data = await res.json().catch(() => ({}))
+      const createdEmail = newUser.email.trim().toLowerCase()
+      setNewUser({ name: '', email: '', phone: '', role: 'admin', buildingId: '', documentId: '' })
+      onRefresh?.()
+      if (data.tempPassword) {
+        // Keep the dialog open to display the generated credential once
+        setCreatedCredentials({ email: createdEmail, password: data.tempPassword })
+      } else {
+        setShowCreateDialog(false)
+      }
+    } catch {
+      setCreateError('Error de conexión. Intenta de nuevo.')
+    } finally {
+      setSaving(false)
     }
-    setUsers((prev) => [...prev, created])
-    setNewUser({ name: '', email: '', phone: '', role: 'admin', buildingId: '', documentId: '' })
-    setShowCreateDialog(false)
   }
 
-  const handleDeactivate = (userId: string) => {
-    setUsers((prev) => prev.filter((u) => u.id !== userId))
+  const handleDeactivate = async (userId: string) => {
+    try {
+      const res = await fetch(`/api/users?id=${encodeURIComponent(userId)}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setActionError(data.error || 'No se pudo desactivar el usuario.')
+        return
+      }
+      onRefresh?.()
+    } catch {
+      setActionError('Error de conexión. Intenta de nuevo.')
+    }
   }
 
   const handleOpenEdit = (u: UserType) => {
@@ -169,17 +230,30 @@ export function UsersPanel({ users: propUsers, buildings: propBuildings }: { use
     setShowDetailDialog(true)
   }
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (!selectedUser) return
-    setUsers((prev) =>
-      prev.map((u) =>
-        u.id === selectedUser.id
-          ? { ...u, name: editData.name, email: editData.email, buildingId: editData.buildingId, role: editData.role }
-          : u
-      )
-    )
-    setShowDetailDialog(false)
-    setEditMode(false)
+    try {
+      const res = await fetch('/api/users', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: selectedUser.id,
+          name: editData.name.trim(),
+          role: editData.role,
+          building_id: editData.buildingId || null,
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setActionError(data.error || 'No se pudo guardar los cambios.')
+        return
+      }
+      setShowDetailDialog(false)
+      setEditMode(false)
+      onRefresh?.()
+    } catch {
+      setActionError('Error de conexión. Intenta de nuevo.')
+    }
   }
 
   const adminCount = users.filter((u) => u.role === 'admin').length
@@ -318,11 +392,20 @@ export function UsersPanel({ users: propUsers, buildings: propBuildings }: { use
             </SelectContent>
           </Select>
         </div>
-        <Button size="sm" onClick={() => setShowCreateDialog(true)}>
+        <Button size="sm" onClick={() => { setCreateError(null); setShowCreateDialog(true) }}>
           <Plus className="mr-2 h-4 w-4" />
           Nuevo Usuario
         </Button>
       </div>
+
+      {/* Action error */}
+      {actionError && (
+        <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">
+          <XCircle className="h-4 w-4 shrink-0" />
+          <span>{actionError}</span>
+          <button className="ml-auto text-xs underline" onClick={() => setActionError(null)}>Cerrar</button>
+        </div>
+      )}
 
       {/* Users Table */}
       <Card className="bg-card border-border">
@@ -473,6 +556,7 @@ export function UsersPanel({ users: propUsers, buildings: propBuildings }: { use
                       className="h-6 px-2 text-xs border-primary/50 text-primary hover:bg-primary/10"
                       onClick={() => {
                         setNewUser((p) => ({ ...p, buildingId: b.id, role: 'admin' }))
+                        setCreateError(null)
                         setShowCreateDialog(true)
                       }}
                     >
@@ -486,14 +570,46 @@ export function UsersPanel({ users: propUsers, buildings: propBuildings }: { use
       )}
 
       {/* Create User Dialog */}
-      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+      <Dialog open={showCreateDialog} onOpenChange={handleCreateDialogOpenChange}>
         <DialogContent className="bg-card border-border max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-foreground">Crear nuevo usuario operativo</DialogTitle>
+            <DialogTitle className="text-foreground">
+              {createdCredentials ? 'Usuario creado' : 'Crear nuevo usuario operativo'}
+            </DialogTitle>
             <DialogDescription className="text-muted-foreground">
-              Registra un administrador o vigilante y asignalo a un edificio.
+              {createdCredentials
+                ? 'Credenciales generadas. Compártelas por un canal seguro.'
+                : 'Registra un administrador o vigilante y asignalo a un edificio.'}
             </DialogDescription>
           </DialogHeader>
+          {createdCredentials ? (
+            <div className="space-y-4 py-2">
+              <p className="text-sm text-muted-foreground">
+                Cuenta creada para{' '}
+                <span className="font-medium text-foreground">{createdCredentials.email}</span>.
+                La contraseña se muestra solo una vez.
+              </p>
+              <div className="flex items-center justify-between gap-2 rounded-lg border border-border bg-muted/50 p-3">
+                <code className="font-mono text-lg font-semibold tracking-widest text-foreground select-all">
+                  {createdCredentials.password}
+                </code>
+                <Button type="button" variant="outline" size="sm" onClick={handleCopyPassword}>
+                  {copiedPass ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                  {copiedPass ? 'Copiada' : 'Copiar'}
+                </Button>
+              </div>
+              <div className="flex items-start gap-2 rounded-lg bg-warning/10 p-3 text-sm text-warning">
+                <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>Recomienda al usuario cambiar su contraseña tras el primer inicio.</span>
+              </div>
+              <div className="flex justify-end">
+                <Button type="button" onClick={() => handleCreateDialogOpenChange(false)}>
+                  Cerrar
+                </Button>
+              </div>
+            </div>
+          ) : (
+          <>
           <div className="space-y-4 py-2">
             <Tabs
               value={newUser.role}
@@ -581,17 +697,22 @@ export function UsersPanel({ users: propUsers, buildings: propBuildings }: { use
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
+            {createError && (
+              <p className="mr-auto text-sm text-destructive" role="alert">{createError}</p>
+            )}
+            <Button variant="outline" onClick={() => setShowCreateDialog(false)} disabled={saving}>
               Cancelar
             </Button>
             <Button
               onClick={handleCreateUser}
-              disabled={!newUser.name || !newUser.email || !newUser.buildingId}
+              disabled={saving || !newUser.name || !newUser.email || !newUser.buildingId}
             >
               <Plus className="mr-2 h-4 w-4" />
-              Crear usuario
+              {saving ? 'Creando…' : 'Crear usuario'}
             </Button>
-          </DialogFooter>
+            </DialogFooter>
+          </>
+          )}
         </DialogContent>
       </Dialog>
 

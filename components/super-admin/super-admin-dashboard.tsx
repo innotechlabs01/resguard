@@ -296,7 +296,7 @@ export function SuperAdminDashboard() {
       case 'payments':
         return <GlobalPaymentsPanel />
       case 'users':
-        return <UsersPanel users={users} buildings={buildings} />
+        return <UsersPanel users={users} buildings={buildings} onRefresh={handleRefresh} />
       case 'analytics':
         return (
           <Suspense fallback={<SkeletonCard className="h-[400px]" />}>

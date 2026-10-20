@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   Store,
   Plus,
@@ -66,6 +66,9 @@ export function Marketplace({ products: propProducts }: MarketplaceProps = {}) {
   const [search, setSearch] = useState('')
   const [catFilter, setCatFilter] = useState<MarketplaceProduct['category'] | 'all'>('all')
   const [showCreate, setShowCreate] = useState(false)
+  const [loading, setLoading] = useState(!propProducts)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -75,8 +78,40 @@ export function Marketplace({ products: propProducts }: MarketplaceProps = {}) {
     whatsapp: '',
   })
 
-  const myProducts = products.filter((p) => p.sellerId === (user?.id ?? 'usuario-1'))
-  const otherProducts = products.filter((p) => p.sellerId !== (user?.id ?? 'usuario-1'))
+  const fetchProducts = useCallback(async () => {
+    if (propProducts || !user?.buildingId) return
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/marketplace?buildingId=${encodeURIComponent(user.buildingId)}`)
+      const data = await res.json()
+      if (Array.isArray(data.products)) {
+        setProducts(data.products.map((p: Record<string, unknown>) => ({
+          id: p.id as string,
+          sellerId: p.seller_id as string,
+          sellerName: p.seller_name as string,
+          sellerUnit: p.seller_unit as string,
+          title: p.title as string,
+          description: p.description as string,
+          price: p.price as number,
+          category: p.category as MarketplaceProduct['category'],
+          available: p.available as boolean,
+          contactPhone: p.contact_phone as string,
+          whatsapp: p.whatsapp as string,
+        })))
+      }
+    } catch {
+      setProducts([])
+    } finally {
+      setLoading(false)
+    }
+  }, [propProducts, user?.buildingId])
+
+  useEffect(() => {
+    fetchProducts()
+  }, [fetchProducts])
+
+  const myProducts = products.filter((p) => p.sellerId === (user?.id ?? ''))
+  const otherProducts = products.filter((p) => p.sellerId !== (user?.id ?? ''))
 
   const filtered = (list: MarketplaceProduct[]) =>
     list.filter((p) => {
@@ -87,26 +122,37 @@ export function Marketplace({ products: propProducts }: MarketplaceProps = {}) {
       return matchSearch && matchCat
     })
 
-  const handleCreate = () => {
-    if (!form.title || !form.price) return
-    const product: MarketplaceProduct = {
-      id: `mp-${Date.now()}`,
-      sellerId: user?.id ?? 'usuario-1',
-      sellerName: user?.name ?? 'Residente',
-      sellerUnit: '301',
-      buildingId: '11111111-1111-4111-8111-111111111111',
-      title: form.title,
-      description: form.description,
-      price: parseInt(form.price.replace(/\D/g, '')) || 0,
-      category: form.category,
-      available: true,
-      contactPhone: form.contactPhone,
-      whatsapp: form.whatsapp,
-      createdAt: new Date(),
+  const handleCreate = async () => {
+    if (!form.title || !form.price || !user?.buildingId) return
+    setSaving(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/marketplace', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          building_id: user.buildingId,
+          title: form.title,
+          description: form.description || 'Sin descripción',
+          price: Number.parseInt(form.price) || 0,
+          category: form.category,
+          contact_phone: form.contactPhone || undefined,
+          whatsapp: form.whatsapp || undefined,
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setError(data.error || 'No se pudo publicar el producto.')
+        return
+      }
+      setShowCreate(false)
+      setForm({ title: '', description: '', price: '', category: 'services', contactPhone: '', whatsapp: '' })
+      await fetchProducts()
+    } catch {
+      setError('Error de conexión. Intenta de nuevo.')
+    } finally {
+      setSaving(false)
     }
-    setProducts((prev) => [product, ...prev])
-    setForm({ title: '', description: '', price: '', category: 'services', contactPhone: '', whatsapp: '' })
-    setShowCreate(false)
   }
 
   const toggleAvailable = (id: string) => {

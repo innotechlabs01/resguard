@@ -1,11 +1,46 @@
 import { NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth/requireAuth'
-import { getPayments } from '@/lib/db/queries/payments'
+import { requireAuth, isAuthResponse } from '@/lib/auth/requireAuth'
+import { assertBuildingAccess } from '@/lib/auth/assertBuildingAccess'
+import { getPayments, createPayment } from '@/lib/db/queries/payments'
+import { validateBody, CreatePaymentSchema } from '@/lib/validation'
 import { logger } from '@/lib/logger'
 
 const log = logger.child({ module: 'api/payments' })
 
 export const dynamic = 'force-dynamic'
+
+export async function POST(request: Request) {
+  try {
+    const authResult = await requireAuth(request, ['usuario', 'admin', 'super_admin'])
+    if (isAuthResponse(authResult)) return authResult
+    const { user } = authResult
+
+    const body = await request.json()
+    const validation = validateBody(CreatePaymentSchema, body)
+    if (!validation.success) return validation.response
+
+    const { amount, amountType, description, residentEmail, residentUnit, buildingId, buildingName, paymentType } = validation.data
+    const access = assertBuildingAccess(user, buildingId)
+    if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
+
+    await createPayment({
+      building_id: buildingId,
+      building_name: buildingName || 'Edificio',
+      amount,
+      currency: 'COP',
+      status: 'pending',
+      type: paymentType,
+      description,
+      resident_unit: residentUnit || null,
+      amount_type: amountType,
+    })
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    log.error({ error }, 'Error creating payment')
+    return NextResponse.json({ error: 'Error al crear el cobro' }, { status: 500 })
+  }
+}
 
 export async function GET(request: Request) {
   try {

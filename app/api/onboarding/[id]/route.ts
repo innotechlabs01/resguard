@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireAuth, isAuthResponse } from '@/lib/auth/requireAuth'
+import { assertResourceBuilding } from '@/lib/auth/assertBuildingAccess'
 import { getOnboardingById, updateOnboardingItem } from '@/lib/db/queries/onboarding'
 import { logger } from '@/lib/logger'
 
@@ -17,6 +18,11 @@ export async function GET(
     const checklist = await getOnboardingById(id)
     if (!checklist) {
       return NextResponse.json({ error: 'Checklist not found' }, { status: 404 })
+    }
+
+    const access = assertResourceBuilding(authResult.user, checklist.building_id)
+    if (!access.ok) {
+      return NextResponse.json({ error: access.error }, { status: access.status })
     }
 
     return NextResponse.json({ checklist })
@@ -38,6 +44,11 @@ export async function PATCH(
     const checklist = await getOnboardingById(id)
     if (!checklist) {
       return NextResponse.json({ error: 'Checklist not found' }, { status: 404 })
+    }
+
+    const access = assertResourceBuilding(authResult.user, checklist.building_id)
+    if (!access.ok) {
+      return NextResponse.json({ error: access.error }, { status: access.status })
     }
 
     const body = await request.json()

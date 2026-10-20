@@ -1,14 +1,27 @@
 import { NextResponse } from 'next/server'
+import { randomInt } from 'node:crypto'
 import { requireAuth } from '@/lib/auth/requireAuth'
 import { getUsers, createUser, updateUser, deleteUser } from '@/lib/db/queries/users'
+import { getSupabaseAdmin } from '@/lib/db/supabase'
 import { validateBody, CreateUserSchema } from '@/lib/validation'
+import { checkStrictRateLimit, getRateLimitIdentifier } from '@/lib/rate-limit'
 import { logger } from '@/lib/logger'
 
 const log = logger.child({ module: 'api/users' })
 
 export const dynamic = 'force-dynamic'
 
-export async function GET(request: Request) {
+// Alphanumeric charset without ambiguous glyphs (0/O, 1/l/I) so the
+// generated credential is easy to read aloud and hand over in person.
+const PASSWORD_ALPHABET = 'abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+
+function generateTempPassword(length = 9): string {
+  let password = ''
+  for (let i = 0; i < length; i++) {
+    password += PASSWORD_ALPHABET[randomInt(PASSWORD_ALPHABET.length)]
+  }
+  return password
+}export async function GET(request: Request) {
   try {
     const authRes = await requireAuth(request)
     if (authRes instanceof Response) return authRes
@@ -48,26 +61,94 @@ export async function POST(request: Request) {
     const targetRole = validation.data.role
     const targetBuildingId = validation.data.building_id || null
 
-    if (caller.role !== 'super_admin' && targetRole === 'super_admin') {
-      return NextResponse.json({ error: 'Forbidden: cannot create super_admin' }, { status: 403 })
-    }
-    if (caller.role !== 'super_admin' && caller.building_id) {
+    // N5 fix: authorization matrix derived from the CRM model (T-023 Phase 2.1)
+    // and the confirmed business flows:
+    //   super_admin → creates admin/vigilante/usuario in any building (and super_admin)
+    //   admin       → creates ONLY usuario (residents) in their OWN building
+    //   others      → cannot create anyone
+    if (caller.role === 'super_admin') {
+      // super_admin can create any role; building_id is validated by zod when present
+    } else if (caller.role === 'admin') {
+      if (targetRole !== 'usuario') {
+        return NextResponse.json(
+          { error: 'Forbidden: admin can only create residents' },
+          { status: 403 }
+        )
+      }
+      if (!caller.building_id) {
+        return NextResponse.json({ error: 'Forbidden: no building scope' }, { status: 403 })
+      }
       if (targetBuildingId && targetBuildingId !== caller.building_id) {
         return NextResponse.json({ error: 'Forbidden: building mismatch' }, { status: 403 })
       }
-    }
-    if (caller.role !== 'super_admin' && !targetBuildingId) {
-      return NextResponse.json({ error: 'building_id required' }, { status: 400 })
+    } else {
+      return NextResponse.json(
+        { error: 'Forbidden: insufficient privileges to create users' },
+        { status: 403 }
+      )
     }
 
-    await createUser({
-      id: crypto.randomUUID(),
+    // For admin callers, ALWAYS use their own building_id (never trust the client)
+    const finalBuildingId = caller.role === 'super_admin'
+      ? targetBuildingId
+      : caller.building_id
+
+    // M3 fix: rate limit user creation (20 per hour per admin)
+    const rlId = getRateLimitIdentifier(request, caller.id)
+    const rl = await checkStrictRateLimit(`users-create:${rlId}`, 20, '1 h')
+    if (!rl.success) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+    }
+
+    const admin = getSupabaseAdmin()
+    if (!admin) {
+      log.error('Supabase admin client not configured (DATABASE_URL_SUPABASE / DATABASE_SERVICES_SUPABASE)')
+      return NextResponse.json({ error: 'User provisioning unavailable: server misconfigured' }, { status: 500 })
+    }
+
+    // Provision the Supabase Auth identity first: public.users.id MUST equal
+    // auth.users.id (requireAuth looks the profile up by the auth id), and the
+    // generated password is the only credential the new user will receive.
+    const tempPassword = generateTempPassword()
+    const { data: created, error: authError } = await admin.auth.admin.createUser({
       email: validation.data.email,
-      name: validation.data.name,
-      role: targetRole,
-      building_id: targetBuildingId ?? caller.building_id,
+      password: tempPassword,
+      email_confirm: true,
+      user_metadata: {
+        name: validation.data.name,
+        role: targetRole,
+        must_change_password: true,
+      },
     })
-    return NextResponse.json({ success: true, message: 'User created successfully' }, { status: 201 })
+
+    if (authError || !created.user) {
+      if (authError?.status === 422) {
+        return NextResponse.json({ error: 'El correo ya está registrado' }, { status: 409 })
+      }
+      log.error({ error: authError }, 'Supabase Auth user creation failed')
+      return NextResponse.json({ error: 'Failed to create auth user' }, { status: 500 })
+    }
+
+    try {
+      await createUser({
+        id: created.user.id,
+        email: validation.data.email,
+        name: validation.data.name,
+        role: targetRole,
+        building_id: finalBuildingId,
+      })
+    } catch (dbError) {
+      // Rollback the auth user so no orphan account can log in without a profile
+      log.error({ error: dbError }, 'public.users insert failed, rolling back auth user')
+      await admin.auth.admin.deleteUser(created.user.id).catch(() => undefined)
+      throw dbError
+    }
+
+    // tempPassword is returned once so the admin can hand it over; it is never logged.
+    return NextResponse.json(
+      { success: true, message: 'User created successfully', tempPassword },
+      { status: 201 }
+    )
   } catch (error) {
     log.error({ error }, 'Error creating user')
     return NextResponse.json({ error: 'Failed to create user' }, { status: 500 })
@@ -118,6 +199,19 @@ export async function DELETE(request: Request) {
 
     if (!id) {
       return NextResponse.json({ error: 'User ID required' }, { status: 400 })
+    }
+
+    // N6 fix: delete the Auth identity too, not just the profile row.
+    // Without this, the account remains logueable with no profile (orphan).
+    const admin = getSupabaseAdmin()
+    if (admin) {
+      const { error: authDeleteError } = await admin.auth.admin.deleteUser(id)
+      if (authDeleteError) {
+        log.error({ error: authDeleteError, userId: id }, 'Failed to delete Supabase Auth user')
+        return NextResponse.json({ error: 'Failed to delete auth user' }, { status: 500 })
+      }
+    } else {
+      log.warn('Supabase admin client not configured; deleting profile row only (auth user will be orphaned)')
     }
 
     await deleteUser(id)
