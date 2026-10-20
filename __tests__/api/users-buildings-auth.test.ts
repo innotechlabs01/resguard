@@ -37,15 +37,18 @@ vi.mock('@/lib/db/queries/users', () => ({
 }))
 
 // Supabase Auth admin API boundary
-const mockAdminCreateUser = vi.fn()
+const mockAdminInviteUser = vi.fn()
 vi.mock('@/lib/db/supabase', () => ({
   getSupabaseAdmin: () => ({
     auth: {
       admin: {
-        createUser: mockAdminCreateUser,
+        inviteUserByEmail: mockAdminInviteUser,
         deleteUser: vi.fn(),
       },
     },
+    from: () => ({
+      update: () => ({ eq: () => ({ data: null, error: null }) }),
+    }),
   }),
 }))
 
@@ -163,7 +166,7 @@ describe('POST /api/buildings — N4 escalation', () => {
 describe('POST /api/users — N5 escalation', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockAdminCreateUser.mockResolvedValue({
+    mockAdminInviteUser.mockResolvedValue({
       data: { user: { id: '99999999-9999-4999-8999-999999999999' } },
       error: null,
     })
@@ -176,7 +179,7 @@ describe('POST /api/users — N5 escalation', () => {
     const { POST } = await import('@/app/api/users/route')
     const res = await POST(jsonRequest(validUserBody))
     expect(res.status).toBe(401)
-    expect(mockAdminCreateUser).not.toHaveBeenCalled()
+    expect(mockAdminInviteUser).not.toHaveBeenCalled()
     expect(mockCreateUser).not.toHaveBeenCalled()
   })
 
@@ -185,7 +188,7 @@ describe('POST /api/users — N5 escalation', () => {
     const { POST } = await import('@/app/api/users/route')
     const res = await POST(jsonRequest({ ...validUserBody, role: 'usuario' }))
     expect(res.status).toBe(403)
-    expect(mockAdminCreateUser).not.toHaveBeenCalled()
+    expect(mockAdminInviteUser).not.toHaveBeenCalled()
     expect(mockCreateUser).not.toHaveBeenCalled()
   })
 
@@ -194,7 +197,7 @@ describe('POST /api/users — N5 escalation', () => {
     const { POST } = await import('@/app/api/users/route')
     const res = await POST(jsonRequest({ ...validUserBody, role: 'admin' }))
     expect(res.status).toBe(403)
-    expect(mockAdminCreateUser).not.toHaveBeenCalled()
+    expect(mockAdminInviteUser).not.toHaveBeenCalled()
   })
 
   it('rejects a building-less resident creating an admin in any building (N5 core)', async () => {
@@ -202,7 +205,7 @@ describe('POST /api/users — N5 escalation', () => {
     const { POST } = await import('@/app/api/users/route')
     const res = await POST(jsonRequest({ ...validUserBody, role: 'admin' }))
     expect(res.status).toBe(403)
-    expect(mockAdminCreateUser).not.toHaveBeenCalled()
+    expect(mockAdminInviteUser).not.toHaveBeenCalled()
     expect(mockCreateUser).not.toHaveBeenCalled()
   })
 
@@ -212,7 +215,7 @@ describe('POST /api/users — N5 escalation', () => {
     const { building_id: _omit, ...noBuilding } = validUserBody
     const res = await POST(jsonRequest({ ...noBuilding, role: 'admin' }))
     expect(res.status).toBe(403)
-    expect(mockAdminCreateUser).not.toHaveBeenCalled()
+    expect(mockAdminInviteUser).not.toHaveBeenCalled()
   })
 
   it('rejects an admin creating another admin (403)', async () => {
@@ -220,7 +223,7 @@ describe('POST /api/users — N5 escalation', () => {
     const { POST } = await import('@/app/api/users/route')
     const res = await POST(jsonRequest({ ...validUserBody, role: 'admin', building_id: buildingId() }))
     expect(res.status).toBe(403)
-    expect(mockAdminCreateUser).not.toHaveBeenCalled()
+    expect(mockAdminInviteUser).not.toHaveBeenCalled()
   })
 
   it('rejects an admin creating a vigilante (403)', async () => {
@@ -228,7 +231,7 @@ describe('POST /api/users — N5 escalation', () => {
     const { POST } = await import('@/app/api/users/route')
     const res = await POST(jsonRequest({ ...validUserBody, role: 'vigilante', building_id: buildingId() }))
     expect(res.status).toBe(403)
-    expect(mockAdminCreateUser).not.toHaveBeenCalled()
+    expect(mockAdminInviteUser).not.toHaveBeenCalled()
   })
 
   it('rejects an admin creating a super_admin (403)', async () => {
@@ -236,7 +239,7 @@ describe('POST /api/users — N5 escalation', () => {
     const { POST } = await import('@/app/api/users/route')
     const res = await POST(jsonRequest({ ...validUserBody, role: 'super_admin' }))
     expect(res.status).toBe(403)
-    expect(mockAdminCreateUser).not.toHaveBeenCalled()
+    expect(mockAdminInviteUser).not.toHaveBeenCalled()
   })
 
   it('rejects an admin operating OUTSIDE their building (building mismatch, 403)', async () => {
@@ -249,7 +252,7 @@ describe('POST /api/users — N5 escalation', () => {
       building_id: otherBuildingId(),
     }))
     expect(res.status).toBe(403)
-    expect(mockAdminCreateUser).not.toHaveBeenCalled()
+    expect(mockAdminInviteUser).not.toHaveBeenCalled()
     expect(mockCreateUser).not.toHaveBeenCalled()
   })
 
@@ -260,21 +263,21 @@ describe('POST /api/users — N5 escalation', () => {
     const res = await POST(jsonRequest({ ...noBuilding, role: 'usuario' }))
     // OK: admin creates resident in their own building (server derives it)
     expect(res.status).toBe(201)
-    expect(mockAdminCreateUser).toHaveBeenCalledTimes(1)
+    expect(mockAdminInviteUser).toHaveBeenCalledTimes(1)
     expect(mockCreateUser).toHaveBeenCalledWith(
       expect.objectContaining({ building_id: buildingId(), role: 'usuario' })
     )
   })
 
-  it('allows super_admin to create an admin and returns tempPassword (201)', async () => {
+  it('allows super_admin to create an admin and sends invitation (201)', async () => {
     authAs(sessionUser({ role: 'super_admin' }))
     const { POST } = await import('@/app/api/users/route')
     const res = await POST(jsonRequest({ ...validUserBody, role: 'admin' }))
     expect(res.status).toBe(201)
     const data = await res.json()
-    expect(data.tempPassword).toBeTruthy()
-    expect(data.tempPassword).toHaveLength(9)
-    expect(mockAdminCreateUser).toHaveBeenCalledTimes(1)
+    expect(data.invitationSent).toBe(true)
+    expect(data.tempPassword).toBeUndefined() // no plaintext password
+    expect(mockAdminInviteUser).toHaveBeenCalledTimes(1)
     expect(mockCreateUser).toHaveBeenCalledWith(
       expect.objectContaining({ role: 'admin', building_id: buildingId() })
     )
@@ -285,6 +288,6 @@ describe('POST /api/users — N5 escalation', () => {
     const { POST } = await import('@/app/api/users/route')
     const res = await POST(jsonRequest({ ...validUserBody, role: 'usuario' }))
     expect(res.status).toBe(403)
-    expect(mockAdminCreateUser).not.toHaveBeenCalled()
+    expect(mockAdminInviteUser).not.toHaveBeenCalled()
   })
 })
