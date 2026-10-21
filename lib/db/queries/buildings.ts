@@ -51,6 +51,7 @@ export async function getBuildingById(id: string): Promise<DbBuilding | null> {
 
 export async function createBuilding(building: {
   id: string
+  organization_id?: string | null
   name: string
   address: string
   total_units: number
@@ -64,8 +65,8 @@ export async function createBuilding(building: {
   subscription_status: string
 }): Promise<string> {
   await executeInsert(
-    `INSERT INTO buildings (id, name, address, total_units, total_parking_spots, visitor_parking_spots, bold_account_id, monthly_fee, currency, outstanding_balance, last_payment_date, subscription_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [building.id, building.name, building.address, building.total_units, building.total_parking_spots, building.visitor_parking_spots, building.bold_account_id, building.monthly_fee, building.currency, building.outstanding_balance, building.last_payment_date, building.subscription_status]
+    `INSERT INTO buildings (id, organization_id, name, address, total_units, total_parking_spots, visitor_parking_spots, bold_account_id, monthly_fee, currency, outstanding_balance, last_payment_date, subscription_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [building.id, building.organization_id ?? null, building.name, building.address, building.total_units, building.total_parking_spots, building.visitor_parking_spots, building.bold_account_id, building.monthly_fee, building.currency, building.outstanding_balance, building.last_payment_date, building.subscription_status]
   )
   return building.id
 }
