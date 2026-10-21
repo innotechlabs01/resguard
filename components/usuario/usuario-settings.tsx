@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { toast } from 'sonner'
 import { User, Phone, Mail, Lock, Bell, Save, Loader2, CheckCircle2 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -44,6 +45,7 @@ export function UsuarioSettings() {
         return
       }
       setSaved(true)
+      toast.success('Perfil actualizado', { description: 'Tus datos se guardaron correctamente.' })
       // Update auth context so header shows the new name
       if (user) {
         hydrateUser({ ...user, name: profile.name })

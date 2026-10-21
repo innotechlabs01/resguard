@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { toast } from 'sonner'
 import {
   Calendar,
   Plus,
@@ -36,6 +37,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useAuth } from '@/lib/auth-context'
+import { EmptyState } from '@/components/ui/empty-state'
 
 interface Reservation {
   id: string
@@ -170,14 +172,22 @@ export function UsuarioReservations() {
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
-        setError(data.error || 'No se pudo crear la reserva.')
+        const data = await res.json().catch(() => ({}))
+        toast.error(data.error || 'No se pudo crear la reserva', {
+          description: data.error?.includes('horario') ? 'Ese horario ya está ocupado.' : undefined,
+        })
         return
       }
       setDialogOpen(false)
       setNewReservation({ area: '', date: '', startTime: '', endTime: '', guests: '', notes: '' })
+      toast.success('Reserva creada', {
+        description: 'Recibirás confirmación del administrador.',
+      })
       await fetchReservations()
     } catch {
-      setError('Error de conexión. Intenta de nuevo.')
+      toast.error('Error de conexión', {
+        description: 'No se pudo crear la reserva. Intenta de nuevo.',
+      })
     } finally {
       setSaving(false)
     }
@@ -188,12 +198,13 @@ export function UsuarioReservations() {
       const res = await fetch(`/api/reservations?id=${encodeURIComponent(id)}`, { method: 'DELETE' })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
-        setError(data.error || 'No se pudo cancelar la reserva.')
+        toast.error(data.error || 'No se pudo cancelar')
         return
       }
+      toast.success('Reserva cancelada')
       await fetchReservations()
     } catch {
-      setError('Error de conexión.')
+      toast.error('Error de conexión')
     }
   }
 
@@ -333,13 +344,14 @@ export function UsuarioReservations() {
         </CardHeader>
         <CardContent>
           {reservations.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-8 text-center">
-              <Calendar className="h-12 w-12 text-muted-foreground/50" />
-              <p className="mt-4 text-muted-foreground">No tienes reservas programadas</p>
-              <Button className="mt-4 bg-transparent" variant="outline" onClick={() => setDialogOpen(true)}>
-                Hacer una reserva
-              </Button>
-            </div>
+            <EmptyState
+              icon={Calendar}
+              title="No tienes reservas programadas"
+              description="Reserva el salón social, la zona BBQ, el gimnasio o la piscina para tu próximo evento."
+              actionLabel="Hacer una reserva"
+              onAction={() => setDialogOpen(true)}
+              compact
+            />
           ) : (
             <div className="space-y-4">
               {reservations.map((reservation) => {
