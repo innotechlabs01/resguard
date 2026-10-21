@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useAuth } from '@/lib/auth-context'
+import { ThemeToggle } from '@/components/ui/theme-toggle'
 
 interface SuperAdminHeaderProps {
   title: string
@@ -46,7 +47,8 @@ export function SuperAdminHeader({ title, systemAlerts }: SuperAdminHeaderProps)
         </Button>
 
         {/* User Menu */}
-        <DropdownMenu>
+        <ThemeToggle className="hidden sm:inline-flex" />
+            <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="flex items-center gap-2">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/20">
