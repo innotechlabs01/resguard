@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { toast } from 'sonner'
+import { EmptyState } from '@/components/ui/empty-state'
 import {
   Store,
   Plus,
@@ -147,6 +149,7 @@ export function Marketplace({ products: propProducts }: MarketplaceProps = {}) {
       }
       setShowCreate(false)
       setForm({ title: '', description: '', price: '', category: 'services', contactPhone: '', whatsapp: '' })
+      toast.success('Producto publicado', { description: 'Ya es visible para tus vecinos.' })
       await fetchProducts()
     } catch {
       setError('Error de conexión. Intenta de nuevo.')
@@ -305,11 +308,21 @@ export function Marketplace({ products: propProducts }: MarketplaceProps = {}) {
           <Store className="h-4 w-4 text-primary" />
           Negocios del edificio
         </h3>
-        {filtered(otherProducts).length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-            <Store className="h-10 w-10 mb-3 opacity-30" />
-            <p>No hay publicaciones disponibles</p>
-          </div>
+        {filtered(otherProducts).length === 0 && filtered(myProducts).length === 0 ? (
+          <EmptyState
+            icon={Store}
+            title="El mercado vecinal está vacío"
+            description="Sé el primero en publicar algo: comida casera, servicios, artículos que quieras vender o regalar."
+            actionLabel="Publicar algo"
+            onAction={() => setShowCreate(true)}
+          />
+        ) : filtered(otherProducts).length === 0 ? (
+          <EmptyState
+            icon={Store}
+            title="No hay publicaciones de otros vecinos"
+            description="Cuando otros residentes publiquen productos o servicios, aparecerán aquí."
+            compact
+          />
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {filtered(otherProducts).map((p) => (

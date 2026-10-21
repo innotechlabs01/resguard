@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { toast } from 'sonner'
 import {
   Search,
   Plus,
@@ -254,6 +255,7 @@ export function BuildingsPanel({ buildings, onRefresh }: BuildingsPanelProps) {
       if (data.invitationSent || data.success) {
         // Keep the form open to show the invitation confirmation
         setAdminCredentials({ email: createdEmail })
+        toast.success('Invitación enviada', { description: 'El administrador definirá su contraseña desde el correo.' })
       } else {
         setShowAdminForm(false)
       }
