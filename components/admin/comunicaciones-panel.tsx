@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useCallback } from 'react'
+import { toast } from 'sonner'
+import { EmptyState } from '@/components/ui/empty-state'
 import {
   Send,
   Plus,
@@ -280,10 +282,16 @@ export function ComunicacionesPanel({
       {/* Communications list */}
       <div className="space-y-3">
         {filtered.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-            <Megaphone className="h-10 w-10 mb-3 opacity-30" />
-            <p>No hay comunicaciones</p>
-          </div>
+          <EmptyState
+            icon={Megaphone}
+            title="No hay comunicaciones"
+            description={communications.length === 0
+              ? 'Publica un aviso, circular o comunicado para que tus residentes se enteren.'
+              : 'No hay resultados con el filtro aplicado. Prueba cambiando el tipo o prioridad.'}
+            actionLabel={communications.length === 0 ? 'Crear comunicación' : undefined}
+            onAction={communications.length === 0 ? () => setShowCompose(true) : undefined}
+            compact
+          />
         )}
         {filtered.map((comm) => {
           const typeCfg = typeConfig[comm.type]

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { EmptyState } from '@/components/ui/empty-state'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -29,6 +30,7 @@ import {
   Clock,
   Building,
   Filter,
+  UserPlus,
 } from 'lucide-react'
 import type { Visitor } from '@/lib/types'
 import { cn } from '@/lib/utils'
@@ -161,8 +163,15 @@ export function VisitorList({ visitors, onVisitorExit }: VisitorListProps) {
             <TableBody>
               {filteredVisitors.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
-                    No visitors found
+                  <TableCell colSpan={7} className="py-4">
+                    <EmptyState
+                      icon={UserPlus}
+                      title="No hay visitantes registrados"
+                      description={searchQuery || statusFilter !== 'all'
+                        ? 'Sin resultados con el filtro aplicado. Prueba limpiando la búsqueda.'
+                        : 'Cuando llegue un visitante, regístrelo aquí para controlar el acceso del edificio.'}
+                      compact
+                    />
                   </TableCell>
                 </TableRow>
               ) : (

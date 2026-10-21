@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { toast } from 'sonner'
 import { useAuth } from '@/lib/auth-context'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -114,6 +115,7 @@ export function ParkingConfigPanel() {
       }
       setConfigs(configs.map(c => c.id === editForm.id ? editForm : c))
       setEditDialogOpen(false)
+      toast.success('Configuración guardada')
     } catch {
       setSaveError('Error de conexión. Intenta de nuevo.')
     } finally {

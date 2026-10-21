@@ -7,6 +7,9 @@ import { SuperAdminDashboard } from '@/components/super-admin/super-admin-dashbo
 import { UsuarioDashboard } from '@/components/usuario/usuario-dashboard'
 import { Spinner } from '@/components/ui/spinner'
 import { ForcePasswordChange } from '@/components/auth/force-password-change'
+import { PWAInstallPrompt } from '@/components/pwa/install-prompt'
+import { OfflineBanner } from '@/components/pwa/offline-banner'
+import { Toaster } from 'sonner'
 
 function DashboardByRole() {
   const { user } = useAuth()
@@ -45,8 +48,21 @@ export function AppContainer() {
 
   return (
     <>
+      <OfflineBanner />
       <DashboardByRole />
       <ForcePasswordChange />
+      <PWAInstallPrompt />
+      <Toaster
+        position="top-center"
+        richColors
+        closeButton
+        toastOptions={{
+          duration: 4000,
+          style: {
+            fontSize: '14px',
+          },
+        }}
+      />
     </>
   )
 }

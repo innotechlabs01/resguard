@@ -38,11 +38,54 @@ export function ContactForm({ planInterest = 'no_se', compact = false }: Contact
   const [saving, setSaving] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [touched, setTouched] = useState<Record<string, boolean>>({})
+
+  // ─── Inline validation ───
+  const validateField = (field: string, value: string): string | null => {
+    switch (field) {
+      case 'name':
+        if (!value.trim()) return null // Don't show error until touched
+        if (value.trim().length < 2) return 'Mínimo 2 caracteres'
+        return null
+      case 'email':
+        if (!value.trim()) return null
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return 'Ingresa un correo válido'
+        return null
+      case 'phone':
+        if (!value.trim()) return null
+        if (!/^[+\d\s\-()]{7,20}$/.test(value)) return 'Ingresa un teléfono válido'
+        return null
+      default:
+        return null
+    }
+  }
+
+  const getFieldError = (field: string): string | null => {
+    if (!touched[field]) return null
+    return validateField(field, form[field as keyof typeof form] as string)
+  }
+
+  const markTouched = (field: string) => {
+    setTouched((prev) => ({ ...prev, [field]: true }))
+  }
+
+  const isFieldInvalid = (field: string): boolean => {
+    return Boolean(getFieldError(field))
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
     setError(null)
+
+    // Validate all fields before submit
+    const nameError = validateField('name', form.name)
+    const emailError = validateField('email', form.email)
+    if (nameError || emailError || !form.name || !form.email) {
+      setTouched({ name: true, email: true, phone: true })
+      setSaving(false)
+      return
+    }
 
     try {
       const res = await fetch('/api/sales-leads', {
@@ -108,8 +151,16 @@ export function ContactForm({ planInterest = 'no_se', compact = false }: Contact
             placeholder="Ej: Juan Rodríguez"
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
+            onBlur={() => markTouched('name')}
+            aria-invalid={isFieldInvalid('name')}
+            aria-describedby={isFieldInvalid('name') ? 'lead-name-error' : undefined}
             required
           />
+          {getFieldError('name') && (
+            <p id="lead-name-error" className="text-xs text-destructive" role="alert">
+              {getFieldError('name')}
+            </p>
+          )}
         </div>
         <div className="space-y-2">
           <Label htmlFor="lead-email">Correo electrónico *</Label>
@@ -119,8 +170,16 @@ export function ContactForm({ planInterest = 'no_se', compact = false }: Contact
             placeholder="juan@empresa.com"
             value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
+            onBlur={() => markTouched('email')}
+            aria-invalid={isFieldInvalid('email')}
+            aria-describedby={isFieldInvalid('email') ? 'lead-email-error' : undefined}
             required
           />
+          {getFieldError('email') && (
+            <p id="lead-email-error" className="text-xs text-destructive" role="alert">
+              {getFieldError('email')}
+            </p>
+          )}
         </div>
       </div>
 
@@ -133,7 +192,15 @@ export function ContactForm({ planInterest = 'no_se', compact = false }: Contact
             placeholder="+57 300 000 0000"
             value={form.phone}
             onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            onBlur={() => markTouched('phone')}
+            aria-invalid={isFieldInvalid('phone')}
+            aria-describedby={isFieldInvalid('phone') ? 'lead-phone-error' : undefined}
           />
+          {getFieldError('phone') && (
+            <p id="lead-phone-error" className="text-xs text-destructive" role="alert">
+              {getFieldError('phone')}
+            </p>
+          )}
         </div>
         <div className="space-y-2">
           <Label htmlFor="lead-company">Empresa / Administración</Label>

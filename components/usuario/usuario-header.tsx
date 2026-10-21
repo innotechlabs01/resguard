@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useAuth } from '@/lib/auth-context'
+import { ThemeToggle } from '@/components/ui/theme-toggle'
 
 interface UsuarioHeaderProps {
   title: string
@@ -40,7 +41,8 @@ export function UsuarioHeader({ title, unreadNotifications }: UsuarioHeaderProps
           )}
         </Button>
 
-        <DropdownMenu>
+        <ThemeToggle className="hidden sm:inline-flex" />
+            <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="gap-2">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-warning/10">

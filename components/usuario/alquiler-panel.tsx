@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { toast } from 'sonner'
+import { EmptyState } from '@/components/ui/empty-state'
 import {
   Home,
   Car,
@@ -367,10 +369,14 @@ export function AlquilerPanel({ tenants: propTenants, listings: propListings }: 
             </Button>
           </div>
           {listings.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-14 text-muted-foreground">
-              <Home className="h-10 w-10 mb-3 opacity-30" />
-              <p>No tienes publicaciones</p>
-            </div>
+            <EmptyState
+              icon={Home}
+              title="No tienes anuncios de alquiler"
+              description="Publica un apartamento, habitación, parqueadero o bodega para que otros vecinos la encuentren."
+              actionLabel="Publicar anuncio"
+              onAction={() => setShowAddListing(true)}
+              compact
+            />
           ) : (
             <div className="grid gap-4 sm:grid-cols-2">
               {listings.map((listing) => (

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { toast } from 'sonner'
 import { useAuth } from '@/lib/auth-context'
 import {
   Search,
@@ -188,6 +189,7 @@ export function UsersPanel({ users: propUsers, buildings: propBuildings, onRefre
       if (data.invitationSent || data.success) {
         // Keep the dialog open to show the invitation confirmation
         setCreatedCredentials({ email: createdEmail })
+        toast.success('Invitación enviada', { description: `El usuario recibirá un enlace seguro por correo.` })
       } else {
         setShowCreateDialog(false)
       }

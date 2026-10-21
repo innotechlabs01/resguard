@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { toast } from 'sonner'
+import { EmptyState } from '@/components/ui/empty-state'
 import {
   Search,
   CreditCard,
@@ -351,16 +353,16 @@ export function PaymentsPanel({ payments: propPayments }: { payments?: Payment[]
         </div>
 
         <TabsContent value="all" className="mt-4">
-          <PaymentsTable payments={filteredPayments} />
+          <PaymentsTable payments={filteredPayments} search={search} />
         </TabsContent>
         <TabsContent value="pending" className="mt-4">
-          <PaymentsTable payments={filteredPayments.filter((p) => p.status === 'pending')} />
+          <PaymentsTable payments={filteredPayments.filter((p) => p.status === 'pending')} search={search} />
         </TabsContent>
         <TabsContent value="succeeded" className="mt-4">
-          <PaymentsTable payments={filteredPayments.filter((p) => p.status === 'succeeded')} />
+          <PaymentsTable payments={filteredPayments.filter((p) => p.status === 'succeeded')} search={search} />
         </TabsContent>
         <TabsContent value="failed" className="mt-4">
-          <PaymentsTable payments={filteredPayments.filter((p) => p.status === 'failed')} />
+          <PaymentsTable payments={filteredPayments.filter((p) => p.status === 'failed')} search={search} />
         </TabsContent>
       </Tabs>
 
@@ -529,7 +531,7 @@ export function PaymentsPanel({ payments: propPayments }: { payments?: Payment[]
   )
 }
 
-function PaymentsTable({ payments }: { payments: Payment[] }) {
+function PaymentsTable({ payments, search }: { payments: Payment[]; search?: string }) {
   return (
     <Card className="bg-card border-border">
       <CardContent className="p-0">
@@ -548,8 +550,15 @@ function PaymentsTable({ payments }: { payments: Payment[] }) {
           <TableBody>
             {payments.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                  No se encontraron pagos
+                <TableCell colSpan={6} className="py-4">
+                  <EmptyState
+                    icon={CreditCard}
+                    title="No hay pagos registrados"
+                    description={search
+                      ? 'No hay resultados con la búsqueda aplicada. Prueba con otro término.'
+                      : 'Cuando registres pagos de residentes, aparecerán aquí con su estado y fecha.'}
+                    compact
+                  />
                 </TableCell>
               </TableRow>
             ) : (
