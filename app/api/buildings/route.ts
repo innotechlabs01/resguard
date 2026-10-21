@@ -3,6 +3,8 @@ import { requireAuth } from '@/lib/auth/requireAuth'
 import { logger } from '@/lib/logger'
 import { validateBody, CreateBuildingSchema } from '@/lib/validation'
 import { checkStrictRateLimit, getRateLimitIdentifier } from '@/lib/rate-limit'
+import { checkSubscriptionAccess } from '@/lib/subscription-guard'
+import { checkBuildingLimit } from '@/lib/plan-limits'
 
 const log = logger.child({ module: 'api/buildings' })
 
@@ -107,7 +109,28 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
     }
 
+    // ─── Multi-tenant guards ───
+    // Get the caller's organization (if they have one)
     const body = await request.json()
+    const callerOrgId = (user as { organization_id?: string }).organization_id
+    const organizationId = body.organization_id || callerOrgId || null
+
+    // Guard 1: subscription must be active (not blocked by mora)
+    const subGuard = await checkSubscriptionAccess(organizationId)
+    if (subGuard) {
+      const subData = await subGuard.json()
+      return NextResponse.json(subData, { status: subGuard.status })
+    }
+
+    // Guard 2: plan limit on buildings (only for organizations, not super_admin creating standalone)
+    if (organizationId && user.role !== 'super_admin') {
+      const limitGuard = await checkBuildingLimit(organizationId)
+      if (limitGuard) {
+        const limitData = await limitGuard.json()
+        return NextResponse.json(limitData, { status: limitGuard.status })
+      }
+    }
+
     const validation = validateBody(CreateBuildingSchema, body)
     if (!validation.success) return validation.response
 
@@ -119,6 +142,7 @@ export async function POST(request: Request) {
     const buildingId = crypto.randomUUID()
     await createBuilding({
       id: buildingId,
+      organization_id: organizationId,
       name: validation.data.name,
       address: validation.data.address,
       total_units: validation.data.total_units,
