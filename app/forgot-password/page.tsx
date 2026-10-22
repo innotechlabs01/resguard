@@ -28,7 +28,7 @@ export default function ForgotPasswordPage() {
 
       if (resetError) {
         console.log('Reset email error:', resetError.message)
-        setError('No se pudo enviar el código. Intenta de nuevo.')
+        setError(resetError.message || 'No se pudo enviar el código. Intenta de nuevo.')
         return
       }
       
