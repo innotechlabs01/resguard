@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireAuth, isAuthResponse } from '@/lib/auth/requireAuth'
-import { assertBuildingAccess } from '@/lib/auth/assertBuildingAccess'
+import { assertBuildingAccessAsync } from '@/lib/auth/assertBuildingAccess'
 import { getSurveys, createSurvey, addQuestion } from '@/lib/db/queries/surveys'
 import { logger } from '@/lib/logger'
 
@@ -17,7 +17,7 @@ export async function GET(request: Request) {
     if (!buildingId) {
       return NextResponse.json({ error: 'buildingId required' }, { status: 400 })
     }
-    const access = assertBuildingAccess(user, buildingId)
+    const access = await assertBuildingAccessAsync(user, buildingId)
     if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
 
     const status = searchParams.get('status') || undefined
@@ -41,7 +41,7 @@ export async function POST(request: Request) {
     if (!title || !building_id) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
-    const access = assertBuildingAccess(user, building_id)
+    const access = await assertBuildingAccessAsync(user, building_id)
     if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
 
     const survey = await createSurvey({

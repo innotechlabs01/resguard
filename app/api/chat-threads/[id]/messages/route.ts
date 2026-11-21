@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireAuth, isAuthResponse } from '@/lib/auth/requireAuth'
-import { assertResourceBuilding } from '@/lib/auth/assertBuildingAccess'
+import { assertResourceBuildingAsync } from '@/lib/auth/assertBuildingAccess'
 import { getThreadById, getMessages, sendMessage, markAsRead } from '@/lib/db/queries/chat-threads'
 import { logger } from '@/lib/logger'
 
@@ -18,7 +18,7 @@ async function getThreadWithAccess(
   if (!thread) {
     return { thread: null, response: NextResponse.json({ error: 'Thread not found' }, { status: 404 }) }
   }
-  const access = assertResourceBuilding(user as never, thread.building_id)
+  const access = await assertResourceBuildingAsync(user as never, thread.building_id)
   if (!access.ok) {
     return { thread: null, response: NextResponse.json({ error: access.error }, { status: access.status }) }
   }

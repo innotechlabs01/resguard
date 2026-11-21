@@ -98,6 +98,17 @@ export function ReportsPanel() {
     year: 'numeric',
   })
 
+  const mapShiftReport = (r: any): ShiftReport => ({
+    id: r.id,
+    date: r.created_at ? new Date(r.created_at).toLocaleDateString('es-CO') : (r.date ?? today),
+    shiftStart: r.shift_start ?? r.shiftStart ?? '',
+    shiftEnd: r.shift_end ?? r.shiftEnd ?? '',
+    guard: r.guard_name ?? r.guard ?? 'Vigilante',
+    incidents: Number(r.incidents ?? 0),
+    status: 'enviado',
+    text: r.notes ?? r.text ?? '',
+  })
+
   // Determine current shift based on time
   const hour = new Date().getHours()
   const currentShift =
@@ -110,7 +121,7 @@ export function ReportsPanel() {
       const res = await fetch(`/api/shift-reports?buildingId=${user.buildingId}`)
       if (res.ok) {
         const data = await res.json()
-        setReports(data.reports)
+        setReports((data.reports || []).map(mapShiftReport))
       }
     }
     fetchReports()
@@ -137,12 +148,11 @@ export function ReportsPanel() {
     })
 
     // Refetch reports after successful submit
-    const { user: fresherUser } = useAuth()
-    if (fresherUser?.buildingId) {
-      const res = await fetch(`/api/shift-reports?buildingId=${fresherUser.buildingId}`)
+    if (user?.buildingId) {
+      const res = await fetch(`/api/shift-reports?buildingId=${user.buildingId}`)
       if (res.ok) {
         const data = await res.json()
-        setReports(data.reports)
+        setReports((data.reports || []).map(mapShiftReport))
       }
     }
 

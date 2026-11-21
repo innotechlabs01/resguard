@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth/requireAuth'
-import { assertBuildingAccess } from '@/lib/auth/assertBuildingAccess'
+import { assertBuildingAccessAsync } from '@/lib/auth/assertBuildingAccess'
 import { getCommunications, createCommunication, updateCommunication } from '@/lib/db/queries/communications'
 import { getResidents } from '@/lib/db/queries/residents'
 import { logger } from '@/lib/logger'
@@ -20,7 +20,7 @@ export async function GET(request: Request) {
     if (!buildingId) {
       return NextResponse.json({ error: 'buildingId required' }, { status: 400 })
     }
-    const access = assertBuildingAccess(user, buildingId)
+    const access = await assertBuildingAccessAsync(user, buildingId)
     if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
 
     const communications = await getCommunications(buildingId)
@@ -31,11 +31,11 @@ export async function GET(request: Request) {
   }
 }
 
-async function resolveAuthorId(buildingId: string, userId: string, userName: string, userEmail?: string): Promise<string> {
+async function resolveAuthorId(buildingId: string, userId: string, userName: string, userEmail?: string): Promise<string | null> {
   try {
     const residents = await getResidents(buildingId)
     if (residents.length === 0) {
-      throw new Error('No residents found in building')
+      return null
     }
     // Try to find resident by user_id (if column exists and is populated)
     if (userId) {
@@ -48,13 +48,14 @@ async function resolveAuthorId(buildingId: string, userId: string, userName: str
       if (byEmail) return byEmail.id
     }
     // Try to find resident by name (fallback)
-    const byName = residents.find(r => r.name.toLowerCase() === userName.toLowerCase())
-    if (byName) return byName.id
+    if (userName) {
+      const byName = residents.find(r => r.name.toLowerCase() === userName.toLowerCase())
+      if (byName) return byName.id
+    }
     // Fallback to first resident
     return residents[0].id
   } catch {
-    // If anything fails, we'll let the DB constraint catch it
-    throw new Error('Could not resolve author resident')
+    return null
   }
 }
 
@@ -70,15 +71,15 @@ export async function POST(request: Request) {
     if (!buildingId) {
       return NextResponse.json({ error: 'building_id required' }, { status: 400 })
     }
-    const access = assertBuildingAccess(user, buildingId)
+    const access = await assertBuildingAccessAsync(user, buildingId)
     if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
 
-    const authorId = await resolveAuthorId(buildingId, body.author_id, body.author_name, body.author_email)
+    const authorName = body.author_name || user.name || user.email || 'Administración'
 
     const commData = {
       building_id: buildingId,
-      author_id: authorId,
-      author_name: body.author_name,
+      author_id: user.id,
+      author_name: authorName,
       title: body.title,
       message: body.message,
       type: body.type || 'announcement',
@@ -89,7 +90,21 @@ export async function POST(request: Request) {
       read_by: body.read_by || [],
     }
 
-    await createCommunication(commData)
+    try {
+      await createCommunication(commData)
+    } catch (insertErr) {
+      const fallbackAuthorId = await resolveAuthorId(
+        buildingId,
+        user.id,
+        authorName,
+        body.author_email || user.email
+      )
+      if (fallbackAuthorId && fallbackAuthorId !== user.id) {
+        await createCommunication({ ...commData, author_id: fallbackAuthorId })
+      } else {
+        throw insertErr
+      }
+    }
     return NextResponse.json({ success: true, message: 'Communication created successfully' }, { status: 201 })
   } catch (error) {
     log.error({ error }, 'Error creating communication')

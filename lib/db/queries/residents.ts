@@ -11,12 +11,12 @@ export interface DbResident {
   email: string | null
   parking_spots: string | null
   balance: number
-  is_tenant: number
+  is_tenant: number | boolean
   owner_id: string | null
   owner_name: string | null
   lease_end: string | null
-  has_rental_listing: number
-  has_marketplace_listing: number
+  has_rental_listing: number | boolean
+  has_marketplace_listing: number | boolean
 }
 
 export async function getResidentById(id: string): Promise<DbResident | null> {
@@ -58,16 +58,16 @@ export async function createResident(resident: {
       resident.user_id || null, 
       resident.name, 
       resident.unit, 
-      resident.phone || null, 
+      resident.phone || '', 
       resident.email || null, 
       resident.parking_spots || null, 
       resident.balance || 0, 
-      resident.is_tenant ? 1 : 0, 
+      Boolean(resident.is_tenant), 
       resident.owner_id || null, 
       resident.owner_name || null, 
       resident.lease_end || null, 
-      resident.has_rental_listing ? 1 : 0, 
-      resident.has_marketplace_listing ? 1 : 0,
+      Boolean(resident.has_rental_listing), 
+      Boolean(resident.has_marketplace_listing),
     ]
   )
 }

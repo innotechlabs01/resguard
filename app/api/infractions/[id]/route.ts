@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireAuth, isAuthResponse } from '@/lib/auth/requireAuth'
-import { assertResourceBuilding } from '@/lib/auth/assertBuildingAccess'
+import { assertResourceBuildingAsync } from '@/lib/auth/assertBuildingAccess'
 import { getInfractionById, getInfractionEvidences, insertInfractionEvidence, notifyInfractor, submitReply, decideInfraction } from '@/lib/db/queries/infractions'
 import { getTicketEvents } from '@/lib/db/queries/ticket-events'
 import { logger } from '@/lib/logger'
@@ -23,7 +23,7 @@ export async function GET(
     }
 
     // Building isolation: infraction must belong to caller's building
-    const access = assertResourceBuilding(user, infraction.building_id)
+    const access = await assertResourceBuildingAsync(user, infraction.building_id)
     if (!access.ok) {
       return NextResponse.json({ error: access.error }, { status: access.status })
     }
@@ -55,7 +55,7 @@ export async function PATCH(
     }
 
     // Building isolation: infraction must belong to caller's building
-    const access = assertResourceBuilding(user, infraction.building_id)
+    const access = await assertResourceBuildingAsync(user, infraction.building_id)
     if (!access.ok) {
       return NextResponse.json({ error: access.error }, { status: access.status })
     }

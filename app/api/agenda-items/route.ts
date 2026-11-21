@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireAuth, isAuthResponse } from '@/lib/auth/requireAuth'
-import { assertBuildingAccess } from '@/lib/auth/assertBuildingAccess'
+import { assertBuildingAccessAsync } from '@/lib/auth/assertBuildingAccess'
 import { getAgendaItems, createAgendaItem, getVotesForItem, getAssemblyById, type DbAgendaItem } from '@/lib/db/queries/assemblies'
 import { logger } from '@/lib/logger'
 
@@ -24,7 +24,7 @@ export async function GET(request: Request) {
     if (!assembly) {
       return NextResponse.json({ error: 'Assembly not found' }, { status: 404 })
     }
-    const access = assertBuildingAccess(user, assembly.building_id)
+    const access = await assertBuildingAccessAsync(user, assembly.building_id)
     if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
 
     const items = await getAgendaItems(assemblyId)
@@ -84,7 +84,7 @@ export async function POST(request: Request) {
     if (!assembly) {
       return NextResponse.json({ error: 'Assembly not found' }, { status: 404 })
     }
-    const access = assertBuildingAccess(user, assembly.building_id)
+    const access = await assertBuildingAccessAsync(user, assembly.building_id)
     if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
 
     const item = await createAgendaItem({

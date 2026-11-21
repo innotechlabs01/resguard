@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireAuth, isAuthResponse } from '@/lib/auth/requireAuth'
-import { assertBuildingAccess } from '@/lib/auth/assertBuildingAccess'
+import { assertBuildingAccessAsync } from '@/lib/auth/assertBuildingAccess'
 import { getReadings, createReading } from '@/lib/db/queries/utility'
 import { logger } from '@/lib/logger'
 
@@ -17,7 +17,7 @@ export async function GET(request: Request) {
     if (!buildingId) {
       return NextResponse.json({ error: 'buildingId required' }, { status: 400 })
     }
-    const access = assertBuildingAccess(user, buildingId)
+    const access = await assertBuildingAccessAsync(user, buildingId)
     if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
 
     const serviceType = searchParams.get('serviceType') || undefined
@@ -43,7 +43,7 @@ export async function POST(request: Request) {
     if (!building_id || !unit_number || !service_type || !reading_date || previous_reading == null || current_reading == null || rate_per_unit == null) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
-    const access = assertBuildingAccess(user, building_id)
+    const access = await assertBuildingAccessAsync(user, building_id)
     if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
 
     if (!['water', 'gas', 'electricity'].includes(service_type)) {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { toast } from 'sonner'
 import { EmptyState } from '@/components/ui/empty-state'
 import {
@@ -107,13 +107,15 @@ function mapDbCommunication(c: RawCommunication): Communication {
 
 export function ComunicacionesPanel({ 
   communications: propCommunications, 
-  onRefresh 
+  onRefresh,
+  buildingId: propBuildingId,
 }: { 
   communications?: RawCommunication[] 
-  onRefresh?: () => void 
+  onRefresh?: () => void
+  buildingId?: string
 } = {}) {
   const { user } = useAuth()
-  const buildingId = user?.buildingId
+  const buildingId = propBuildingId || user?.buildingId
   const [communications, setCommunications] = useState<Communication[]>(() =>
     (propCommunications || []).map(mapDbCommunication)
   )
@@ -139,6 +141,12 @@ export function ComunicacionesPanel({
     const matchType = typeFilter === 'all' || c.type === typeFilter
     return matchSearch && matchType
   })
+
+  useEffect(() => {
+    if (propCommunications) {
+      setCommunications(propCommunications.map(mapDbCommunication))
+    }
+  }, [propCommunications])
 
   const refreshCommunications = useCallback(async () => {
     if (!buildingId) return

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth, isAuthResponse } from '@/lib/auth/requireAuth';
-import { assertBuildingAccess } from '@/lib/auth/assertBuildingAccess';
+import { assertBuildingAccessAsync } from '@/lib/auth/assertBuildingAccess';
 import { getSupabaseAdmin } from '@/lib/db/supabase';
 import { z } from 'zod';
 
@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) return NextResponse.json({ error: parsed.error }, { status: 400 });
 
     const { building_id, category_id, title, description } = parsed.data
-    const access = assertBuildingAccess(user, building_id)
+    const access = await assertBuildingAccessAsync(user, building_id)
     if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
 
     const supabase = getSupabaseAdmin()

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireAuth, isAuthResponse } from '@/lib/auth/requireAuth'
-import { assertResourceBuilding } from '@/lib/auth/assertBuildingAccess'
+import { assertResourceBuildingAsync } from '@/lib/auth/assertBuildingAccess'
 import { getSurveyById } from '@/lib/db/queries/surveys'
 import { getSurveyResults } from '@/lib/db/queries/surveys'
 import { logger } from '@/lib/logger'
@@ -21,7 +21,7 @@ export async function GET(
       return NextResponse.json({ error: 'Survey not found' }, { status: 404 })
     }
 
-    const access = assertResourceBuilding(authResult.user, survey.building_id)
+    const access = await assertResourceBuildingAsync(authResult.user, survey.building_id)
     if (!access.ok) {
       return NextResponse.json({ error: access.error }, { status: access.status })
     }

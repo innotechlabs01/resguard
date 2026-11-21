@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { requireAuth, isAuthResponse } from '@/lib/auth/requireAuth'
-import { assertBuildingAccess } from '@/lib/auth/assertBuildingAccess'
+import { assertBuildingAccessAsync } from '@/lib/auth/assertBuildingAccess'
 import { validateBody } from '@/lib/validation'
 import { logger } from '@/lib/logger'
 import { createSubscriptionCheckout, BillingError } from '@/lib/billing/subscriptions'
@@ -26,7 +26,7 @@ export async function POST(request: Request) {
 
     const { planCode, buildingId, payerEmail } = validation.data
 
-    const access = assertBuildingAccess(user, buildingId)
+    const access = await assertBuildingAccessAsync(user, buildingId)
     if (!access.ok) {
       return NextResponse.json({ error: access.error }, { status: access.status })
     }

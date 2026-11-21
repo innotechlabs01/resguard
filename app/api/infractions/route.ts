@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireAuth, isAuthResponse } from '@/lib/auth/requireAuth'
-import { assertBuildingAccess } from '@/lib/auth/assertBuildingAccess'
+import { assertBuildingAccessAsync } from '@/lib/auth/assertBuildingAccess'
 import { getInfractions, reportInfraction } from '@/lib/db/queries/infractions'
 import { logger } from '@/lib/logger'
 
@@ -17,7 +17,7 @@ export async function GET(request: Request) {
     if (!buildingId) {
       return NextResponse.json({ error: 'buildingId required' }, { status: 400 })
     }
-    const access = assertBuildingAccess(user, buildingId)
+    const access = await assertBuildingAccessAsync(user, buildingId)
     if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
 
     const filters: { status?: string; infraction_type?: string } = {}
@@ -64,7 +64,7 @@ export async function POST(request: Request) {
     if (!infraction_type || !description || !target_unit || !building_id) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
-    const access = assertBuildingAccess(user, building_id)
+    const access = await assertBuildingAccessAsync(user, building_id)
     if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
 
     const infraction = await reportInfraction({

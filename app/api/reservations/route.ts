@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireAuth, isAuthResponse } from '@/lib/auth/requireAuth'
-import { assertBuildingAccess } from '@/lib/auth/assertBuildingAccess'
+import { assertBuildingAccessAsync } from '@/lib/auth/assertBuildingAccess'
 import { getSupabaseAdmin } from '@/lib/db/supabase'
 import { z } from 'zod'
 import { logger } from '@/lib/logger'
@@ -37,7 +37,7 @@ export async function GET(request: Request) {
     if (!buildingId) {
       return NextResponse.json({ error: 'buildingId required' }, { status: 400 })
     }
-    const access = assertBuildingAccess(user, buildingId)
+    const access = await assertBuildingAccessAsync(user, buildingId)
     if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
 
     const admin = getSupabaseAdmin()
@@ -68,9 +68,79 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
     }
 
+    let areas = areasResult.data || []
+
+    // Auto-seed default common areas if building has 0 common_areas rows
+    if (areas.length === 0) {
+      const { count } = await admin
+        .from('common_areas')
+        .select('id', { count: 'exact', head: true })
+        .eq('building_id', buildingId)
+
+      if (!count || count === 0) {
+        const defaultAreas = [
+          {
+            building_id: buildingId,
+            name: 'Salón Social',
+            description: 'Salón para eventos y reuniones sociales',
+            max_capacity: 50,
+            max_duration_hours: 8,
+            advance_notice_hours: 24,
+            is_active: true,
+          },
+          {
+            building_id: buildingId,
+            name: 'Zona BBQ',
+            description: 'Terraza y asador para eventos familiares',
+            max_capacity: 20,
+            max_duration_hours: 6,
+            advance_notice_hours: 24,
+            is_active: true,
+          },
+          {
+            building_id: buildingId,
+            name: 'Gimnasio',
+            description: 'Zona de entrenamiento y cardio',
+            max_capacity: 10,
+            max_duration_hours: 2,
+            advance_notice_hours: 1,
+            is_active: true,
+          },
+          {
+            building_id: buildingId,
+            name: 'Piscina',
+            description: 'Piscina climatizada y zona húmeda',
+            max_capacity: 15,
+            max_duration_hours: 4,
+            advance_notice_hours: 2,
+            is_active: true,
+          },
+        ]
+
+        const { data: seededAreas, error: seedError } = await admin
+          .from('common_areas')
+          .insert(defaultAreas)
+          .select('*')
+
+        if (!seedError && seededAreas) {
+          areas = seededAreas
+        } else if (seedError) {
+          log.warn({ error: seedError, buildingId }, 'Could not auto-seed default common areas')
+        }
+      }
+    }
+
+    const areaNameById = new Map<string, string>(
+      areas.map((a: { id: string; name: string }) => [a.id, a.name])
+    )
+    const reservations = (reservationsResult.data || []).map((r: Record<string, unknown>) => ({
+      ...r,
+      area_name: (r.area_name as string) || areaNameById.get(r.area_id as string) || '',
+    }))
+
     return NextResponse.json({
-      areas: areasResult.data || [],
-      reservations: reservationsResult.data || [],
+      areas,
+      reservations,
     })
   } catch (error) {
     log.error({ error }, 'Error in GET /api/reservations')
@@ -96,7 +166,7 @@ export async function POST(request: Request) {
       )
     }
 
-    const access = assertBuildingAccess(user, parsed.data.building_id)
+    const access = await assertBuildingAccessAsync(user, parsed.data.building_id)
     if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
 
     // Validate time range

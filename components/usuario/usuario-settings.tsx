@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import { User, Phone, Mail, Lock, Bell, Save, Loader2, CheckCircle2 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -16,8 +16,19 @@ export function UsuarioSettings() {
   const [profile, setProfile] = useState({
     name: user?.name || '',
     email: user?.email || '',
-    phone: '+57 300 123 4567',
+    phone: user?.phone || '',
   })
+
+  useEffect(() => {
+    if (user) {
+      setProfile({
+        name: user.name || '',
+        email: user.email || '',
+        phone: user.phone || '',
+      })
+    }
+  }, [user?.name, user?.email, user?.phone])
+
   const [notifications, setNotifications] = useState({
     email: true,
     push: true,
@@ -37,7 +48,7 @@ export function UsuarioSettings() {
       const res = await fetch('/api/user/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: profile.name }),
+        body: JSON.stringify({ name: profile.name, phone: profile.phone }),
       })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
@@ -46,9 +57,9 @@ export function UsuarioSettings() {
       }
       setSaved(true)
       toast.success('Perfil actualizado', { description: 'Tus datos se guardaron correctamente.' })
-      // Update auth context so header shows the new name
+      // Update auth context so header shows the new name and phone
       if (user) {
-        hydrateUser({ ...user, name: profile.name })
+        hydrateUser({ ...user, name: profile.name, phone: profile.phone })
       }
       setTimeout(() => setSaved(false), 3000)
     } catch {
@@ -62,7 +73,9 @@ export function UsuarioSettings() {
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-foreground">Mi Cuenta</h2>
-        <p className="text-muted-foreground">Administra tu perfil y preferencias</p>
+        <p className="text-muted-foreground">
+          Administra tu perfil y preferencias ({user?.buildingName || 'Sin edificio'})
+        </p>
       </div>
 
       {/* Profile Card */}
@@ -75,7 +88,7 @@ export function UsuarioSettings() {
           <CardDescription>Actualiza tus datos de contacto</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-2">
               <Label htmlFor="name">Nombre Completo</Label>
               <Input
@@ -85,8 +98,12 @@ export function UsuarioSettings() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="unit">Apartamento</Label>
-              <Input id="unit" value="301" disabled className="bg-muted" />
+              <Label htmlFor="unit">Apartamento / Unidad</Label>
+              <Input id="unit" value={user?.unit || 'Sin unidad'} disabled className="bg-muted" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="building">Copropiedad</Label>
+              <Input id="building" value={user?.buildingName || 'Sin edificio'} disabled className="bg-muted" />
             </div>
           </div>
           <div className="grid gap-4 md:grid-cols-2">

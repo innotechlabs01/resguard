@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth/requireAuth'
-import { assertBuildingAccess } from '@/lib/auth/assertBuildingAccess'
+import { assertBuildingAccessAsync } from '@/lib/auth/assertBuildingAccess'
 import { getParkingAssignments, getParkingAssignmentById, createOrUpdateParkingAssignment, deleteParkingAssignment } from '@/lib/db/queries/parking-assignments'
 import { validateBody } from '@/lib/validation'
 import { z } from 'zod'
@@ -40,7 +40,7 @@ export async function GET(request: Request) {
     if (!buildingId) {
       return NextResponse.json({ error: 'buildingId required' }, { status: 400 })
     }
-    const access = assertBuildingAccess(user, buildingId)
+    const access = await assertBuildingAccessAsync(user, buildingId)
     if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
 
     const assignments = await getParkingAssignments(buildingId)
@@ -82,7 +82,7 @@ export async function PUT(request: Request) {
     if (!existing) {
       return NextResponse.json({ error: 'Parking assignment not found' }, { status: 404 })
     }
-    const access = assertBuildingAccess(user, existing.building_id)
+    const access = await assertBuildingAccessAsync(user, existing.building_id)
     if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
 
     // Upsert keyed by (building_id, spot_code) updates the existing row's assignment_type only.
@@ -114,7 +114,7 @@ export async function DELETE(request: Request) {
     if (!existing) {
       return NextResponse.json({ error: 'Parking assignment not found' }, { status: 404 })
     }
-    const access = assertBuildingAccess(user, existing.building_id)
+    const access = await assertBuildingAccessAsync(user, existing.building_id)
     if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
 
     await deleteParkingAssignment(id)

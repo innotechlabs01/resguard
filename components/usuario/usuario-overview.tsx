@@ -15,6 +15,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { useAuth } from '@/lib/auth-context'
 
 interface UsuarioOverviewProps {
   residentName: string
@@ -37,7 +38,10 @@ export function UsuarioOverview({
   onTabChange,
   communications: propCommunications,
 }: UsuarioOverviewProps) {
+  const { user } = useAuth()
+  const buildingName = user?.buildingName || 'Mi Copropiedad'
   const latestComms = (propCommunications || []).slice(0, 2)
+  const recentActivity = (propCommunications || []).slice(0, 3)
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('es-CO', {
       style: 'currency',
@@ -54,7 +58,7 @@ export function UsuarioOverview({
           Bienvenido, {residentName}
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Apartamento {unit} - Torres del Parque
+          Apartamento {unit} - {buildingName}
         </p>
       </div>
 
@@ -193,33 +197,32 @@ export function UsuarioOverview({
             <CardDescription>Ultimos movimientos en tu cuenta</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-start gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-success/10">
-                <CheckCircle className="h-4 w-4 text-success" />
+            {recentActivity.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-6 text-center text-muted-foreground">
+                <Clock className="mb-2 h-6 w-6 opacity-40" />
+                <p className="text-sm">Sin actividad reciente</p>
               </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-foreground">Pago de administracion</p>
-                <p className="text-xs text-muted-foreground">Hace 5 dias - {formatCurrency(450000)}</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
-                <Car className="h-4 w-4 text-primary" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-foreground">Visita registrada</p>
-                <p className="text-xs text-muted-foreground">Hace 2 horas - Juan Perez</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-warning/10">
-                <Clock className="h-4 w-4 text-warning" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-foreground">Reserva BBQ</p>
-                <p className="text-xs text-muted-foreground">Pendiente - Sabado 15 Feb</p>
-              </div>
-            </div>
+            ) : (
+              recentActivity.map((item) => {
+                const sentDate = item.sentAt ? new Date(item.sentAt) : new Date(item.sent_at ?? item.created_at ?? Date.now())
+                const dateLabel = !isNaN(sentDate.getTime())
+                  ? sentDate.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })
+                  : ''
+                return (
+                  <div key={item.id} className="flex items-start gap-3">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
+                      <Bell className="h-4 w-4 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{item.title}</p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {dateLabel ? `${dateLabel} - ` : ''}{item.authorName ?? item.author_name ?? 'Administración'}
+                      </p>
+                    </div>
+                  </div>
+                )
+              })
+            )}
           </CardContent>
         </Card>
       </div>
@@ -236,38 +239,47 @@ export function UsuarioOverview({
           </Button>
         </CardHeader>
         <CardContent className="space-y-3">
-          {latestComms.map((comm) => {
-            const urgentColors: Record<string, string> = {
-              urgent: 'border-destructive/30 bg-destructive/5',
-              high: 'border-warning/30 bg-warning/5',
-              normal: 'border-primary/30 bg-primary/5',
-              low: 'border-border bg-muted/20',
-            }
-            const iconColors: Record<string, string> = {
-              urgent: 'text-destructive',
-              high: 'text-warning',
-              normal: 'text-primary',
-              low: 'text-muted-foreground',
-            }
-            return (
-              <div
-                key={comm.id}
-                className={`flex items-start gap-4 rounded-lg border p-4 ${urgentColors[comm.priority]}`}
-              >
-                <AlertTriangle className={`mt-0.5 h-5 w-5 shrink-0 ${iconColors[comm.priority]}`} />
-                <div className="min-w-0">
-                  <h4 className="font-medium text-foreground">{comm.title}</h4>
-                  <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{comm.message}</p>
-                  <div className="mt-2 flex items-center gap-2">
-                    <Badge variant="outline" className="text-xs">{comm.authorName}</Badge>
-                    <span className="text-xs text-muted-foreground">
-                      {new Date(comm.sentAt).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })}
-                    </span>
+          {latestComms.length === 0 ? (
+            <p className="py-4 text-center text-sm text-muted-foreground">
+              No hay comunicaciones recientes.
+            </p>
+          ) : (
+            latestComms.map((comm) => {
+              const urgentColors: Record<string, string> = {
+                urgent: 'border-destructive/30 bg-destructive/5',
+                high: 'border-warning/30 bg-warning/5',
+                normal: 'border-primary/30 bg-primary/5',
+                low: 'border-border bg-muted/20',
+              }
+              const iconColors: Record<string, string> = {
+                urgent: 'text-destructive',
+                high: 'text-warning',
+                normal: 'text-primary',
+                low: 'text-muted-foreground',
+              }
+              const sentDate = comm.sentAt ? new Date(comm.sentAt) : new Date(comm.sent_at ?? comm.created_at ?? Date.now())
+              return (
+                <div
+                  key={comm.id}
+                  className={`flex items-start gap-4 rounded-lg border p-4 ${urgentColors[comm.priority] || urgentColors.normal}`}
+                >
+                  <AlertTriangle className={`mt-0.5 h-5 w-5 shrink-0 ${iconColors[comm.priority] || iconColors.normal}`} />
+                  <div className="min-w-0">
+                    <h4 className="font-medium text-foreground">{comm.title}</h4>
+                    <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{comm.message ?? comm.content}</p>
+                    <div className="mt-2 flex items-center gap-2">
+                      <Badge variant="outline" className="text-xs">{comm.authorName ?? comm.author_name ?? 'Administración'}</Badge>
+                      {!isNaN(sentDate.getTime()) && (
+                        <span className="text-xs text-muted-foreground">
+                          {sentDate.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            )
-          })}
+              )
+            })
+          )}
         </CardContent>
       </Card>
     </div>

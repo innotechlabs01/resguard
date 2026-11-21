@@ -107,10 +107,19 @@ function getAvailableSpots(assignments: ParkingAssignment[], maxSpots = 50): str
   return available
 }
 
-export function ParkingManagementPanel({ residents: propResidents, parkingSpots: propParkingSpots }: { residents?: Resident[]; parkingSpots?: ParkingSpot[] } = {}) {
+export function ParkingManagementPanel({
+  residents: propResidents,
+  parkingSpots: propParkingSpots,
+  buildingId: propBuildingId,
+}: {
+  residents?: Resident[]
+  parkingSpots?: ParkingSpot[]
+  buildingId?: string
+} = {}) {
   const { user } = useAuth()
-  const [residents] = useState<Resident[]>(propResidents || [])
-  const [parkingSpots] = useState<ParkingSpot[]>(propParkingSpots || [])
+  const buildingId = propBuildingId || user?.buildingId
+  const residents = propResidents || []
+  const parkingSpots = propParkingSpots || []
   const [assignments, setAssignments] = useState<ParkingAssignment[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -125,8 +134,8 @@ export function ParkingManagementPanel({ residents: propResidents, parkingSpots:
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
   useEffect(() => {
-    if (user?.buildingId) {
-      fetch(`/api/parking-assignments?buildingId=${user.buildingId}`)
+    if (buildingId) {
+      fetch(`/api/parking-assignments?buildingId=${buildingId}`)
         .then(r => r.json())
         .then(data => {
           const mapped = (data.assignments || []).map(mapAssignment)
@@ -137,12 +146,12 @@ export function ParkingManagementPanel({ residents: propResidents, parkingSpots:
     } else {
       setLoading(false)
     }
-  }, [user?.buildingId])
+  }, [buildingId])
 
   const refreshAssignments = async () => {
-    if (!user?.buildingId) return
+    if (!buildingId) return
     try {
-      const res = await fetch(`/api/parking-assignments?buildingId=${user.buildingId}`)
+      const res = await fetch(`/api/parking-assignments?buildingId=${buildingId}`)
       const data = await res.json()
       setAssignments((data.assignments || []).map(mapAssignment))
     } catch (e) {
@@ -151,7 +160,7 @@ export function ParkingManagementPanel({ residents: propResidents, parkingSpots:
   }
 
   const handleAssign = async () => {
-    if (!selectedSpot || !selectedResident || !user?.buildingId) return
+    if (!selectedSpot || !selectedResident || !buildingId) return
 
     const resident = residents.find(r => r.id === selectedResident)
     if (!resident) return
@@ -162,7 +171,7 @@ export function ParkingManagementPanel({ residents: propResidents, parkingSpots:
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          building_id: user.buildingId,
+          building_id: buildingId,
           spot_code: selectedSpot,
           assignment_type: 'owner',
           owner_name: resident.name,
@@ -189,7 +198,7 @@ export function ParkingManagementPanel({ residents: propResidents, parkingSpots:
     setDeletingId(id)
     try {
       const assignment = assignments.find(a => a.id === id)
-      if (!assignment || !user?.buildingId) return
+      if (!assignment || !buildingId) return
 
       const res = await fetch('/api/parking-assignments', {
         method: 'PUT',
@@ -209,7 +218,7 @@ export function ParkingManagementPanel({ residents: propResidents, parkingSpots:
 
   const handleReactivate = async (id: string) => {
     const assignment = assignments.find(a => a.id === id)
-    if (!assignment || !user?.buildingId) return
+    if (!assignment || !buildingId) return
 
     // Need to know if it was owner or rented - for now default to owner
     setDeletingId(id)

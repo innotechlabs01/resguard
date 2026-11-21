@@ -36,7 +36,7 @@ export async function createMarketplaceProduct(product: Omit<DbMarketplaceProduc
   const id = product.id ?? crypto.randomUUID()
   await executeInsert(
     'INSERT INTO marketplace_products (id, seller_id, seller_name, seller_unit, building_id, title, description, price, category, available, contact_phone, whatsapp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-    [id, product.seller_id, product.seller_name, product.seller_unit, product.building_id, product.title, product.description, product.price, product.category, product.available ? 1 : 0, product.contact_phone, product.whatsapp] as InValue[]
+    [id, product.seller_id, product.seller_name, product.seller_unit, product.building_id, product.title, product.description, product.price, product.category, Boolean(product.available), product.contact_phone, product.whatsapp] as InValue[]
   )
 }
 
@@ -45,7 +45,7 @@ export async function updateMarketplaceProduct(id: string, updates: Partial<DbMa
   const values: InValue[] = []
   if (updates.title !== undefined) { fields.push('title = ?'); values.push(updates.title) }
   if (updates.price !== undefined) { fields.push('price = ?'); values.push(updates.price) }
-  if (updates.available !== undefined) { fields.push('available = ?'); values.push(updates.available ? 1 : 0) }
+  if (updates.available !== undefined) { fields.push('available = ?'); values.push(Boolean(updates.available)) }
   if (updates.description !== undefined) { fields.push('description = ?'); values.push(updates.description) }
   if (fields.length === 0) return
   values.push(id)

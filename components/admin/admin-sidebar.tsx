@@ -23,6 +23,7 @@ import {
   UserPlus,
   Bot,
   Inbox,
+  ShieldCheck,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -54,6 +55,7 @@ const navSections: { label: string; items: NavItem[] }[] = [
     label: 'Comunidad',
     items: [
       { id: 'residents', icon: Users, label: 'Residentes' },
+      { id: 'team', icon: ShieldCheck, label: 'Equipo y Vigilantes' },
       { id: 'comunicaciones', icon: Send, label: 'Comunicaciones' },
       { id: 'chat', icon: MessageSquare, label: 'Mensajes' },
       { id: 'assemblies', icon: CalendarDays, label: 'Asambleas' },

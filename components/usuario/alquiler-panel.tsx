@@ -20,6 +20,8 @@ import {
   AlertTriangle,
   Eye,
   Edit,
+  Trash2,
+  UserPlus,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -58,23 +60,63 @@ const vehicleTypeLabel: Record<TenantVehicle['type'], string> = {
   bicycle: 'Bicicleta',
 }
 
-interface AlquilerPanelProps {
-  tenants?: Tenant[]
-  listings?: RentalListing[]
+function normalizeTenant(raw: Tenant | Record<string, unknown>): Tenant {
+  const t = raw as Record<string, unknown>
+  const leaseStartVal = t.leaseStart ?? t.lease_start
+  const leaseEndVal = t.leaseEnd ?? t.lease_end
+  return {
+    id: String(t.id ?? ''),
+    name: String(t.name ?? ''),
+    documentId: String(t.documentId ?? t.document_id ?? ''),
+    phone: String(t.phone ?? ''),
+    email: String(t.email ?? ''),
+    unit: String(t.unit ?? ''),
+    buildingId: String(t.buildingId ?? t.building_id ?? ''),
+    ownerId: String(t.ownerId ?? t.owner_id ?? ''),
+    ownerName: String(t.ownerName ?? t.owner_name ?? ''),
+    ownerUnit: String(t.ownerUnit ?? t.owner_unit ?? ''),
+    leaseStart: leaseStartVal instanceof Date ? leaseStartVal : new Date(String(leaseStartVal ?? Date.now())),
+    leaseEnd: leaseEndVal instanceof Date ? leaseEndVal : new Date(String(leaseEndVal ?? Date.now())),
+    monthlyRent: Number(t.monthlyRent ?? t.monthly_rent ?? 0),
+    depositPaid: Number(t.depositPaid ?? t.deposit_paid ?? 0),
+    status: (t.status as Tenant['status']) || 'active',
+    vehicles: Array.isArray(t.vehicles) ? (t.vehicles as TenantVehicle[]) : [],
+  }
 }
 
-export function AlquilerPanel({ tenants: propTenants, listings: propListings }: AlquilerPanelProps = {}) {
+interface AlquilerPanelProps {
+  tenants?: (Tenant | Record<string, unknown>)[]
+  listings?: RentalListing[]
+  onTenantsChange?: (tenants: Tenant[]) => void
+}
+
+export function AlquilerPanel({ tenants: propTenants, listings: propListings, onTenantsChange }: AlquilerPanelProps = {}) {
   const { user } = useAuth()
   const myId = user?.id ?? ''
 
-  const [tenants, setTenants] = useState<Tenant[]>(
-    (propTenants || []).filter((t) => t.ownerId === myId)
+  const [tenants, setTenants] = useState<Tenant[]>(() =>
+    (propTenants || []).map(normalizeTenant).filter((t) => !myId || t.ownerId === myId)
   )
   const [listings, setListings] = useState<RentalListing[]>(
     (propListings || []).filter((l) => l.ownerId === myId)
   )
   const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null)
   const [showTenantDetail, setShowTenantDetail] = useState(false)
+  const [showAddTenant, setShowAddTenant] = useState(false)
+  const [savingTenant, setSavingTenant] = useState(false)
+  const [deletingTenantId, setDeletingTenantId] = useState<string | null>(null)
+  const [tenantError, setTenantError] = useState<string | null>(null)
+  const [tenantForm, setTenantForm] = useState({
+    name: '',
+    document_id: '',
+    email: '',
+    phone: '',
+    unit: '',
+    monthly_rent: '',
+    lease_start: '',
+    lease_end: '',
+    send_invite: true,
+  })
   const [showAddListing, setShowAddListing] = useState(false)
   const [loading, setLoading] = useState(!propListings)
   const [saving, setSaving] = useState(false)
@@ -128,6 +170,113 @@ export function AlquilerPanel({ tenants: propTenants, listings: propListings }: 
       setLoading(false)
     }
   }, [propListings, user?.buildingId, myId])
+
+  useEffect(() => {
+    if (propTenants) {
+      setTenants(propTenants.map(normalizeTenant).filter((t) => !myId || t.ownerId === myId))
+    }
+  }, [propTenants, myId])
+
+  const fetchTenants = useCallback(async () => {
+    if (!user?.buildingId) return
+    try {
+      const res = await fetch(`/api/tenants?buildingId=${encodeURIComponent(user.buildingId)}`)
+      const data = await res.json()
+      if (res.ok && Array.isArray(data.tenants)) {
+        const normalized = data.tenants
+          .map((t: Record<string, unknown>) => normalizeTenant(t))
+          .filter((t: Tenant) => !myId || t.ownerId === myId)
+        setTenants(normalized)
+        onTenantsChange?.(normalized)
+      }
+    } catch {
+      // Keep existing list on transient error
+    }
+  }, [user?.buildingId, myId, onTenantsChange])
+
+  const handleAddTenant = async () => {
+    if (!user?.buildingId) return
+    if (
+      !tenantForm.name.trim() ||
+      !tenantForm.document_id.trim() ||
+      !tenantForm.email.trim() ||
+      !tenantForm.phone.trim() ||
+      !tenantForm.unit.trim() ||
+      !tenantForm.monthly_rent.trim() ||
+      !tenantForm.lease_start ||
+      !tenantForm.lease_end
+    ) {
+      setTenantError('Por favor completa todos los campos obligatorios.')
+      return
+    }
+
+    setSavingTenant(true)
+    setTenantError(null)
+    try {
+      const res = await fetch('/api/tenants', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          building_id: user.buildingId,
+          name: tenantForm.name.trim(),
+          document_id: tenantForm.document_id.trim(),
+          email: tenantForm.email.trim(),
+          phone: tenantForm.phone.trim(),
+          unit: tenantForm.unit.trim(),
+          monthly_rent: parseInt(tenantForm.monthly_rent.replace(/\D/g, ''), 10) || 0,
+          lease_start: tenantForm.lease_start,
+          lease_end: tenantForm.lease_end,
+          send_invite: tenantForm.send_invite,
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        const msg = data.error || 'No se pudo registrar el inquilino.'
+        setTenantError(msg)
+        toast.error(msg)
+        return
+      }
+      toast.success(data.message || 'Inquilino registrado exitosamente')
+      setShowAddTenant(false)
+      setTenantForm({
+        name: '',
+        document_id: '',
+        email: '',
+        phone: '',
+        unit: '',
+        monthly_rent: '',
+        lease_start: '',
+        lease_end: '',
+        send_invite: true,
+      })
+      await fetchTenants()
+    } catch {
+      setTenantError('Error de conexión. Intenta de nuevo.')
+      toast.error('Error de conexión. Intenta de nuevo.')
+    } finally {
+      setSavingTenant(false)
+    }
+  }
+
+  const handleDeleteTenant = async (tenant: Tenant) => {
+    setDeletingTenantId(tenant.id)
+    try {
+      const res = await fetch(`/api/tenants?id=${encodeURIComponent(tenant.id)}`, {
+        method: 'DELETE',
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        toast.error(data.error || 'No se pudo eliminar el inquilino.')
+        return
+      }
+      toast.success('Inquilino eliminado')
+      await fetchTenants()
+    } catch {
+      toast.error('Error de conexión al eliminar inquilino.')
+    } finally {
+      setDeletingTenantId(null)
+    }
+  }
 
   useEffect(() => {
     fetchListings()
@@ -247,11 +396,21 @@ export function AlquilerPanel({ tenants: propTenants, listings: propListings }: 
 
         {/* Inquilinos */}
         <TabsContent value="inquilinos" className="mt-4 space-y-3">
+          <div className="flex justify-end">
+            <Button onClick={() => { setTenantError(null); setShowAddTenant(true) }}>
+              <UserPlus className="mr-2 h-4 w-4" />
+              Registrar / Invitar Inquilino
+            </Button>
+          </div>
           {tenants.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-14 text-muted-foreground">
               <User className="h-10 w-10 mb-3 opacity-30" />
               <p>No tienes inquilinos registrados</p>
-              <p className="text-xs mt-1">Contacta al administrador para registrar un arrendatario</p>
+              <p className="text-xs mt-1 mb-4">Registra a tu arrendatario y envíale acceso a Web, PWA y App Móvil</p>
+              <Button variant="outline" onClick={() => { setTenantError(null); setShowAddTenant(true) }}>
+                <UserPlus className="mr-2 h-4 w-4" />
+                Registrar / Invitar Inquilino
+              </Button>
             </div>
           ) : (
             tenants.map((tenant) => {
@@ -351,6 +510,16 @@ export function AlquilerPanel({ tenants: propTenants, listings: propListings }: 
                       >
                         <Eye className="mr-1.5 h-3.5 w-3.5" />
                         Ver detalle
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-xs text-destructive hover:bg-destructive/10"
+                        disabled={deletingTenantId === tenant.id}
+                        onClick={() => handleDeleteTenant(tenant)}
+                      >
+                        <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                        {deletingTenantId === tenant.id ? 'Eliminando...' : 'Eliminar / Revocar'}
                       </Button>
                     </div>
                   </CardContent>
@@ -635,6 +804,119 @@ export function AlquilerPanel({ tenants: propTenants, listings: propListings }: 
             <Button onClick={handleAddListing} disabled={!listingForm.title || !listingForm.price}>
               <Plus className="mr-2 h-4 w-4" />
               Publicar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Register / Invite Tenant Dialog */}
+      <Dialog open={showAddTenant} onOpenChange={setShowAddTenant}>
+        <DialogContent className="bg-card border-border max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Registrar / Invitar Inquilino</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            {tenantError && (
+              <p className="text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded-md px-3 py-2">
+                {tenantError}
+              </p>
+            )}
+            <div className="space-y-1.5">
+              <Label className="text-foreground text-sm">Nombre completo *</Label>
+              <Input
+                placeholder="Ej: Laura Gómez"
+                value={tenantForm.name}
+                onChange={(e) => setTenantForm((p) => ({ ...p, name: e.target.value }))}
+                className="bg-input border-border text-foreground"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-foreground text-sm">Cédula / Documento *</Label>
+                <Input
+                  placeholder="1020304050"
+                  value={tenantForm.document_id}
+                  onChange={(e) => setTenantForm((p) => ({ ...p, document_id: e.target.value }))}
+                  className="bg-input border-border text-foreground"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-foreground text-sm">Unidad / Apto *</Label>
+                <Input
+                  placeholder="Apto 301"
+                  value={tenantForm.unit}
+                  onChange={(e) => setTenantForm((p) => ({ ...p, unit: e.target.value }))}
+                  className="bg-input border-border text-foreground"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-foreground text-sm">Correo electrónico *</Label>
+                <Input
+                  type="email"
+                  placeholder="inquilino@correo.com"
+                  value={tenantForm.email}
+                  onChange={(e) => setTenantForm((p) => ({ ...p, email: e.target.value }))}
+                  className="bg-input border-border text-foreground"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-foreground text-sm">Teléfono *</Label>
+                <Input
+                  placeholder="+57 300 000 0000"
+                  value={tenantForm.phone}
+                  onChange={(e) => setTenantForm((p) => ({ ...p, phone: e.target.value }))}
+                  className="bg-input border-border text-foreground"
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-foreground text-sm">Canon mensual (COP) *</Label>
+              <Input
+                placeholder="1800000"
+                value={tenantForm.monthly_rent}
+                onChange={(e) => setTenantForm((p) => ({ ...p, monthly_rent: e.target.value }))}
+                className="bg-input border-border text-foreground"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-foreground text-sm">Inicio contrato *</Label>
+                <Input
+                  type="date"
+                  value={tenantForm.lease_start}
+                  onChange={(e) => setTenantForm((p) => ({ ...p, lease_start: e.target.value }))}
+                  className="bg-input border-border text-foreground"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-foreground text-sm">Fin contrato *</Label>
+                <Input
+                  type="date"
+                  value={tenantForm.lease_end}
+                  onChange={(e) => setTenantForm((p) => ({ ...p, lease_end: e.target.value }))}
+                  className="bg-input border-border text-foreground"
+                />
+              </div>
+            </div>
+            <label className="flex items-center gap-2 pt-1 cursor-pointer text-xs text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={tenantForm.send_invite}
+                onChange={(e) => setTenantForm((p) => ({ ...p, send_invite: e.target.checked }))}
+                className="h-4 w-4 rounded border-border accent-primary"
+              />
+              Enviar invitación por correo para acceso a Web, PWA y App Móvil
+            </label>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddTenant(false)} disabled={savingTenant}>
+              Cancelar
+            </Button>
+            <Button onClick={handleAddTenant} disabled={savingTenant}>
+              <UserPlus className="mr-2 h-4 w-4" />
+              {savingTenant ? 'Registrando...' : 'Registrar e Invitar'}
             </Button>
           </DialogFooter>
         </DialogContent>

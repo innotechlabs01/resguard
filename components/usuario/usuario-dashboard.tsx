@@ -115,10 +115,109 @@ export function UsuarioDashboard() {
   const [marketplace, setMarketplace] = useState<any[]>([])
   const [tenants, setTenants] = useState<any[]>([])
   const [rentals, setRentals] = useState<any[]>([])
+  const [balance, setBalance] = useState(0)
+  const [activeReservations, setActiveReservations] = useState(0)
   const [loading, setLoading] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   useAnalyticsTrack(activeTab, 'usuario')
+
+  // Fetch data from API only when authenticated
+  useEffect(() => {
+    if (!isAuthenticated || !user) return
+
+    let cancelled = false
+    async function fetchData() {
+      try {
+        const buildingId = user?.buildingId
+        if (!buildingId) {
+          if (!cancelled) setLoading(false)
+          return
+        }
+
+        const unitParam = user?.unit ? `&unit=${encodeURIComponent(user.unit)}` : ''
+
+        const [commRes, marketRes, tenantsRes, rentalsRes, paymentsRes, reservationsRes] = await Promise.all([
+          fetch(`/api/communications?buildingId=${encodeURIComponent(buildingId)}`),
+          fetch(`/api/marketplace?buildingId=${encodeURIComponent(buildingId)}`),
+          fetch(`/api/tenants?buildingId=${encodeURIComponent(buildingId)}`),
+          fetch(`/api/rentals?buildingId=${encodeURIComponent(buildingId)}`),
+          fetch(`/api/payments?buildingId=${encodeURIComponent(buildingId)}${unitParam}`),
+          fetch(`/api/reservations?buildingId=${encodeURIComponent(buildingId)}`),
+        ])
+
+        if (!cancelled && commRes.ok) {
+          const data = await commRes.json()
+          const rawComms = Array.isArray(data) ? data : (data.communications || [])
+          const mappedComms = rawComms.map((c: any) => ({
+            id: c.id,
+            buildingId: c.building_id ?? c.buildingId ?? buildingId,
+            authorId: c.author_id ?? c.created_by ?? '',
+            title: c.title ?? '',
+            content: c.content ?? c.message ?? '',
+            message: c.message ?? c.content ?? '',
+            type: c.type ?? 'general',
+            priority: c.priority ?? 'normal',
+            sentAt: new Date(c.sent_at ?? c.created_at ?? Date.now()),
+            readBy: Array.isArray(c.read_by) ? c.read_by : Array.isArray(c.readBy) ? c.readBy : [],
+            authorName: c.author_name ?? c.authorName ?? 'Administración',
+            targetRoles: Array.isArray(c.target_roles) ? c.target_roles : [],
+            includesTenants: Boolean(c.includes_tenants ?? true),
+          }))
+          setNotifications(mappedComms)
+        }
+        if (!cancelled && marketRes.ok) {
+          const data = await marketRes.json()
+          setMarketplace(data.products || [])
+        }
+        if (!cancelled && tenantsRes.ok) {
+          const data = await tenantsRes.json()
+          setTenants(data.tenants || [])
+        }
+        if (!cancelled && rentalsRes.ok) {
+          const data = await rentalsRes.json()
+          setRentals(data.listings || [])
+        }
+        if (!cancelled && paymentsRes.ok) {
+          const data = await paymentsRes.json()
+          const rawPayments = Array.isArray(data.payments) ? data.payments : []
+          const pendingSum = rawPayments
+            .filter((p: any) => p.status !== 'succeeded')
+            .reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0)
+          setBalance(pendingSum > 0 ? -pendingSum : 0)
+        }
+        if (!cancelled && reservationsRes.ok) {
+          const data = await reservationsRes.json()
+          const rawReservations = Array.isArray(data.reservations) ? data.reservations : []
+          const myActive = rawReservations.filter(
+            (r: any) =>
+              (!r.user_id || r.user_id === user?.id) &&
+              (r.status === 'pending' || r.status === 'confirmed')
+          )
+          setActiveReservations(myActive.length)
+        }
+      } catch (error) {
+        console.error('Error fetching usuario data:', error)
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    fetchData()
+    return () => {
+      cancelled = true
+    }
+  }, [user, isAuthenticated])
+
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.key === 'F1') { e.preventDefault(); setActiveTab('parking') }
+    else if (e.key === 'F2') { e.preventDefault(); setActiveTab('payments') }
+    else if (e.key === 'F3') { e.preventDefault(); setActiveTab('notifications') }
+  }, [])
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [handleKeyDown])
 
   // Show loading state
   if (!isLoaded) {
@@ -145,7 +244,7 @@ export function UsuarioDashboard() {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground mb-4">
-              Este panel solo está disponible para usuarios autenticados con Clerk.
+              Este panel solo está disponible para usuarios autenticados.
             </p>
             <p className="text-sm text-muted-foreground">
               Contacta al administrador si necesitas acceso.
@@ -156,72 +255,18 @@ export function UsuarioDashboard() {
     )
   }
 
-  // Fetch data from API only when authenticated
-  useEffect(() => {
-    if (!isAuthenticated) return
-    
-    let cancelled = false
-    async function fetchData() {
-      try {
-        const buildingId = user?.buildingId
-        if (!buildingId) { if (!cancelled) setLoading(false); return }
-
-        const fetchOptions = { 
-          next: { revalidate: 30, tags: [`building-${buildingId}`, 'communications', 'marketplace', 'tenants'] }
-        }
-
-        const [commRes, marketRes, tenantsRes, rentalsRes] = await Promise.all([
-          fetch(`/api/communications?buildingId=${buildingId}`, fetchOptions),
-          fetch(`/api/marketplace?buildingId=${buildingId}`, fetchOptions),
-          fetch(`/api/tenants?buildingId=${buildingId}`, fetchOptions),
-          fetch(`/api/rentals?buildingId=${buildingId}`, fetchOptions),
-        ])
-
-        if (!cancelled && commRes.ok) {
-          const data = await commRes.json()
-          setNotifications(data.communications || [])
-        }
-        if (!cancelled && marketRes.ok) {
-          const data = await marketRes.json()
-          setMarketplace(data.products || [])
-        }
-        if (!cancelled && tenantsRes.ok) {
-          const data = await tenantsRes.json()
-          setTenants(data.tenants || [])
-        }
-        if (!cancelled && rentalsRes.ok) {
-          const data = await rentalsRes.json()
-          setRentals(data.listings || [])
-        }
-      } catch (error) {
-        console.error('Error fetching usuario data:', error)
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-    fetchData()
-    return () => { cancelled = true }
-  }, [user, isAuthenticated])
+  const unreadCount = notifications.filter(
+    (c) => !(Array.isArray(c.readBy) ? c.readBy : []).includes(user.id)
+  ).length
 
   const residentData = {
-    name: user?.name || 'Residente',
-    unit: user?.buildingId ? 'N/A' : '-',
-    balance: 0,
+    name: user.name || 'Residente',
+    unit: user.unit || 'Sin unidad',
+    balance,
     pendingRequests: 0,
-    activeReservations: 0,
-    notifications: notifications.length,
+    activeReservations,
+    notifications: unreadCount,
   }
-
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (e.key === 'F1') { e.preventDefault(); setActiveTab('parking') }
-    else if (e.key === 'F2') { e.preventDefault(); setActiveTab('payments') }
-    else if (e.key === 'F3') { e.preventDefault(); setActiveTab('notifications') }
-  }, [])
-
-  useEffect(() => {
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [handleKeyDown])
 
   if (loading) {
     return (
@@ -262,7 +307,7 @@ export function UsuarioDashboard() {
           </Suspense>
         )
       case 'alquiler':
-        return <AlquilerPanel tenants={tenants} listings={rentals} />
+        return <AlquilerPanel tenants={tenants} listings={rentals} onTenantsChange={setTenants} />
       case 'payments':
         return <UsuarioPayments />
       case 'reservations':

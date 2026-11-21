@@ -7,6 +7,9 @@ export interface DbUser {
   name: string
   role: string
   building_id: string | null
+  organization_id: string | null
+  unit: string | null
+  phone: string | null
 }
 
 function mapUser(row: Record<string, unknown>): DbUser {
@@ -16,6 +19,9 @@ function mapUser(row: Record<string, unknown>): DbUser {
     name: row.name as string,
     role: row.role as string,
     building_id: (row.building_id ?? null) as string | null,
+    organization_id: (row.organization_id ?? null) as string | null,
+    unit: (row.unit ?? null) as string | null,
+    phone: (row.phone ?? null) as string | null,
   }
 }
 
@@ -56,10 +62,22 @@ export async function createUser(user: {
   name: string
   role: string
   building_id?: string | null
+  organization_id?: string | null
+  unit?: string | null
+  phone?: string | null
 }): Promise<void> {
   await executeInsert(
-    'INSERT INTO users (id, email, name, role, building_id) VALUES (?, ?, ?, ?, ?)',
-    [user.id, user.email, user.name, user.role, user.building_id ?? null]
+    'INSERT INTO users (id, email, name, role, building_id, organization_id, unit, phone) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    [
+      user.id,
+      user.email,
+      user.name,
+      user.role,
+      user.building_id ?? null,
+      user.organization_id ?? null,
+      user.unit ?? null,
+      user.phone ?? null,
+    ]
   )
 }
 
@@ -70,9 +88,10 @@ export async function updateUser(id: string, updates: Partial<Record<string, unk
   if (updates.name !== undefined) { fields.push('name = ?'); values.push(String(updates.name)) }
   if (updates.role !== undefined) { fields.push('role = ?'); values.push(String(updates.role)) }
   if (updates.building_id !== undefined) { fields.push('building_id = ?'); values.push((updates.building_id ?? null) as string | null) }
+  if (updates.organization_id !== undefined) { fields.push('organization_id = ?'); values.push((updates.organization_id ?? null) as string | null) }
   if (updates.status !== undefined) { fields.push('status = ?'); values.push(String(updates.status)) }
-  if (updates.unit !== undefined) { fields.push('unit = ?'); values.push(String(updates.unit)) }
-  if (updates.phone !== undefined) { fields.push('phone = ?'); values.push(String(updates.phone)) }
+  if (updates.unit !== undefined) { fields.push('unit = ?'); values.push((updates.unit ?? null) as string | null) }
+  if (updates.phone !== undefined) { fields.push('phone = ?'); values.push((updates.phone ?? null) as string | null) }
   if (updates.profile_picture !== undefined) { fields.push('profile_picture = ?'); values.push((updates.profile_picture ?? null) as string | null) }
 
   if (fields.length === 0) return

@@ -11,6 +11,7 @@ import {
   LogOut,
   Shield,
   Car,
+  Briefcase,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -26,6 +27,7 @@ interface SuperAdminSidebarProps {
 
 const navItems = [
   { id: 'overview', icon: LayoutDashboard, label: 'Dashboard' },
+  { id: 'organizations', icon: Briefcase, label: 'CRM Tenants' },
   { id: 'buildings', icon: Building2, label: 'Edificios' },
   { id: 'parking', icon: Car, label: 'Parqueaderos' },
   { id: 'payments', icon: CreditCard, label: 'Pagos y Facturacion' },
