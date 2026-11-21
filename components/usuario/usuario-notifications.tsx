@@ -53,9 +53,11 @@ const priorityLabel: Record<Communication['priority'], string> = {
   urgent: 'URGENTE',
 }
 
-function formatRelativeTime(date: Date) {
-  const diff = Date.now() - date.getTime()
-  const mins = Math.floor(diff / 60000)
+function formatRelativeTime(date: Date | string | undefined) {
+  const parsed = date instanceof Date ? date : new Date(date ?? Date.now())
+  const ts = isNaN(parsed.getTime()) ? Date.now() : parsed.getTime()
+  const diff = Date.now() - ts
+  const mins = Math.max(0, Math.floor(diff / 60000))
   if (mins < 60) return `Hace ${mins} min`
   const hrs = Math.floor(mins / 60)
   if (hrs < 24) return `Hace ${hrs}h`
@@ -76,27 +78,31 @@ export function UsuarioNotifications({ communications: propCommunications }: Usu
   const [loading, setLoading] = useState(!propCommunications)
 
   useEffect(() => {
-    // T-034: fetch real communications when not passed as props
-    if (propCommunications || !user?.buildingId || !myUserId) return
+    if (propCommunications) {
+      setCommunications(propCommunications)
+      setLoading(false)
+      return
+    }
+    if (!user?.buildingId || !myUserId) return
     setLoading(true)
     fetch(`/api/communications?buildingId=${encodeURIComponent(user.buildingId)}`)
       .then(res => res.json())
       .then(data => {
-        if (Array.isArray(data)) {
-          setCommunications(data.map((c: Record<string, unknown>) => ({
+        const rawList = Array.isArray(data) ? data : (data?.communications || [])
+        if (Array.isArray(rawList)) {
+          setCommunications(rawList.map((c: Record<string, unknown>) => ({
             id: c.id as string,
-            buildingId: c.building_id as string,
-            authorId: (c.created_by as string) || '',
-            authorName: (c.author_name as string) || '',
-            title: c.title as string,
-            message: c.message as string,
-            type: c.type as Communication['type'],
-            priority: c.priority as Communication['priority'],
+            buildingId: (c.building_id ?? c.buildingId) as string,
+            authorId: ((c.created_by ?? c.author_id) as string) || '',
+            authorName: ((c.author_name ?? c.authorName) as string) || 'Administración',
+            title: (c.title as string) || '',
+            message: ((c.message ?? c.content) as string) || '',
+            type: ((c.type as Communication['type']) || 'announcement'),
+            priority: ((c.priority as Communication['priority']) || 'normal'),
             targetRoles: (c.target_roles as Communication['targetRoles']) || [],
             includesTenants: (c.includes_tenants as boolean) || false,
-            sentAt: new Date(c.created_at as string),
-            createdAt: c.created_at as string,
-            readBy: (c.read_by as string[]) || [],
+            sentAt: new Date((c.sent_at ?? c.created_at ?? Date.now()) as string),
+            readBy: Array.isArray(c.read_by) ? (c.read_by as string[]) : Array.isArray(c.readBy) ? (c.readBy as string[]) : [],
           })))
         }
       })
@@ -106,23 +112,25 @@ export function UsuarioNotifications({ communications: propCommunications }: Usu
 
   const markAsRead = (id: string) => {
     setCommunications((prev) =>
-      prev.map((c) =>
-        c.id === id && !c.readBy.includes(myUserId)
-          ? { ...c, readBy: [...c.readBy, myUserId] }
+      prev.map((c) => {
+        const readList = Array.isArray(c.readBy) ? c.readBy : []
+        return c.id === id && !readList.includes(myUserId)
+          ? { ...c, readBy: [...readList, myUserId] }
           : c
-      )
+      })
     )
   }
 
   const markAllRead = () => {
     setCommunications((prev) =>
-      prev.map((c) =>
-        !c.readBy.includes(myUserId) ? { ...c, readBy: [...c.readBy, myUserId] } : c
-      )
+      prev.map((c) => {
+        const readList = Array.isArray(c.readBy) ? c.readBy : []
+        return !readList.includes(myUserId) ? { ...c, readBy: [...readList, myUserId] } : c
+      })
     )
   }
 
-  const isRead = (comm: Communication) => comm.readBy.includes(myUserId)
+  const isRead = (comm: Communication) => (comm.readBy || []).includes(myUserId)
 
   const filtered = communications.filter((c) => {
     if (filter === 'unread') return !isRead(c)
@@ -175,7 +183,7 @@ export function UsuarioNotifications({ communications: propCommunications }: Usu
           </div>
         )}
         {filtered.map((comm) => {
-          const typeCfg = typeConfig[comm.type]
+          const typeCfg = typeConfig[comm.type] || typeConfig.announcement
           const TypeIcon = typeCfg.icon
           const read = isRead(comm)
           return (
@@ -210,7 +218,7 @@ export function UsuarioNotifications({ communications: propCommunications }: Usu
                         </Badge>
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground line-clamp-2 mb-2">{comm.message}</p>
+                    <p className="text-xs text-muted-foreground line-clamp-2 mb-2">{comm.message || (comm as any).content}</p>
                     <div className="flex items-center gap-3 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />
@@ -241,7 +249,7 @@ export function UsuarioNotifications({ communications: propCommunications }: Usu
             <DialogHeader>
               <DialogTitle className="text-foreground flex items-center gap-2">
                 {(() => {
-                  const cfg = typeConfig[selectedComm.type]
+                  const cfg = typeConfig[selectedComm.type] || typeConfig.announcement
                   const Icon = cfg.icon
                   return (
                     <>
@@ -256,15 +264,15 @@ export function UsuarioNotifications({ communications: propCommunications }: Usu
             </DialogHeader>
             <div className="space-y-4">
               <div className="flex gap-2 flex-wrap">
-                <Badge variant="outline" className={typeConfig[selectedComm.type].className}>
-                  {typeConfig[selectedComm.type].label}
+                <Badge variant="outline" className={(typeConfig[selectedComm.type] || typeConfig.announcement).className}>
+                  {(typeConfig[selectedComm.type] || typeConfig.announcement).label}
                 </Badge>
-                <Badge variant="outline" className={priorityBadge[selectedComm.priority]}>
-                  Prioridad: {priorityLabel[selectedComm.priority]}
+                <Badge variant="outline" className={priorityBadge[selectedComm.priority] || priorityBadge.normal}>
+                  Prioridad: {priorityLabel[selectedComm.priority] || priorityLabel.normal}
                 </Badge>
               </div>
               <p className="text-sm text-foreground leading-relaxed whitespace-pre-line">
-                {selectedComm.message}
+                {selectedComm.message || (selectedComm as any).content}
               </p>
               <div className="rounded-lg bg-muted p-3 flex items-center justify-between text-xs text-muted-foreground">
                 <span className="flex items-center gap-1.5">

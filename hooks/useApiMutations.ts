@@ -130,6 +130,7 @@ export function useResidentApi() {
     unit: string
     phone?: string
     email?: string
+    is_tenant?: boolean
   }) => {
     const response = await fetch('/api/residents', {
       method: 'POST',

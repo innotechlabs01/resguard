@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireAuth, isAuthResponse } from '@/lib/auth/requireAuth'
-import { assertBuildingAccess } from '@/lib/auth/assertBuildingAccess'
+import { assertBuildingAccessAsync } from '@/lib/auth/assertBuildingAccess'
 import { getRentalListings, createRentalListing, deleteRentalListing, getRentalListingById } from '@/lib/db/queries/rentals'
 import { z } from 'zod'
 import { logger } from '@/lib/logger'
@@ -33,7 +33,7 @@ export async function GET(request: Request) {
     if (!buildingId) {
       return NextResponse.json({ error: 'buildingId required' }, { status: 400 })
     }
-    const access = assertBuildingAccess(user, buildingId)
+    const access = await assertBuildingAccessAsync(user, buildingId)
     if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
 
     const listings = await getRentalListings(buildingId)
@@ -59,7 +59,7 @@ export async function POST(request: Request) {
       )
     }
 
-    const access = assertBuildingAccess(user, parsed.data.building_id)
+    const access = await assertBuildingAccessAsync(user, parsed.data.building_id)
     if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
 
     await createRentalListing({

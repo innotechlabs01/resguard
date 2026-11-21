@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth/requireAuth'
-import { assertBuildingAccess } from '@/lib/auth/assertBuildingAccess'
+import { assertBuildingAccessAsync } from '@/lib/auth/assertBuildingAccess'
 import { getParkingSpots, getParkingSpotById, createParkingSpot, updateParkingSpot, deleteParkingSpot } from '@/lib/db/queries/parking'
 import { logger } from '@/lib/logger'
 
@@ -19,7 +19,7 @@ export async function GET(request: Request) {
     if (!buildingId) {
       return NextResponse.json({ error: 'buildingId required' }, { status: 400 })
     }
-    const access = assertBuildingAccess(user, buildingId)
+    const access = await assertBuildingAccessAsync(user, buildingId)
     if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
 
     const spots = await getParkingSpots(buildingId)
@@ -38,7 +38,7 @@ export async function POST(request: Request) {
 
     const body = await request.json()
 
-    const access = assertBuildingAccess(user, body.building_id)
+    const access = await assertBuildingAccessAsync(user, body.building_id)
     if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
 
     const spotData = {
@@ -79,7 +79,7 @@ export async function PUT(request: Request) {
     if (!existingSpot) {
       return NextResponse.json({ error: 'Parking spot not found' }, { status: 404 })
     }
-    const access = assertBuildingAccess(user, existingSpot.building_id)
+    const access = await assertBuildingAccessAsync(user, existingSpot.building_id)
     if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
 
     if (updates.building_id !== undefined && updates.building_id !== existingSpot.building_id) {
@@ -112,7 +112,7 @@ export async function DELETE(request: Request) {
     if (!existingSpot) {
       return NextResponse.json({ error: 'Parking spot not found' }, { status: 404 })
     }
-    const access = assertBuildingAccess(user, existingSpot.building_id)
+    const access = await assertBuildingAccessAsync(user, existingSpot.building_id)
     if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
 
     await deleteParkingSpot(id)

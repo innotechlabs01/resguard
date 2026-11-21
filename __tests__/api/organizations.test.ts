@@ -32,6 +32,7 @@ const createMockQuery = (result: { data?: unknown; error?: unknown } = { data: n
   in: (...args: unknown[]) => { mockIn(...args); return createMockQuery(result) },
   single: () => { mockSingle(); return Promise.resolve(result) },
   order: (...args: unknown[]) => { mockOrder(...args); return createMockQuery(result) },
+  limit: () => createMockQuery(result),
   delete: () => { mockDelete(); return createMockQuery(result) },
   update: (...args: unknown[]) => { mockUpdate(...args); return createMockQuery(result) },
 })
@@ -231,5 +232,68 @@ describe('Subscription guard — mora and grace period', () => {
     const { checkSubscriptionAccess } = await import('@/lib/subscription-guard')
     const result = await checkSubscriptionAccess(undefined)
     expect(result).toBeNull()
+  })
+})
+
+describe('PATCH /api/organizations — Super Admin CRM', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('rejects unauthenticated requests (401)', async () => {
+    mockRequireAuth.mockResolvedValue(
+      NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    )
+    const { PATCH } = await import('@/app/api/organizations/route')
+    const res = await PATCH(
+      jsonRequest(
+        { id: '11111111-1111-4111-8111-111111111111', status: 'suspended' },
+        'PATCH'
+      )
+    )
+    expect(res.status).toBe(401)
+  })
+
+  it('rejects non-super_admin users (403)', async () => {
+    authAs(sessionUser({ role: 'admin' }))
+    const { PATCH } = await import('@/app/api/organizations/route')
+    const res = await PATCH(
+      jsonRequest(
+        { id: '11111111-1111-4111-8111-111111111111', status: 'suspended' },
+        'PATCH'
+      )
+    )
+    expect(res.status).toBe(403)
+  })
+
+  it('rejects invalid status or missing update fields (400)', async () => {
+    authAs(sessionUser({ role: 'super_admin' }))
+    const { PATCH } = await import('@/app/api/organizations/route')
+    const resInvalid = await PATCH(
+      jsonRequest(
+        { id: '11111111-1111-4111-8111-111111111111', status: 'invalid' },
+        'PATCH'
+      )
+    )
+    expect(resInvalid.status).toBe(400)
+
+    const resEmpty = await PATCH(
+      jsonRequest({ id: '11111111-1111-4111-8111-111111111111' }, 'PATCH')
+    )
+    expect(resEmpty.status).toBe(400)
+  })
+
+  it('allows super_admin to update organization status and records audit_log', async () => {
+    authAs(sessionUser({ role: 'super_admin' }))
+    const { PATCH } = await import('@/app/api/organizations/route')
+    const res = await PATCH(
+      jsonRequest(
+        { id: '11111111-1111-4111-8111-111111111111', status: 'suspended' },
+        'PATCH'
+      )
+    )
+    expect(res.status).toBe(200)
+    expect(mockUpdate).toHaveBeenCalled()
+    expect(mockInsert).toHaveBeenCalled()
   })
 })

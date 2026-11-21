@@ -172,7 +172,6 @@ export function UsuarioReservations() {
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
         toast.error(data.error || 'No se pudo crear la reserva', {
           description: data.error?.includes('horario') ? 'Ese horario ya está ocupado.' : undefined,
         })
@@ -240,9 +239,9 @@ export function UsuarioReservations() {
                     <SelectValue placeholder="Selecciona un area" />
                   </SelectTrigger>
                   <SelectContent>
-                    {Object.entries(areaConfig).map(([key, config]) => (
-                      <SelectItem key={key} value={key}>
-                        {config.name} {config.deposit > 0 && `(Deposito: ${formatCurrency(config.deposit)})`}
+                    {areas.map((a) => (
+                      <SelectItem key={a.id} value={a.id}>
+                        {a.name} {a.max_capacity ? `(Capacidad: ${a.max_capacity})` : ''}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -301,7 +300,10 @@ export function UsuarioReservations() {
               <Button variant="outline" onClick={() => setDialogOpen(false)}>
                 Cancelar
               </Button>
-              <Button onClick={handleSubmit}>Enviar Solicitud</Button>
+              <Button onClick={handleSubmit} disabled={saving}>
+                {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Enviar Solicitud
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -355,8 +357,25 @@ export function UsuarioReservations() {
           ) : (
             <div className="space-y-4">
               {reservations.map((reservation) => {
-                const area = areaConfig[reservation.area as keyof typeof areaConfig]
-                const status = statusConfig[reservation.status]
+                const matchedArea = areas.find((a) => a.id === reservation.area)
+                const displayName =
+                  reservation.areaName ||
+                  matchedArea?.name ||
+                  areaConfig[reservation.area as keyof typeof areaConfig]?.name ||
+                  reservation.area
+                const lowerName = displayName.toLowerCase()
+                const area =
+                  areaConfig[reservation.area as keyof typeof areaConfig] ||
+                  (lowerName.includes('bbq')
+                    ? areaConfig.bbq
+                    : lowerName.includes('gimnasio')
+                      ? areaConfig.gym
+                      : lowerName.includes('piscina')
+                        ? areaConfig.pool
+                        : lowerName.includes('salon') || lowerName.includes('salón')
+                          ? areaConfig.salon_social
+                          : undefined)
+                const status = statusConfig[reservation.status] || statusConfig.pending
                 const Icon = area?.icon || Calendar
 
                 return (
@@ -369,7 +388,7 @@ export function UsuarioReservations() {
                         <Icon className="h-6 w-6 text-muted-foreground" />
                       </div>
                       <div>
-                        <p className="font-medium text-foreground">{area?.name || reservation.area}</p>
+                        <p className="font-medium text-foreground">{displayName}</p>
                         <p className="text-sm text-muted-foreground">
                           {formatDate(reservation.date)}
                         </p>
@@ -383,7 +402,12 @@ export function UsuarioReservations() {
                     <div className="flex items-center gap-2">
                       <Badge className={status.color}>{status.label}</Badge>
                       {reservation.status === 'pending' && (
-                        <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => handleCancelReservation(reservation.id)}
+                        >
                           <XCircle className="h-4 w-4" />
                         </Button>
                       )}

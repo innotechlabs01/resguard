@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireAuth, isAuthResponse } from '@/lib/auth/requireAuth'
-import { assertBuildingAccess } from '@/lib/auth/assertBuildingAccess'
+import { assertBuildingAccessAsync } from '@/lib/auth/assertBuildingAccess'
 import { getPqrsById, getPqrsComments, addPqrsComment } from '@/lib/db/queries/pqrs'
 import { logger } from '@/lib/logger'
 
@@ -20,7 +20,7 @@ export async function GET(
     if (!pqrs) {
       return NextResponse.json({ error: 'PQRS not found' }, { status: 404 })
     }
-    const access = assertBuildingAccess(user, pqrs.building_id)
+    const access = await assertBuildingAccessAsync(user, pqrs.building_id)
     if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
 
     const comments = await getPqrsComments(id)
@@ -45,7 +45,7 @@ export async function POST(
     if (!pqrs) {
       return NextResponse.json({ error: 'PQRS not found' }, { status: 404 })
     }
-    const access = assertBuildingAccess(user, pqrs.building_id)
+    const access = await assertBuildingAccessAsync(user, pqrs.building_id)
     if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
 
     const body = await request.json()

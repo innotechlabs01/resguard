@@ -9,6 +9,10 @@ export interface User {
   role: UserRole
   buildingId?: string
   buildingName?: string
+  organizationId?: string
+  unit?: string
+  phone?: string
+  isTenant?: boolean
   avatar?: string
 }
 

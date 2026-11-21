@@ -16,7 +16,12 @@ export const CreateUserSchema = z.object({
   email: z.string().email(),
   name: z.string().min(1).max(200),
   role: z.enum(['super_admin', 'admin', 'vigilante', 'usuario']),
-  building_id: z.string().uuid().optional(),
+  building_id: z.string().uuid().nullable().optional(),
+  organization_id: z.string().uuid().optional(),
+  organization_name: z.string().min(2).max(200).optional(),
+  organization_type: z.enum(['hogar', 'grupo', 'comunidad', 'inmobiliaria']).optional(),
+  unit: z.string().max(50).nullable().optional(),
+  phone: z.string().max(30).nullable().optional(),
 })
 
 export const CreateVisitorSchema = z.object({

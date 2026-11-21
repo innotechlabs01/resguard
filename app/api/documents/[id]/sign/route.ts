@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth, isAuthResponse } from '@/lib/auth/requireAuth';
 import { getSupabaseAdmin } from '@/lib/db/supabase';
-import { assertBuildingAccess } from '@/lib/auth/assertBuildingAccess';
+import { assertBuildingAccessAsync } from '@/lib/auth/assertBuildingAccess';
 import { z } from 'zod';
 
 const schema = z.object({
@@ -29,7 +29,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   // Mutation by id: read the document's building → assert access → mutate
   const { data: doc } = await supabase.from('documents').select('building_id').eq('id', id).single();
   if (!doc) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  const access = assertBuildingAccess(user, doc.building_id);
+  const access = await assertBuildingAccessAsync(user, doc.building_id);
   if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
 
   const { data, error } = await supabase.from('document_signatures').insert({

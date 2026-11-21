@@ -3,6 +3,7 @@ import { queryMany, queryOne, executeInsert } from './helpers'
 
 export interface DbBuilding {
   id: string
+  organization_id: string | null
   name: string
   address: string
   total_units: number
@@ -19,6 +20,7 @@ export interface DbBuilding {
 function mapBuilding(row: Record<string, unknown>): DbBuilding {
   return {
     id: row.id as string,
+    organization_id: (row.organization_id ?? null) as string | null,
     name: row.name as string,
     address: row.address as string,
     total_units: (row.total_units ?? 0) as number,
@@ -37,6 +39,14 @@ export async function getBuildings(): Promise<DbBuilding[]> {
   const rows = await queryMany<Record<string, unknown>>(
     'SELECT * FROM buildings ORDER BY name',
     []
+  )
+  return rows.map(mapBuilding)
+}
+
+export async function getBuildingsByOrganization(organizationId: string): Promise<DbBuilding[]> {
+  const rows = await queryMany<Record<string, unknown>>(
+    'SELECT * FROM buildings WHERE organization_id = ? ORDER BY name',
+    [organizationId]
   )
   return rows.map(mapBuilding)
 }
