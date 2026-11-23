@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth/requireAuth'
-import { assertBuildingAccess } from '@/lib/auth/assertBuildingAccess'
+import { assertBuildingAccessAsync } from '@/lib/auth/assertBuildingAccess'
 import { getAlerts, createAlert, updateAlert, deleteAlert, getAlertById } from '@/lib/db/queries/alerts'
 import { logger } from '@/lib/logger'
 
@@ -16,17 +16,24 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url)
     const requestedId = searchParams.get('buildingId')
-    // Scope: non-super_admin users are always limited to their own building.
     // super_admin may omit buildingId for a global view (by design).
-    const buildingId = user.role === 'super_admin' ? requestedId : user.building_id
+    if (user.role === 'super_admin' && !requestedId) {
+      const alerts = await getAlerts(undefined)
+      return NextResponse.json(alerts)
+    }
+
+    const buildingId =
+      user.role === 'super_admin' || user.role === 'admin'
+        ? (requestedId || user.building_id)
+        : user.building_id
+
     if (!buildingId) {
-      if (user.role === 'super_admin') {
-        const alerts = await getAlerts(undefined)
-        return NextResponse.json(alerts)
-      }
       return NextResponse.json({ error: 'Forbidden: building scope required' }, { status: 403 })
     }
-    const access = assertBuildingAccess(user, buildingId)
+    if (user.role !== 'super_admin' && user.role !== 'admin' && requestedId && requestedId !== user.building_id) {
+      return NextResponse.json({ error: 'Forbidden: building mismatch' }, { status: 403 })
+    }
+    const access = await assertBuildingAccessAsync(user, buildingId)
     if (!access.ok) {
       return NextResponse.json({ error: access.error }, { status: access.status })
     }
@@ -48,13 +55,22 @@ export async function POST(request: Request) {
 
     const body = await request.json()
 
-    // Scope: non-super_admin users can only create alerts for their own building.
     let buildingId: string
     if (user.role === 'super_admin') {
       if (!body.building_id) {
         return NextResponse.json({ error: 'building_id required' }, { status: 400 })
       }
       buildingId = body.building_id
+    } else if (user.role === 'admin') {
+      const targetBuildingId = body.building_id || user.building_id
+      if (!targetBuildingId) {
+        return NextResponse.json({ error: 'Forbidden: building scope required' }, { status: 403 })
+      }
+      const access = await assertBuildingAccessAsync(user, targetBuildingId)
+      if (!access.ok) {
+        return NextResponse.json({ error: access.error }, { status: access.status })
+      }
+      buildingId = targetBuildingId
     } else {
       if (!user.building_id) {
         return NextResponse.json({ error: 'Forbidden: building scope required' }, { status: 403 })
@@ -103,7 +119,7 @@ export async function PUT(request: Request) {
     if (!existing) {
       return NextResponse.json({ error: 'Alert not found' }, { status: 404 })
     }
-    const access = assertBuildingAccess(user, existing.building_id)
+    const access = await assertBuildingAccessAsync(user, existing.building_id)
     if (!access.ok) {
       return NextResponse.json({ error: access.error }, { status: access.status })
     }
@@ -135,7 +151,7 @@ export async function DELETE(request: Request) {
     if (!existing) {
       return NextResponse.json({ error: 'Alert not found' }, { status: 404 })
     }
-    const access = assertBuildingAccess(user, existing.building_id)
+    const access = await assertBuildingAccessAsync(user, existing.building_id)
     if (!access.ok) {
       return NextResponse.json({ error: access.error }, { status: access.status })
     }

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireAuth, isAuthResponse } from '@/lib/auth/requireAuth'
-import { assertBuildingAccess } from '@/lib/auth/assertBuildingAccess'
+import { assertBuildingAccessAsync } from '@/lib/auth/assertBuildingAccess'
 import { getSupabaseAdmin } from '@/lib/db/supabase'
 import { logger } from '@/lib/logger'
 
@@ -41,7 +41,7 @@ export async function POST(request: Request) {
     if (!tenant) {
       return NextResponse.json({ error: 'Tenant not found' }, { status: 404 })
     }
-    const access = assertBuildingAccess(user, tenant.building_id)
+    const access = await assertBuildingAccessAsync(user, tenant.building_id)
     if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
 
     const { error } = await supabase

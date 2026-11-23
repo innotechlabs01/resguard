@@ -15,10 +15,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import type { SystemStats, BuildingStats } from '@/lib/types'
+import type { AdminTenantMetric } from './analytics-panel'
 
 interface SuperAdminOverviewProps {
   systemStats: SystemStats
   buildings: BuildingStats[]
+  adminMetrics?: AdminTenantMetric[]
 }
 
 function formatCurrency(amount: number): string {
@@ -43,10 +45,21 @@ const subscriptionColors = {
   trialing: 'bg-info/10 text-info',
 }
 
-export function SuperAdminOverview({ systemStats, buildings }: SuperAdminOverviewProps) {
+export function SuperAdminOverview({ systemStats, buildings, adminMetrics = [] }: SuperAdminOverviewProps) {
   const activeRate = systemStats.totalBuildings > 0
     ? Math.round((systemStats.activeBuildings / systemStats.totalBuildings) * 100)
     : 0
+
+  const orgByBuildingName = new Map<string, { organizationName: string; tenantType: string }>()
+  for (const m of adminMetrics) {
+    if (!m.organizationId) continue
+    for (const bName of m.buildingNames) {
+      orgByBuildingName.set(bName, {
+        organizationName: m.organizationName,
+        tenantType: m.tenantType,
+      })
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -140,12 +153,17 @@ export function SuperAdminOverview({ systemStats, buildings }: SuperAdminOvervie
                 </div>
                 
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="font-medium text-foreground truncate">{building.name}</h3>
                     <Badge className={statusColors[building.status]}>
                       {building.status === 'active' ? 'Activo' : 
                        building.status === 'maintenance' ? 'Mantenimiento' : 'Inactivo'}
                     </Badge>
+                    {orgByBuildingName.has(building.name) && (
+                      <Badge variant="outline" className="text-xs">
+                        {orgByBuildingName.get(building.name)!.organizationName}
+                      </Badge>
+                    )}
                   </div>
                   <p className="text-sm text-muted-foreground truncate">{building.address}</p>
                 </div>

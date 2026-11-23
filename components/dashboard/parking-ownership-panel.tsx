@@ -35,6 +35,7 @@ import type { ParkingAssignment } from '@/lib/types'
 
 interface Props {
   assignments?: ParkingAssignment[]
+  buildingId?: string
 }
 
 const typeConfig: Record<string, { label: string; color: string }> = {
@@ -63,8 +64,9 @@ function mapAssignment(raw: any): ParkingAssignment {
   }
 }
 
-export function ParkingOwnershipPanel({ assignments: propAssignments }: Props) {
+export function ParkingOwnershipPanel({ assignments: propAssignments, buildingId: propBuildingId }: Props = {}) {
   const { user } = useAuth()
+  const buildingId = propBuildingId || user?.buildingId
   const [assignments, setAssignments] = useState<ParkingAssignment[]>(propAssignments || [])
   const [loading, setLoading] = useState(!propAssignments)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -82,24 +84,24 @@ export function ParkingOwnershipPanel({ assignments: propAssignments }: Props) {
   })
 
   useEffect(() => {
-    if (!propAssignments && user?.buildingId) {
-      fetch(`/api/parking-assignments?buildingId=${user.buildingId}`)
+    if (!propAssignments && buildingId) {
+      fetch(`/api/parking-assignments?buildingId=${buildingId}`)
         .then(r => r.json())
         .then(data => setAssignments((data.assignments || []).map(mapAssignment)))
         .catch(console.error)
         .finally(() => setLoading(false))
     }
-  }, [propAssignments, user?.buildingId])
+  }, [propAssignments, buildingId])
 
   const handleSave = async () => {
-    if (!user?.buildingId || !form.spot_code) return
+    if (!buildingId || !form.spot_code) return
 
     try {
       const res = await fetch('/api/parking-assignments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          building_id: user.buildingId,
+          building_id: buildingId,
           spot_code: form.spot_code,
           assignment_type: form.assignment_type,
           owner_name: form.owner_name || undefined,
@@ -114,7 +116,7 @@ export function ParkingOwnershipPanel({ assignments: propAssignments }: Props) {
 
       if (res.ok) {
         // Refresh list
-        const listRes = await fetch(`/api/parking-assignments?buildingId=${user.buildingId}`)
+        const listRes = await fetch(`/api/parking-assignments?buildingId=${buildingId}`)
         const data = await listRes.json()
         setAssignments((data.assignments || []).map(mapAssignment))
         setDialogOpen(false)

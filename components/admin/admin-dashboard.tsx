@@ -14,7 +14,14 @@ import type { ParkingSpot, Alert, BuildingStats } from '@/lib/types'
 import { useAuth } from '@/lib/auth-context'
 import { useAnalyticsTrack } from '@/lib/hooks/useAnalytics'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
-import { Menu, LayoutDashboard, Users, CreditCard, Bell, LogOut, Building2, Building, Inbox } from 'lucide-react'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Menu, LayoutDashboard, Users, CreditCard, Bell, LogOut, Building2, Building, Inbox, Plus } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -32,6 +39,8 @@ import { UtilityPanel } from '../dashboard/utility-panel'
 import { ProvidersPanel } from '../dashboard/providers-panel'
 import { SurveysPanel } from '../dashboard/surveys-panel'
 import { OnboardingPanel } from '../dashboard/onboarding-panel'
+import { TeamPanel } from './team-panel'
+import { BuildingForm } from '@/components/forms/building-form'
 
 const ParkingMap = lazy(() => import('@/components/dashboard/parking-map').then(m => ({ default: m.ParkingMap })))
 const AlertsPanel = lazy(() => import('@/components/dashboard/alerts-panel').then(m => ({ default: m.AlertsPanel })))
@@ -41,6 +50,7 @@ const tabTitles: Record<string, string> = {
   overview: 'Dashboard del Edificio',
   inbox: 'Inbox',
   residents: 'Gestión de Residentes',
+  team: 'Equipo y Vigilantes',
   parking: 'Parqueaderos Residentes',
   visitorParking: 'Parqueadero Visitantes',
   parkingOwnership: 'Parqueaderos Asignados',
@@ -106,33 +116,80 @@ function MobileNav({ activeTab, onTabChange, unreadAlerts }: { activeTab: string
   )
 }
 
-function MobileHeader({ title, onMenuClick, unreadAlerts }: { title: string; onMenuClick: () => void; unreadAlerts: number }) {
+function MobileHeader({
+  title,
+  onMenuClick,
+  unreadAlerts,
+  buildings,
+  selectedBuildingId,
+  onSelectBuilding,
+  onCreateBuilding,
+}: {
+  title: string
+  onMenuClick: () => void
+  unreadAlerts: number
+  buildings?: { id: string; name: string }[]
+  selectedBuildingId?: string
+  onSelectBuilding?: (id: string) => void
+  onCreateBuilding?: () => void
+}) {
   const { user, logout } = useAuth()
   return (
-    <header className="flex h-14 items-center justify-between border-b border-border bg-card px-3 md:hidden">
-      <div className="flex min-w-0 items-center gap-2">
-        <Button variant="ghost" size="icon" onClick={onMenuClick} className="h-8 w-8 flex-shrink-0" aria-label="Abrir menú">
-          <Menu className="h-5 w-5" />
-        </Button>
-        <div className="flex min-w-0 flex-col">
-          <span className="text-xs font-semibold text-foreground">ResGuard</span>
-          <span className="max-w-[140px] truncate text-[10px] text-muted-foreground" title={title}>{title}</span>
+    <div className="md:hidden border-b border-border bg-card">
+      <header className="flex h-14 items-center justify-between px-3">
+        <div className="flex min-w-0 items-center gap-2">
+          <Button variant="ghost" size="icon" onClick={onMenuClick} className="h-8 w-8 flex-shrink-0" aria-label="Abrir menú">
+            <Menu className="h-5 w-5" />
+          </Button>
+          <div className="flex min-w-0 flex-col">
+            <span className="text-xs font-semibold text-foreground">ResGuard</span>
+            <span className="max-w-[140px] truncate text-[10px] text-muted-foreground" title={title}>{title}</span>
+          </div>
         </div>
-      </div>
-      <div className="flex flex-shrink-0 items-center gap-1">
-        <Button variant="ghost" size="icon" className="relative h-8 w-8" aria-label={unreadAlerts > 0 ? `${unreadAlerts} alertas sin leer` : 'Notificaciones'}>
-          <Bell className="h-4 w-4" />
-          {unreadAlerts > 0 && (
-            <Badge variant="destructive" className="absolute -right-0.5 -top-0.5 h-4 w-4 justify-center p-0 text-[10px]">
-              {unreadAlerts > 9 ? '9+' : unreadAlerts}
-            </Badge>
+        <div className="flex flex-shrink-0 items-center gap-1">
+          <Button variant="ghost" size="icon" className="relative h-8 w-8" aria-label={unreadAlerts > 0 ? `${unreadAlerts} alertas sin leer` : 'Notificaciones'}>
+            <Bell className="h-4 w-4" />
+            {unreadAlerts > 0 && (
+              <Badge variant="destructive" className="absolute -right-0.5 -top-0.5 h-4 w-4 justify-center p-0 text-[10px]">
+                {unreadAlerts > 9 ? '9+' : unreadAlerts}
+              </Badge>
+            )}
+          </Button>
+          <Button variant="ghost" size="icon" onClick={logout} className="h-8 w-8" aria-label={`Cerrar sesión${user?.name ? ` de ${user.name}` : ''}`}>
+            <LogOut className="h-4 w-4" />
+          </Button>
+        </div>
+      </header>
+      {buildings && buildings.length > 0 && onSelectBuilding && (
+        <div className="flex items-center gap-2 border-t border-border/60 px-3 py-2">
+          <Select value={selectedBuildingId} onValueChange={onSelectBuilding}>
+            <SelectTrigger className="h-8 flex-1 text-xs">
+              <Building2 className="mr-1.5 h-3.5 w-3.5 text-muted-foreground" />
+              <SelectValue placeholder="Seleccionar edificio" />
+            </SelectTrigger>
+            <SelectContent>
+              {buildings.map((b) => (
+                <SelectItem key={b.id} value={b.id}>
+                  {b.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {onCreateBuilding && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 gap-1 px-2.5 text-xs shrink-0"
+              onClick={onCreateBuilding}
+              aria-label="Nuevo Edificio"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              <span>Nuevo</span>
+            </Button>
           )}
-        </Button>
-        <Button variant="ghost" size="icon" onClick={logout} className="h-8 w-8" aria-label={`Cerrar sesión${user?.name ? ` de ${user.name}` : ''}`}>
-          <LogOut className="h-4 w-4" />
-        </Button>
-      </div>
-    </header>
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -159,11 +216,14 @@ function OverviewSkeleton() {
 }
 
 export function AdminDashboard() {
-  const { user, isAuthenticated, isDemoMode, isLoaded } = useAuth()
+  const { user, isAuthenticated, isDemoMode, isLoaded, login } = useAuth()
   const [activeTab, setActiveTab] = useState('overview')
   const [parkingSpots, setParkingSpots] = useState<ParkingSpot[]>([])
   const [alerts, setAlerts] = useState<Alert[]>([])
-  const [building, setBuilding] = useState<BuildingStats | null>(null)
+  const [buildings, setBuildings] = useState<BuildingStats[]>([])
+  const [selectedBuildingId, setSelectedBuildingId] = useState<string>('')
+  const [showCreateBuilding, setShowCreateBuilding] = useState(false)
+  const [buildingsLoaded, setBuildingsLoaded] = useState(false)
   const [residents, setResidents] = useState<any[]>([])
   const [payments, setPayments] = useState<any[]>([])
   const [communications, setCommunications] = useState<any[]>([])
@@ -173,52 +233,73 @@ export function AdminDashboard() {
 
   useAnalyticsTrack(activeTab, 'admin')
 
-  // Fetch building data from the API (unchanged data source / contract).
+  const mapBuildingRow = (found: any): BuildingStats => ({
+    id: found.id,
+    name: found.name,
+    address: found.address,
+    totalUnits: found.total_units,
+    occupiedUnits: 0,
+    totalParkingSpots: found.total_parking_spots,
+    visitorParkingSpots: found.visitor_parking_spots,
+    monthlyRevenue: found.monthly_fee || 0,
+    outstandingBalance: found.outstanding_balance || 0,
+    lastPaymentDate: found.last_payment_date ? new Date(found.last_payment_date) : undefined,
+    subscriptionStatus: found.subscription_status || 'active',
+    activeVisitors: 0,
+    pendingAlerts: 0,
+    status: 'active' as const,
+  })
+
+  const fetchBuildings = useCallback(async () => {
+    try {
+      const res = await fetch('/api/buildings')
+      if (!res.ok) return
+      const data = await res.json()
+      const list: BuildingStats[] = Array.isArray(data)
+        ? data.map(mapBuildingRow)
+        : (data.buildings || []).map(mapBuildingRow)
+      setBuildings(list)
+      setSelectedBuildingId((prev) => {
+        if (prev && list.some((b) => b.id === prev)) return prev
+        if (user?.buildingId && list.some((b) => b.id === user.buildingId)) return user.buildingId
+        return list[0]?.id || ''
+      })
+    } catch (error) {
+      console.error('Error fetching admin buildings:', error)
+    } finally {
+      setBuildingsLoaded(true)
+    }
+  }, [user?.buildingId])
+
+  useEffect(() => {
+    if (user) {
+      fetchBuildings()
+    }
+  }, [user, fetchBuildings])
+
+  const building = buildings.find((b) => b.id === selectedBuildingId) || null
+
+  // Fetch building-scoped data whenever selectedBuildingId changes.
   useEffect(() => {
     let cancelled = false
     async function fetchData() {
+      if (!selectedBuildingId) {
+        if (!cancelled) setLoading(false)
+        return
+      }
+      setLoading(true)
       try {
-        const buildingId = user?.buildingId
-        if (!buildingId) {
-          if (!cancelled) setLoading(false)
-          return
-        }
-
         const fetchOptions = {
-          next: { revalidate: 30, tags: [`building-${buildingId}`, 'buildings'] }
+          next: { revalidate: 30, tags: [`building-${selectedBuildingId}`, 'buildings'] }
         }
 
-        const [buildingsRes, parkingRes, alertsRes, residentsRes, paymentsRes, commRes] = await Promise.all([
-          fetch('/api/buildings', fetchOptions),
-          fetch(`/api/parking?buildingId=${buildingId}`, fetchOptions),
-          fetch(`/api/alerts?buildingId=${buildingId}`, fetchOptions),
-          fetch(`/api/residents?buildingId=${buildingId}`, fetchOptions),
-          fetch(`/api/payments?buildingId=${buildingId}`, fetchOptions),
-          fetch(`/api/communications?buildingId=${buildingId}`, fetchOptions),
+        const [parkingRes, alertsRes, residentsRes, paymentsRes, commRes] = await Promise.all([
+          fetch(`/api/parking?buildingId=${selectedBuildingId}`, fetchOptions),
+          fetch(`/api/alerts?buildingId=${selectedBuildingId}`, fetchOptions),
+          fetch(`/api/residents?buildingId=${selectedBuildingId}`, fetchOptions),
+          fetch(`/api/payments?buildingId=${selectedBuildingId}`, fetchOptions),
+          fetch(`/api/communications?buildingId=${selectedBuildingId}`, fetchOptions),
         ])
-
-        if (!cancelled && buildingsRes.ok) {
-          const data = await buildingsRes.json()
-          const found = (data.buildings || []).find((b: any) => b.id === buildingId)
-          if (found) {
-            setBuilding({
-              id: found.id,
-              name: found.name,
-              address: found.address,
-              totalUnits: found.total_units,
-              occupiedUnits: 0,
-              totalParkingSpots: found.total_parking_spots,
-              visitorParkingSpots: found.visitor_parking_spots,
-              monthlyRevenue: found.monthly_fee || 0,
-              outstandingBalance: found.outstanding_balance || 0,
-              lastPaymentDate: found.last_payment_date ? new Date(found.last_payment_date) : undefined,
-              subscriptionStatus: found.subscription_status || 'active',
-              activeVisitors: 0,
-              pendingAlerts: 0,
-              status: 'active' as const,
-            })
-          }
-        }
 
         if (!cancelled && parkingRes.ok) {
           const data = await parkingRes.json()
@@ -271,9 +352,9 @@ export function AdminDashboard() {
         if (!cancelled) setLoading(false)
       }
     }
-    if (user) fetchData()
+    if (user && buildingsLoaded) fetchData()
     return () => { cancelled = true }
-  }, [user])
+  }, [user, buildingsLoaded, selectedBuildingId])
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === 'F1') { e.preventDefault(); setActiveTab('residents') }
@@ -321,23 +402,33 @@ export function AdminDashboard() {
     )
   }
 
-  if (isAuthenticated && !user.buildingId) {
+  if (isAuthenticated && buildingsLoaded && buildings.length === 0) {
     return (
       <div className="flex h-screen items-center justify-center bg-background px-4">
         <Card className="w-full max-w-md">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-foreground">
               <Building2 className="h-6 w-6 text-brand" />
-              Edificio no asignado
+              Configura tu primer edificio
             </CardTitle>
-            <CardDescription>Tu cuenta no tiene un edificio asignado.</CardDescription>
+            <CardDescription>
+              Tu cuenta de administrador está activa. Crea tu primer edificio o copropiedad para empezar a gestionar residentes y vigilantes.
+            </CardDescription>
           </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Contacta al administrador del sistema para que asigne tu usuario a un edificio.
-            </p>
+          <CardContent className="space-y-4">
+            <Button className="w-full" onClick={() => setShowCreateBuilding(true)}>
+              Crear mi primer edificio
+            </Button>
           </CardContent>
         </Card>
+        <BuildingForm
+          open={showCreateBuilding}
+          onOpenChange={setShowCreateBuilding}
+          onSuccess={async () => {
+            if (user?.id) await login(user.id)
+            await fetchBuildings()
+          }}
+        />
       </div>
     )
   }
@@ -432,9 +523,11 @@ export function AdminDashboard() {
           />
         ) : null
       case 'residents':
-        return <ResidentsPanel residents={residents} />
+        return <ResidentsPanel residents={residents} buildingId={selectedBuildingId} />
+      case 'team':
+        return <TeamPanel buildingId={selectedBuildingId} buildingName={building?.name} />
       case 'parking':
-        return <ParkingManagementPanel residents={residents} parkingSpots={parkingSpots} />
+        return <ParkingManagementPanel residents={residents} parkingSpots={parkingSpots} buildingId={selectedBuildingId} />
       case 'visitorParking':
         return (
           <Suspense fallback={<SkeletonCard className="h-[400px]" />}>
@@ -442,13 +535,13 @@ export function AdminDashboard() {
           </Suspense>
         )
       case 'parkingOwnership':
-        return <ParkingOwnershipPanel />
+        return <ParkingOwnershipPanel buildingId={selectedBuildingId} />
       case 'payments':
-        return <PaymentsPanel payments={payments} />
+        return <PaymentsPanel payments={payments} buildingId={selectedBuildingId} />
       case 'comunicaciones':
-        return <ComunicacionesPanel communications={communications} />
+        return <ComunicacionesPanel communications={communications} buildingId={selectedBuildingId} />
       case 'assemblies':
-        return <AssemblyPanel />
+        return <AssemblyPanel buildingId={selectedBuildingId} />
       case 'inbox':
         return (
           <HelpdeskInboxPanel
@@ -542,6 +635,10 @@ export function AdminDashboard() {
           title={tabTitles[activeTab]}
           onMenuClick={() => setSidebarOpen(true)}
           unreadAlerts={unreadAlerts}
+          buildings={buildings.map((b) => ({ id: b.id, name: b.name }))}
+          selectedBuildingId={selectedBuildingId}
+          onSelectBuilding={setSelectedBuildingId}
+          onCreateBuilding={() => setShowCreateBuilding(true)}
         />
 
         {/* Desktop Header */}
@@ -550,6 +647,10 @@ export function AdminDashboard() {
             title={tabTitles[activeTab]}
             unreadAlerts={unreadAlerts}
             buildingName={building?.name || ''}
+            buildings={buildings.map((b) => ({ id: b.id, name: b.name }))}
+            selectedBuildingId={selectedBuildingId}
+            onSelectBuilding={setSelectedBuildingId}
+            onCreateBuilding={() => setShowCreateBuilding(true)}
           />
         </div>
 
@@ -565,6 +666,15 @@ export function AdminDashboard() {
         activeTab={activeTab}
         onTabChange={setActiveTab}
         unreadAlerts={unreadAlerts}
+      />
+
+      <BuildingForm
+        open={showCreateBuilding}
+        onOpenChange={setShowCreateBuilding}
+        onSuccess={async () => {
+          if (user?.id) await login(user.id)
+          await fetchBuildings()
+        }}
       />
     </div>
   )

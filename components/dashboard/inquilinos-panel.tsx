@@ -182,11 +182,33 @@ interface InquilinosPanelProps {
   tenants?: Tenant[]
 }
 
+function normalizeTenant(t: any): Tenant {
+  return {
+    id: t.id,
+    buildingId: t.building_id ?? t.buildingId ?? '',
+    name: t.name ?? '',
+    documentId: t.document_id ?? t.documentId ?? '',
+    phone: t.phone ?? '',
+    email: t.email ?? '',
+    unit: t.unit ?? '',
+    ownerId: t.owner_id ?? t.ownerId ?? '',
+    ownerName: t.owner_name ?? t.ownerName ?? '',
+    ownerUnit: t.owner_unit ?? t.ownerUnit ?? t.unit ?? '',
+    leaseStart: t.leaseStart instanceof Date ? t.leaseStart : new Date(t.lease_start ?? t.leaseStart ?? Date.now()),
+    leaseEnd: t.leaseEnd instanceof Date ? t.leaseEnd : new Date(t.lease_end ?? t.leaseEnd ?? Date.now()),
+    monthlyRent: Number(t.monthly_rent ?? t.monthlyRent ?? 0),
+    depositPaid: Number(t.deposit_paid ?? t.depositPaid ?? 0),
+    status: t.status ?? 'active',
+    lastPaymentDate: t.last_payment_date || t.lastPaymentDate ? new Date(t.last_payment_date ?? t.lastPaymentDate) : undefined,
+    vehicles: Array.isArray(t.vehicles) ? t.vehicles : [],
+  }
+}
+
 export function InquilinosPanel({ tenants: propTenants }: InquilinosPanelProps = {}) {
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'expiring'>('all')
 
-  const tenantsList = propTenants || []
+  const tenantsList = (propTenants || []).map(normalizeTenant)
 
   const filtered = tenantsList.filter((t: Tenant) => {
     const matchSearch =

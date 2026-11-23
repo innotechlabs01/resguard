@@ -12,9 +12,11 @@ import { UsersPanel } from './users-panel'
 import { SystemAlertsPanel } from './system-alerts-panel'
 import { LeadsPanel } from './leads-panel'
 import { SystemSettingsPanel } from './system-settings-panel'
+import { OrganizationsCrmPanel } from './organizations-crm-panel'
 import type { BuildingStats, SystemStats } from '@/lib/types'
+import type { AdminTenantMetric, PlatformHealth } from './analytics-panel'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
-import { Menu, LayoutGrid, Building2, Car, CreditCard, Users, BarChart3, Bell, Settings, LogOut, Shield, Inbox } from 'lucide-react'
+import { Menu, LayoutGrid, Building2, Car, CreditCard, Users, BarChart3, Bell, Settings, LogOut, Shield, Inbox, Briefcase } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
@@ -26,6 +28,7 @@ const ParkingConfigPanel = lazy(() => import('@/components/super-admin/parking-c
 
 const tabTitles: Record<string, string> = {
   overview: 'Dashboard Global',
+  organizations: 'CRM Tenants',
   buildings: 'Gestion de Edificios',
   parking: 'Configuracion Parqueaderos',
   payments: 'Pagos y Facturacion',
@@ -38,6 +41,7 @@ const tabTitles: Record<string, string> = {
 
 const navItems = [
   { id: 'overview', icon: LayoutGrid, label: 'Dashboard' },
+  { id: 'organizations', icon: Briefcase, label: 'CRM Tenants' },
   { id: 'buildings', icon: Building2, label: 'Edificios' },
   { id: 'parking', icon: Car, label: 'Parqueaderos' },
   { id: 'payments', icon: CreditCard, label: 'Pagos' },
@@ -116,6 +120,8 @@ export function SuperAdminDashboard() {
   const [activeTab, setActiveTab] = useState('overview')
   const [buildings, setBuildings] = useState<BuildingStats[]>([])
   const [systemStats, setSystemStats] = useState<SystemStats | null>(null)
+  const [adminMetrics, setAdminMetrics] = useState<AdminTenantMetric[]>([])
+  const [platformHealth, setPlatformHealth] = useState<PlatformHealth | null>(null)
   const [users, setUsers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -212,6 +218,12 @@ export function SuperAdminDashboard() {
               systemAlerts: statsData.system_alerts || statsData.systemAlerts || 0,
             })
           }
+          if (Array.isArray(data.adminMetrics)) {
+            setAdminMetrics(data.adminMetrics)
+          }
+          if (data.platformHealth) {
+            setPlatformHealth(data.platformHealth)
+          }
         }
 
         if (!cancelled && usersRes.ok) {
@@ -286,8 +298,11 @@ export function SuperAdminDashboard() {
           <SuperAdminOverview
             systemStats={stats}
             buildings={buildings}
+            adminMetrics={adminMetrics}
           />
         )
+      case 'organizations':
+        return <OrganizationsCrmPanel />
       case 'buildings':
         return <BuildingsPanel buildings={buildings} onRefresh={handleRefresh} />
       case 'parking':
@@ -303,7 +318,12 @@ export function SuperAdminDashboard() {
       case 'analytics':
         return (
           <Suspense fallback={<SkeletonCard className="h-[400px]" />}>
-            <AnalyticsPanel buildings={buildings} systemStats={systemStats} />
+            <AnalyticsPanel
+              buildings={buildings}
+              systemStats={systemStats}
+              adminMetrics={adminMetrics}
+              platformHealth={platformHealth}
+            />
           </Suspense>
         )
       case 'alerts':

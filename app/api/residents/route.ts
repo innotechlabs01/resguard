@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth/requireAuth'
-import { assertBuildingAccess } from '@/lib/auth/assertBuildingAccess'
-import { getResidents, createResident, updateResident, deleteResident } from '@/lib/db/queries/residents'
+import { assertBuildingAccessAsync } from '@/lib/auth/assertBuildingAccess'
+import { getResidents, getResidentById, createResident, updateResident, deleteResident } from '@/lib/db/queries/residents'
 import { logger } from '@/lib/logger'
 
 const log = logger.child({ module: 'api/residents' })
@@ -19,7 +19,7 @@ export async function GET(request: Request) {
     if (!buildingId) {
       return NextResponse.json({ error: 'buildingId required' }, { status: 400 })
     }
-    const access = assertBuildingAccess(user, buildingId)
+    const access = await assertBuildingAccessAsync(user, buildingId)
     if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
 
     const residents = await getResidents(buildingId)
@@ -32,10 +32,13 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const authRes = await requireAuth(request)
+    const authRes = await requireAuth(request, ['admin', 'super_admin'])
     if (authRes instanceof Response) return authRes
+    const { user } = authRes
 
     const body = await request.json()
+    const access = await assertBuildingAccessAsync(user, body.building_id)
+    if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
     
     const residentData = {
       building_id: body.building_id,
@@ -64,8 +67,9 @@ export async function POST(request: Request) {
 
 export async function PUT(request: Request) {
   try {
-    const authRes = await requireAuth(request)
+    const authRes = await requireAuth(request, ['admin', 'super_admin'])
     if (authRes instanceof Response) return authRes
+    const { user } = authRes
 
     const body = await request.json()
     const { id, ...updates } = body
@@ -73,6 +77,13 @@ export async function PUT(request: Request) {
     if (!id) {
       return NextResponse.json({ error: 'Resident ID required' }, { status: 400 })
     }
+
+    const existing = await getResidentById(id)
+    if (!existing) {
+      return NextResponse.json({ error: 'Resident not found' }, { status: 404 })
+    }
+    const access = await assertBuildingAccessAsync(user, existing.building_id)
+    if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
 
     await updateResident(id, updates)
     return NextResponse.json({ success: true, message: 'Resident updated successfully' })
@@ -84,8 +95,9 @@ export async function PUT(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const authRes = await requireAuth(request)
+    const authRes = await requireAuth(request, ['admin', 'super_admin'])
     if (authRes instanceof Response) return authRes
+    const { user } = authRes
 
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
@@ -93,6 +105,13 @@ export async function DELETE(request: Request) {
     if (!id) {
       return NextResponse.json({ error: 'Resident ID required' }, { status: 400 })
     }
+
+    const existing = await getResidentById(id)
+    if (!existing) {
+      return NextResponse.json({ error: 'Resident not found' }, { status: 404 })
+    }
+    const access = await assertBuildingAccessAsync(user, existing.building_id)
+    if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
 
     await deleteResident(id)
     return NextResponse.json({ success: true, message: 'Resident deleted successfully' })

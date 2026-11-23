@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth/requireAuth'
-import { assertBuildingAccess } from '@/lib/auth/assertBuildingAccess'
+import { assertBuildingAccessAsync } from '@/lib/auth/assertBuildingAccess'
 import { getIntercomUnits, getIntercomCalls, createIntercomCall, respondToCall } from '@/lib/db/queries/intercom'
 import { getSupabaseAdmin } from '@/lib/db/supabase'
 import { logger } from '@/lib/logger'
@@ -25,17 +25,18 @@ interface IntercomEvent {
 const eventStore = new Map<string, IntercomEvent[]>()
 
 // Send push notification to resident via Expo Push Service
-async function sendPushToResident(unitNumber: string, callerType: string, callerName: string | null) {
+async function sendPushToResident(buildingId: string, unitNumber: string, callerType: string, callerName: string | null) {
   const supabase = getSupabaseAdmin()
   if (!supabase) return
 
   try {
     // Find device tokens for this unit's resident
     // The resident's user_id is stored in device_tokens with role='resident'
-    // We need to match by unit — query users table for the unit, then get their device tokens
+    // We need to match by building_id and unit — query users table for the unit, then get their device tokens
     const { data: users } = await supabase
       .from('users')
       .select('id')
+      .eq('building_id', buildingId)
       .eq('unit', unitNumber)
       .limit(1)
 
@@ -108,6 +109,11 @@ export async function GET(request: Request) {
       return NextResponse.json({ units: [] })
     }
 
+    const access = await assertBuildingAccessAsync(user, buildingId)
+    if (!access.ok) {
+      return NextResponse.json({ error: access.error }, { status: access.status })
+    }
+
     if (type === 'poll') {
       const events = eventStore.get(buildingId) || []
       const clientLastTime = lastTimestamp ? parseInt(lastTimestamp) : 0
@@ -147,6 +153,7 @@ export async function POST(request: Request) {
   try {
     const authRes = await requireAuth(request)
     if (authRes instanceof Response) return authRes
+    const { user } = authRes
 
     const body = await request.json()
     const { buildingId, unitId, unitNumber, callerType, callerName, callerMessage, callId, response, note } = body
@@ -154,6 +161,11 @@ export async function POST(request: Request) {
     if (buildingId && !UUID_REGEX.test(buildingId)) {
       // Mock building id, skip DB write
       return NextResponse.json({ id: 'mock-' + Date.now(), message: 'Call initiated (mock)', polling: false })
+    }
+
+    if (buildingId) {
+      const access = await assertBuildingAccessAsync(user, buildingId)
+      if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
     }
 
     if (callId && response) {
@@ -196,7 +208,7 @@ export async function POST(request: Request) {
     })
 
     // Send push notification to the specific resident
-    sendPushToResident(unitNumber, callerType, callerName).catch(err =>
+    sendPushToResident(buildingId, unitNumber, callerType, callerName).catch(err =>
       log.error({ err }, 'Push notification failed')
     )
 

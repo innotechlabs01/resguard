@@ -8,10 +8,10 @@ export interface DbAlert {
   title: string
   message: string
   created_at: string
-  read: number
+  read: number | boolean
   priority: string
   related_id: string | null
-  action_required: number
+  action_required: number | boolean
 }
 
 export async function getAlertById(id: string): Promise<DbAlert | null> {
@@ -44,10 +44,10 @@ export async function createAlert(alert: {
       alert.type, 
       alert.title, 
       alert.message, 
-      alert.read ? 1 : 0, 
+      Boolean(alert.read), 
       alert.priority || 'medium', 
       alert.related_id || null, 
-      alert.action_required ? 1 : 0,
+      Boolean(alert.action_required),
       new Date().toISOString(),
     ]
   )
@@ -55,8 +55,8 @@ export async function createAlert(alert: {
 
 export async function updateAlert(id: string, updates: Partial<DbAlert>): Promise<void> {
   const fields: string[] = []
-  const values: (string | number | null)[] = []
-  if (updates.read !== undefined) { fields.push('read = ?'); values.push(updates.read) }
+  const values: (string | number | boolean | null)[] = []
+  if (updates.read !== undefined) { fields.push('read = ?'); values.push(Boolean(updates.read)) }
   if (updates.priority !== undefined) { fields.push('priority = ?'); values.push(updates.priority) }
   if (updates.message !== undefined) { fields.push('message = ?'); values.push(updates.message) }
   if (fields.length === 0) return

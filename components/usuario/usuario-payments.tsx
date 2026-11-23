@@ -52,21 +52,19 @@ export function UsuarioPayments() {
 
   useEffect(() => {
     if (user?.buildingId) {
-      fetch(`/api/payments?buildingId=${user.buildingId}`)
+      fetch(`/api/payments?buildingId=${user.buildingId}${user.unit ? `&unit=${encodeURIComponent(user.unit)}` : ''}`)
         .then(res => res.json())
         .then(data => {
           if (data.payments) {
-            const formatted = data.payments
-              .filter((p: any) => p.status !== 'succeeded')
-              .map((p: any) => ({
-                id: p.id,
-                concept: p.description,
-                amount: p.amount,
-                date: new Date(p.createdAt),
-                status: p.status === 'succeeded' ? 'paid' : p.status === 'pending' ? 'pending' : 'overdue',
-                boldLinkId: p.boldLinkId,
-                buildingId: p.buildingId,
-              }))
+            const formatted: PaymentRecord[] = data.payments.map((p: any) => ({
+              id: p.id,
+              concept: p.description || 'Cuota de administración',
+              amount: Number(p.amount) || 0,
+              date: new Date(p.createdAt || p.created_at || Date.now()),
+              status: p.status === 'succeeded' ? 'paid' : p.status === 'pending' ? 'pending' : 'overdue',
+              boldLinkId: p.boldLinkId ?? p.bold_link_id,
+              buildingId: p.buildingId ?? p.building_id,
+            }))
             setPayments(formatted)
           }
         })
@@ -93,9 +91,10 @@ export function UsuarioPayments() {
     }).format(date)
   }
 
-  const pendingPayments = payments.filter((p) => p.status === 'pending' || p.status === 'overdue')
+  const pendingPayments = payments.filter((p) => p.status !== 'paid')
+  const paidPayments = payments.filter((p) => p.status === 'paid')
   const totalPending = pendingPayments.reduce((sum, p) => sum + p.amount, 0)
-  const totalPaid = payments.filter((p) => p.status === 'paid').reduce((sum, p) => sum + p.amount, 0)
+  const totalPaid = paidPayments.reduce((sum, p) => sum + p.amount, 0)
 
   const handlePayClick = (payment: PaymentRecord) => {
     setSelectedPayment(payment)
@@ -152,20 +151,24 @@ export function UsuarioPayments() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-xl sm:text-2xl font-bold text-foreground">{formatCurrency(450000)}</div>
-            <p className="text-xs text-muted-foreground">Vence: 1 Abr 2026</p>
+            <div className="text-xl sm:text-2xl font-bold text-foreground">
+              {formatCurrency(pendingPayments[0]?.amount ?? 0)}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {pendingPayments[0] ? pendingPayments[0].concept : 'Sin cuotas pendientes'}
+            </p>
           </CardContent>
         </Card>
 
         <Card className="border-border bg-card">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Pagado 2026
+              Total Pagado
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-xl sm:text-2xl font-bold text-foreground">{formatCurrency(totalPaid)}</div>
-            <p className="text-xs text-muted-foreground">{payments.filter(p => p.status === 'paid').length} cuota(s) este ano</p>
+            <p className="text-xs text-muted-foreground">{paidPayments.length} pago(s) realizado(s)</p>
           </CardContent>
         </Card>
       </div>

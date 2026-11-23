@@ -42,7 +42,7 @@ export async function createRentalListing(listing: Omit<DbRentalListing, 'id'> &
   const id = listing.id ?? crypto.randomUUID()
   await executeInsert(
     'INSERT INTO rental_listings (id, type, owner_id, owner_name, owner_unit, building_id, title, description, price, currency, period, available, available_from, rooms, bathrooms, area, parking_code, contact_phone, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-    [id, listing.type, listing.owner_id, listing.owner_name, listing.owner_unit, listing.building_id, listing.title, listing.description, listing.price, listing.currency, listing.period, listing.available ? 1 : 0, listing.available_from, listing.rooms, listing.bathrooms, listing.area, listing.parking_code, listing.contact_phone, listing.status] as InValue[]
+    [id, listing.type, listing.owner_id, listing.owner_name, listing.owner_unit, listing.building_id, listing.title, listing.description, listing.price, listing.currency, listing.period, Boolean(listing.available), listing.available_from, listing.rooms, listing.bathrooms, listing.area, listing.parking_code, listing.contact_phone, listing.status] as InValue[]
   )
 }
 
@@ -52,7 +52,7 @@ export async function updateRentalListing(id: string, updates: Partial<DbRentalL
   if (updates.title !== undefined) { fields.push('title = ?'); values.push(updates.title) }
   if (updates.price !== undefined) { fields.push('price = ?'); values.push(updates.price) }
   if (updates.status !== undefined) { fields.push('status = ?'); values.push(updates.status) }
-  if (updates.available !== undefined) { fields.push('available = ?'); values.push(updates.available ? 1 : 0) }
+  if (updates.available !== undefined) { fields.push('available = ?'); values.push(Boolean(updates.available)) }
   if (updates.description !== undefined) { fields.push('description = ?'); values.push(updates.description) }
   if (fields.length === 0) return
   values.push(id)

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireAuth, isAuthResponse } from '@/lib/auth/requireAuth'
-import { assertBuildingAccess } from '@/lib/auth/assertBuildingAccess'
+import { assertBuildingAccessAsync } from '@/lib/auth/assertBuildingAccess'
 import { getAssemblies, createAssembly, getAssemblyById, updateAssemblyStatus } from '@/lib/db/queries/assemblies'
 import { logger } from '@/lib/logger'
 
@@ -19,7 +19,7 @@ export async function GET(request: Request) {
     if (!buildingId) {
       return NextResponse.json({ error: 'buildingId required' }, { status: 400 })
     }
-    const access = assertBuildingAccess(user, buildingId)
+    const access = await assertBuildingAccessAsync(user, buildingId)
     if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
 
     const assemblies = await getAssemblies(buildingId)

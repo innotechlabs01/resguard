@@ -143,6 +143,13 @@ export function BuildingsPanel({ buildings, onRefresh }: BuildingsPanelProps) {
   const [editingUser, setEditingUser] = useState<UserType | null>(null)
   const [editUserData, setEditUserData] = useState({ name: '', role: 'admin' as 'admin' | 'vigilante' })
   const [savingEdit, setSavingEdit] = useState(false)
+  const [editBuildingData, setEditBuildingData] = useState({
+    name: '',
+    address: '',
+    totalUnits: 0,
+    visitorParkingSpots: 0,
+  })
+  const [savingBuildingEdit, setSavingBuildingEdit] = useState(false)
   const [payments, setPayments] = useState<BuildingPayment[]>([])
   const [loadingPayments, setLoadingPayments] = useState(false)
   const [paymentsError, setPaymentsError] = useState<string | null>(null)
@@ -164,7 +171,67 @@ export function BuildingsPanel({ buildings, onRefresh }: BuildingsPanelProps) {
 
   const handleEdit = (building: BuildingStats) => {
     setSelectedBuilding(building)
+    setEditBuildingData({
+      name: building.name,
+      address: building.address,
+      totalUnits: building.totalUnits,
+      visitorParkingSpots: building.visitorParkingSpots,
+    })
     setShowEditDialog(true)
+  }
+
+  const handleSaveBuildingEdit = async () => {
+    if (!selectedBuilding || !editBuildingData.name.trim()) return
+    setSavingBuildingEdit(true)
+    try {
+      const res = await fetch('/api/buildings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: selectedBuilding.id,
+          name: editBuildingData.name.trim(),
+          address: editBuildingData.address.trim(),
+          total_units: Number(editBuildingData.totalUnits) || 0,
+          visitor_parking_spots: Number(editBuildingData.visitorParkingSpots) || 0,
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        toast.error(data.error || 'No se pudo actualizar el edificio')
+        return
+      }
+      toast.success('Edificio actualizado')
+      setShowEditDialog(false)
+      onRefresh?.()
+    } catch {
+      toast.error('Error de conexión al actualizar el edificio')
+    } finally {
+      setSavingBuildingEdit(false)
+    }
+  }
+
+  const handleDeactivateBuilding = async (building: BuildingStats) => {
+    try {
+      const res = await fetch('/api/buildings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: building.id,
+          subscription_status: 'canceled',
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        toast.error(data.error || 'No se pudo desactivar el edificio')
+        return
+      }
+      toast.success('Edificio desactivado', {
+        description: `${building.name} fue marcado como inactivo.`,
+      })
+      onRefresh?.()
+    } catch {
+      toast.error('Error de conexión al desactivar el edificio')
+    }
   }
 
   const loadBuildingUsers = async (buildingId: string) => {
@@ -493,7 +560,10 @@ export function BuildingsPanel({ buildings, onRefresh }: BuildingsPanelProps) {
                             Gestionar Usuarios
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem className="text-destructive">
+                          <DropdownMenuItem
+                            className="text-destructive"
+                            onClick={() => handleDeactivateBuilding(building)}
+                          >
                             Desactivar
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -576,30 +646,55 @@ export function BuildingsPanel({ buildings, onRefresh }: BuildingsPanelProps) {
             <div className="grid gap-4 py-4">
               <div className="space-y-2">
                 <Label htmlFor="edit-name">Nombre del Edificio</Label>
-                <Input id="edit-name" defaultValue={selectedBuilding.name} className="bg-input" />
+                <Input
+                  id="edit-name"
+                  value={editBuildingData.name}
+                  onChange={(e) => setEditBuildingData((p) => ({ ...p, name: e.target.value }))}
+                  className="bg-input"
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="edit-address">Direccion</Label>
-                <Input id="edit-address" defaultValue={selectedBuilding.address} className="bg-input" />
+                <Input
+                  id="edit-address"
+                  value={editBuildingData.address}
+                  onChange={(e) => setEditBuildingData((p) => ({ ...p, address: e.target.value }))}
+                  className="bg-input"
+                />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="edit-units">Total Unidades</Label>
-                  <Input id="edit-units" type="number" defaultValue={selectedBuilding.totalUnits} className="bg-input" />
+                  <Input
+                    id="edit-units"
+                    type="number"
+                    value={editBuildingData.totalUnits}
+                    onChange={(e) => setEditBuildingData((p) => ({ ...p, totalUnits: Number(e.target.value) || 0 }))}
+                    className="bg-input"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="edit-parking">Parqueaderos Visitantes</Label>
-                  <Input id="edit-parking" type="number" defaultValue={selectedBuilding.visitorParkingSpots} className="bg-input" />
+                  <Input
+                    id="edit-parking"
+                    type="number"
+                    value={editBuildingData.visitorParkingSpots}
+                    onChange={(e) => setEditBuildingData((p) => ({ ...p, visitorParkingSpots: Number(e.target.value) || 0 }))}
+                    className="bg-input"
+                  />
                 </div>
               </div>
             </div>
           )}
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setShowEditDialog(false)}>
+            <Button variant="outline" onClick={() => setShowEditDialog(false)} disabled={savingBuildingEdit}>
               Cancelar
             </Button>
-            <Button onClick={() => setShowEditDialog(false)}>
-              Guardar Cambios
+            <Button
+              onClick={handleSaveBuildingEdit}
+              disabled={savingBuildingEdit || !editBuildingData.name.trim()}
+            >
+              {savingBuildingEdit ? 'Guardando...' : 'Guardar Cambios'}
             </Button>
           </div>
         </DialogContent>

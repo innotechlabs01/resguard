@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { toast } from 'sonner'
 import {
   Search,
   Plus,
@@ -158,7 +159,7 @@ function ResidentDetailDialog({
   )
 }
 
-export function ResidentsPanel({ residents: propResidents }: { residents?: Resident[] } = {}) {
+export function ResidentsPanel({ residents: propResidents, buildingId: propBuildingId }: { residents?: Resident[]; buildingId?: string } = {}) {
   const [search, setSearch] = useState('')
   const [residents, setResidents] = useState<Resident[]>(propResidents || [])
   const [typeFilter, setTypeFilter] = useState<'all' | 'owner' | 'tenant'>('all')
@@ -167,6 +168,7 @@ export function ResidentsPanel({ residents: propResidents }: { residents?: Resid
   const [showDetail, setShowDetail] = useState(false)
   const [showNewResident, setShowNewResident] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [sendInvite, setSendInvite] = useState(true)
   const [newResident, setNewResident] = useState({
     name: '',
     unit: '',
@@ -176,7 +178,7 @@ export function ResidentsPanel({ residents: propResidents }: { residents?: Resid
   })
   const { createResident, updateResident, deleteResident } = useResidentApi()
   const { user } = useAuth()
-  const buildingId = user?.buildingId
+  const buildingId = propBuildingId || user?.buildingId
 
   const [editingResident, setEditingResident] = useState<Resident | null>(null)
   const [showEditDialog, setShowEditDialog] = useState(false)
@@ -199,7 +201,7 @@ export function ResidentsPanel({ residents: propResidents }: { residents?: Resid
     email: string | null
     parking_spots: string | null
     balance: number
-    is_tenant: number
+    is_tenant: number | boolean
   }
 
   function mapDbResident(r: RawResident): Resident {
@@ -212,7 +214,7 @@ export function ResidentsPanel({ residents: propResidents }: { residents?: Resid
       email: r.email ?? '',
       parkingSpots: typeof r.parking_spots === 'string' ? r.parking_spots.split(',').filter(Boolean) : [],
       balance: Number(r.balance) || 0,
-      isTenant: r.is_tenant === 1,
+      isTenant: Boolean(r.is_tenant),
     }
   }
 
@@ -238,19 +240,71 @@ export function ResidentsPanel({ residents: propResidents }: { residents?: Resid
 
     setSaving(true)
     try {
-      await createResident({
-        building_id: buildingId,
-        name: newResident.name,
-        unit: newResident.unit,
-        phone: newResident.phone,
-        email: newResident.email,
+      let userId: string | undefined
+      let inviteOk = false
+      let inviteErrorMsg: string | undefined
+
+      if (sendInvite) {
+        const inviteRes = await fetch('/api/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: newResident.name.trim(),
+            email: newResident.email.trim().toLowerCase(),
+            role: 'usuario',
+            building_id: buildingId,
+            unit: newResident.unit.trim(),
+            phone: newResident.phone.trim() || undefined,
+          }),
+        })
+        if (inviteRes.ok) {
+          inviteOk = true
+          const inviteData = await inviteRes.json().catch(() => ({}))
+          userId = inviteData.userId ?? inviteData.id ?? inviteData.user?.id
+        } else {
+          const errData = await inviteRes.json().catch(() => ({}))
+          inviteErrorMsg = errData.error
+          userId = errData.userId ?? errData.id
+        }
+      }
+
+      const createRes = await fetch('/api/residents', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          building_id: buildingId,
+          user_id: userId,
+          name: newResident.name.trim(),
+          unit: newResident.unit.trim(),
+          phone: newResident.phone.trim() || undefined,
+          email: newResident.email.trim().toLowerCase(),
+          is_tenant: newResident.isTenant,
+        }),
       })
+      if (!createRes.ok) {
+        throw new Error('Failed to create resident')
+      }
+
+      if (sendInvite) {
+        if (inviteOk) {
+          toast.success('Residente creado e invitación enviada', {
+            description: `${newResident.email.trim()} recibió su enlace de acceso.`,
+          })
+        } else {
+          toast.warning('Residente registrado, pero no se pudo enviar la invitación', {
+            description: inviteErrorMsg || 'Puedes invitarlo desde Equipo y Vigilantes.',
+          })
+        }
+      } else {
+        toast.success('Residente agregado')
+      }
 
       await refreshResidents()
       setNewResident({ name: '', unit: '', phone: '', email: '', isTenant: false })
       setShowNewResident(false)
     } catch (error) {
       console.error('Error creating resident:', error)
+      toast.error('No se pudo crear el residente')
     } finally {
       setSaving(false)
     }
@@ -639,6 +693,20 @@ export function ResidentsPanel({ residents: propResidents }: { residents?: Resid
                 className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-foreground"
               >
                 Es inquilino (arrendatario)
+              </label>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="sendInvite"
+                checked={sendInvite}
+                onCheckedChange={(checked) => setSendInvite(checked === true)}
+              />
+              <label
+                htmlFor="sendInvite"
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-foreground"
+              >
+                Enviar invitación de acceso (Web, PWA y App Móvil)
               </label>
             </div>
           </div>

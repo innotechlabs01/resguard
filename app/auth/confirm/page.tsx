@@ -19,34 +19,71 @@ function AuthConfirmInner() {
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
+    const setAuthError = (message: string) => {
+      setStatus('error')
+      if (message.toLowerCase().includes('expired')) {
+        setErrorMessage('El enlace ha expirado (por seguridad, dura 1 hora). Solicita una nueva invitación.')
+      } else {
+        setErrorMessage('Enlace inválido o ya utilizado. Solicita una nueva invitación.')
+      }
+    }
+
     const verify = async () => {
-      // Supabase sends: ?token_hash=xxx&type=invite&redirect_to=...
+      // 1. Token hash flow: ?token_hash=xxx&type=invite&redirect_to=...
       const token_hash = searchParams.get('token_hash')
       const type = searchParams.get('type')
 
-      if (!token_hash || !type) {
-        setStatus('error')
-        setErrorMessage('Enlace inválido. Solicita una nueva invitación al administrador de tu edificio.')
-        return
-      }
+      if (token_hash && type) {
+        const { error } = await supabase.auth.verifyOtp({
+          token_hash,
+          type: type as 'invite' | 'signup' | 'recovery' | 'email',
+        })
 
-      const { error } = await supabase.auth.verifyOtp({
-        token_hash,
-        type: type as 'invite' | 'signup' | 'recovery' | 'email',
-      })
-
-      if (error) {
-        setStatus('error')
-        if (error.message.includes('expired')) {
-          setErrorMessage('El enlace ha expirado (por seguridad, dura 1 hora). Solicita una nueva invitación.')
-        } else {
-          setErrorMessage('Enlace inválido o ya utilizado. Solicita una nueva invitación.')
+        if (error) {
+          setAuthError(error.message)
+          return
         }
+
+        setStatus('set-password')
         return
       }
 
-      // Token verified — session established. Show password setup.
-      setStatus('set-password')
+      // 2. PKCE flow: ?code=xxx
+      const code = searchParams.get('code')
+      if (code) {
+        const { error } = await supabase.auth.exchangeCodeForSession(code)
+
+        if (error) {
+          setAuthError(error.message)
+          return
+        }
+
+        setStatus('set-password')
+        return
+      }
+
+      // 3. Implicit / hash fragment flow (#access_token=...) or already-hydrated session
+      const hash = typeof window !== 'undefined' ? window.location.hash.replace(/^#/, '') : ''
+      const hashParams = new URLSearchParams(hash)
+      const hashError = hashParams.get('error_description') || hashParams.get('error')
+      if (hashError) {
+        setAuthError(hashError)
+        return
+      }
+
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      if (sessionError) {
+        setAuthError(sessionError.message)
+        return
+      }
+
+      if (session) {
+        setStatus('set-password')
+        return
+      }
+
+      setStatus('error')
+      setErrorMessage('Enlace inválido. Solicita una nueva invitación al administrador de tu edificio.')
     }
 
     verify()

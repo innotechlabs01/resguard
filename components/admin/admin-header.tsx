@@ -1,6 +1,6 @@
 'use client'
 
-import { Bell, User, ChevronDown } from 'lucide-react'
+import { Bell, User, ChevronDown, Building2, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
@@ -12,22 +12,71 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { useAuth } from '@/lib/auth-context'
+
+interface BuildingOption {
+  id: string
+  name: string
+}
 
 interface AdminHeaderProps {
   title: string
   unreadAlerts: number
   buildingName: string
+  buildings?: BuildingOption[]
+  selectedBuildingId?: string
+  onSelectBuilding?: (id: string) => void
+  onCreateBuilding?: () => void
 }
 
-export function AdminHeader({ title, unreadAlerts, buildingName }: AdminHeaderProps) {
+export function AdminHeader({
+  title,
+  unreadAlerts,
+  buildingName,
+  buildings,
+  selectedBuildingId,
+  onSelectBuilding,
+  onCreateBuilding,
+}: AdminHeaderProps) {
   const { user, logout } = useAuth()
 
   return (
     <header className="flex h-16 items-center justify-between border-b border-border bg-card/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-card/80 md:px-6">
-      <div className="min-w-0">
-        <h1 className="truncate text-lg font-semibold text-foreground">{title}</h1>
-        <p className="truncate text-xs text-muted-foreground">{buildingName}</p>
+      <div className="min-w-0 flex items-center gap-3">
+        <div className="min-w-0">
+          <h1 className="truncate text-lg font-semibold text-foreground">{title}</h1>
+          <p className="truncate text-xs text-muted-foreground">{buildingName}</p>
+        </div>
+        {buildings && buildings.length > 0 && onSelectBuilding && (
+          <div className="hidden md:flex items-center gap-2 ml-2">
+            <Select value={selectedBuildingId} onValueChange={onSelectBuilding}>
+              <SelectTrigger className="h-8 w-52 text-xs">
+                <Building2 className="mr-1.5 h-3.5 w-3.5 text-muted-foreground" />
+                <SelectValue placeholder="Seleccionar edificio" />
+              </SelectTrigger>
+              <SelectContent>
+                {buildings.map((b) => (
+                  <SelectItem key={b.id} value={b.id}>
+                    {b.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {onCreateBuilding && (
+              <Button variant="outline" size="sm" className="h-8 gap-1 text-xs" onClick={onCreateBuilding}>
+                <Plus className="h-3.5 w-3.5" />
+                Nuevo Edificio
+              </Button>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="flex items-center gap-2 md:gap-4">

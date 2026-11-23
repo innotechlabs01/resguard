@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { requireAuth, isAuthResponse } from '@/lib/auth/requireAuth'
-import { assertBuildingAccess } from '@/lib/auth/assertBuildingAccess'
+import { assertBuildingAccessAsync } from '@/lib/auth/assertBuildingAccess'
 import { getPayments, createPayment } from '@/lib/db/queries/payments'
+import { getResidents } from '@/lib/db/queries/residents'
 import { validateBody, CreatePaymentSchema } from '@/lib/validation'
 import { logger } from '@/lib/logger'
 
@@ -20,7 +21,7 @@ export async function POST(request: Request) {
     if (!validation.success) return validation.response
 
     const { amount, amountType, description, residentEmail, residentUnit, buildingId, buildingName, paymentType } = validation.data
-    const access = assertBuildingAccess(user, buildingId)
+    const access = await assertBuildingAccessAsync(user, buildingId)
     if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
 
     await createPayment({
@@ -50,22 +51,63 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const { user } = authRes
     const buildingIdParam = searchParams.get('buildingId') ?? undefined
-
-    // If user has no building_id and is not super_admin, deny global scope
-    if (user.role !== 'super_admin' && !user.building_id) {
-      return NextResponse.json({ error: 'Forbidden: building scope required' }, { status: 403 })
-    }
+    const unitParam = searchParams.get('unit')?.trim() || undefined
 
     let buildingId = buildingIdParam
-    if (user.role !== 'super_admin') {
-      buildingId = user.building_id!
+    if (user.role === 'super_admin') {
+      buildingId = buildingIdParam
+    } else if (user.role === 'admin') {
+      const targetBuildingId = buildingIdParam || user.building_id || undefined
+      if (!targetBuildingId) {
+        return NextResponse.json({ error: 'Forbidden: building scope required' }, { status: 403 })
+      }
+      const access = await assertBuildingAccessAsync(user, targetBuildingId)
+      if (!access.ok) {
+        return NextResponse.json({ error: access.error }, { status: access.status })
+      }
+      buildingId = targetBuildingId
+    } else {
+      if (!user.building_id) {
+        return NextResponse.json({ error: 'Forbidden: building scope required' }, { status: 403 })
+      }
+      if (buildingIdParam && buildingIdParam !== user.building_id) {
+        return NextResponse.json({ error: 'Forbidden: building mismatch' }, { status: 403 })
+      }
+      buildingId = user.building_id
     }
 
-    if (buildingIdParam && buildingIdParam !== buildingId) {
-      return NextResponse.json({ error: 'Forbidden: building mismatch' }, { status: 403 })
-    }
+    let payments = await getPayments(buildingId)
 
-    const payments = await getPayments(buildingId!)
+    if (user.role === 'usuario') {
+      let residentUnit = user.unit?.trim() || unitParam || null
+      if (!residentUnit && buildingId) {
+        try {
+          const residents = await getResidents(buildingId)
+          const match = residents.find(
+            (r) =>
+              (r.user_id && r.user_id === user.id) ||
+              (r.email && r.email.toLowerCase() === user.email.toLowerCase())
+          )
+          if (match?.unit) {
+            residentUnit = match.unit.trim()
+          }
+        } catch {
+          // Non-critical fallback
+        }
+      }
+
+      if (residentUnit) {
+        const normalizedUnit = residentUnit.toLowerCase()
+        payments = payments.filter(
+          (p) => !p.resident_unit || p.resident_unit.trim().toLowerCase() === normalizedUnit
+        )
+      }
+    } else if (unitParam) {
+      const normalizedUnit = unitParam.toLowerCase()
+      payments = payments.filter(
+        (p) => p.resident_unit?.trim().toLowerCase() === normalizedUnit
+      )
+    }
 
     const formattedPayments = payments.map(p => ({
       id: p.id,

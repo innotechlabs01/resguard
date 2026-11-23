@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireAuth, isAuthResponse } from '@/lib/auth/requireAuth'
-import { getSystemStats } from '@/lib/db/queries/stats'
+import { getSystemStats, getAdminTenantMetrics, getPlatformHealth } from '@/lib/db/queries/stats'
 import { logger } from '@/lib/logger'
 
 const log = logger.child({ module: 'api/stats' })
@@ -22,8 +22,12 @@ export async function GET(request: Request) {
       )
     }
 
-    const stats = await getSystemStats()
-    return NextResponse.json({ stats })
+    const [stats, adminMetrics, platformHealth] = await Promise.all([
+      getSystemStats(),
+      getAdminTenantMetrics(),
+      getPlatformHealth(),
+    ])
+    return NextResponse.json({ stats, adminMetrics, platformHealth })
   } catch (error) {
     log.error({ error }, 'Error fetching system stats')
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

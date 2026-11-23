@@ -15,7 +15,7 @@ import { ReportsPanel } from './reports-panel'
 import { NewEntryDialog } from './new-entry-dialog'
 import { InquilinosPanel } from './inquilinos-panel'
 import { IntercomPanel } from './intercom-panel'
-import type { ParkingSpot, Visitor, Alert } from '@/lib/types'
+import type { ParkingSpot, Visitor, Alert, Tenant } from '@/lib/types'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { Menu, LayoutDashboard, Car, Users, Bell, FileText, LogOut, UserPlus, Phone } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -53,6 +53,28 @@ function mapVisitorFromApi(v: any): Visitor {
     exitTime: v.exit_time ? new Date(v.exit_time) : undefined,
     parkingSpot: v.parking_spot,
     status: v.status,
+  }
+}
+
+function mapTenantFromApi(t: any): Tenant {
+  return {
+    id: t.id,
+    buildingId: t.building_id ?? t.buildingId ?? '',
+    name: t.name ?? '',
+    documentId: t.document_id ?? t.documentId ?? '',
+    phone: t.phone ?? '',
+    email: t.email ?? '',
+    unit: t.unit ?? '',
+    ownerId: t.owner_id ?? t.ownerId ?? '',
+    ownerName: t.owner_name ?? t.ownerName ?? '',
+    ownerUnit: t.owner_unit ?? t.ownerUnit ?? t.unit ?? '',
+    leaseStart: t.leaseStart instanceof Date ? t.leaseStart : new Date(t.lease_start ?? t.leaseStart ?? Date.now()),
+    leaseEnd: t.leaseEnd instanceof Date ? t.leaseEnd : new Date(t.lease_end ?? t.leaseEnd ?? Date.now()),
+    monthlyRent: Number(t.monthly_rent ?? t.monthlyRent ?? 0),
+    depositPaid: Number(t.deposit_paid ?? t.depositPaid ?? 0),
+    status: t.status ?? 'active',
+    lastPaymentDate: t.last_payment_date || t.lastPaymentDate ? new Date(t.last_payment_date ?? t.lastPaymentDate) : undefined,
+    vehicles: Array.isArray(t.vehicles) ? t.vehicles : [],
   }
 }
 
@@ -201,7 +223,7 @@ export function SecurityDashboard() {
         }
         if (!cancelled && tenantsRes.ok) {
           const data = await tenantsRes.json()
-          setTenants(data.tenants || [])
+          setTenants((data.tenants || []).map(mapTenantFromApi))
         }
       } catch (error) {
         console.error('Error fetching security data:', error)

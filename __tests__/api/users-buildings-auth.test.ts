@@ -133,12 +133,13 @@ describe('POST /api/buildings — N4 escalation', () => {
     expect(mockUpdateUser).not.toHaveBeenCalled() // no self-promotion
   })
 
-  it('rejects an admin creating a building (403)', async () => {
+  it('allows an admin to create a building (201)', async () => {
     authAs(sessionUser({ role: 'admin', building_id: buildingId() }))
+    mockCreateBuilding.mockResolvedValue(otherBuildingId())
     const { POST } = await import('@/app/api/buildings/route')
     const res = await POST(jsonRequest(validBuildingBody))
-    expect(res.status).toBe(403)
-    expect(mockCreateBuilding).not.toHaveBeenCalled()
+    expect(res.status).toBe(201)
+    expect(mockCreateBuilding).toHaveBeenCalled()
   })
 
   it('rejects a vigilante creating a building (403)', async () => {
@@ -226,12 +227,12 @@ describe('POST /api/users — N5 escalation', () => {
     expect(mockAdminInviteUser).not.toHaveBeenCalled()
   })
 
-  it('rejects an admin creating a vigilante (403)', async () => {
+  it('allows an admin to create a vigilante in their own building (201)', async () => {
     authAs(sessionUser({ role: 'admin', building_id: buildingId() }))
     const { POST } = await import('@/app/api/users/route')
     const res = await POST(jsonRequest({ ...validUserBody, role: 'vigilante', building_id: buildingId() }))
-    expect(res.status).toBe(403)
-    expect(mockAdminInviteUser).not.toHaveBeenCalled()
+    expect(res.status).toBe(201)
+    expect(mockAdminInviteUser).toHaveBeenCalled()
   })
 
   it('rejects an admin creating a super_admin (403)', async () => {

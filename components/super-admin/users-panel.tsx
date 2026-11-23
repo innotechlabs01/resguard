@@ -97,6 +97,8 @@ export function UsersPanel({ users: propUsers, buildings: propBuildings, onRefre
     role: 'admin' as 'admin' | 'vigilante',
     buildingId: '',
     documentId: '',
+    organizationName: '',
+    organizationType: 'hogar' as 'hogar' | 'grupo' | 'comunidad' | 'inmobiliaria',
   })
   const [createdCredentials, setCreatedCredentials] = useState<{ email: string; password?: string } | null>(null)
   const [copiedPass, setCopiedPass] = useState(false)
@@ -163,19 +165,25 @@ export function UsersPanel({ users: propUsers, buildings: propBuildings, onRefre
   }
 
   const handleCreateUser = async () => {
-    if (!newUser.name || !newUser.email || !newUser.buildingId) return
+    if (!newUser.name || !newUser.email) return
+    if (newUser.role === 'vigilante' && !newUser.buildingId) return
     setSaving(true)
     setCreateError(null)
     try {
+      const payload: Record<string, unknown> = {
+        name: newUser.name.trim(),
+        email: newUser.email.trim().toLowerCase(),
+        role: newUser.role,
+        building_id: newUser.buildingId && newUser.buildingId !== 'none' ? newUser.buildingId : null,
+      }
+      if (newUser.role === 'admin' && newUser.organizationName.trim()) {
+        payload.organization_name = newUser.organizationName.trim()
+        payload.organization_type = newUser.organizationType
+      }
       const res = await fetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: newUser.name.trim(),
-          email: newUser.email.trim().toLowerCase(),
-          role: newUser.role,
-          building_id: newUser.buildingId,
-        }),
+        body: JSON.stringify(payload),
       })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
@@ -184,7 +192,16 @@ export function UsersPanel({ users: propUsers, buildings: propBuildings, onRefre
       }
       const data = await res.json().catch(() => ({}))
       const createdEmail = newUser.email.trim().toLowerCase()
-      setNewUser({ name: '', email: '', phone: '', role: 'admin', buildingId: '', documentId: '' })
+      setNewUser({
+        name: '',
+        email: '',
+        phone: '',
+        role: 'admin',
+        buildingId: '',
+        documentId: '',
+        organizationName: '',
+        organizationType: 'hogar',
+      })
       onRefresh?.()
       if (data.invitationSent || data.success) {
         // Keep the dialog open to show the invitation confirmation
@@ -666,15 +683,22 @@ export function UsersPanel({ users: propUsers, buildings: propBuildings, onRefre
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-foreground text-sm">Edificio asignado *</Label>
+                <Label className="text-foreground text-sm">
+                  Edificio asignado {newUser.role === 'vigilante' ? '*' : '(opcional para Admin)'}
+                </Label>
                 <Select
-                  value={newUser.buildingId}
-                  onValueChange={(v) => setNewUser((p) => ({ ...p, buildingId: v }))}
+                  value={newUser.buildingId || (newUser.role === 'admin' ? 'none' : '')}
+                  onValueChange={(v) => setNewUser((p) => ({ ...p, buildingId: v === 'none' ? '' : v }))}
                 >
                   <SelectTrigger className="bg-input border-border text-foreground">
                     <SelectValue placeholder="Selecciona un edificio" />
                   </SelectTrigger>
                   <SelectContent>
+                    {newUser.role === 'admin' && (
+                      <SelectItem value="none">
+                        Sin edificio aún (el Admin lo creará)
+                      </SelectItem>
+                    )}
                     {buildings.map((b) => (
                       <SelectItem key={b.id} value={b.id}>
                         <div className="flex items-center gap-2">
@@ -686,6 +710,41 @@ export function UsersPanel({ users: propUsers, buildings: propBuildings, onRefre
                   </SelectContent>
                 </Select>
               </div>
+              {newUser.role === 'admin' && (
+                <>
+                  <div className="space-y-1.5">
+                    <Label className="text-foreground text-sm">Nombre de Organización / Tenant (opcional)</Label>
+                    <Input
+                      placeholder="Ej: Inmobiliaria del Norte"
+                      value={newUser.organizationName}
+                      onChange={(e) => setNewUser((p) => ({ ...p, organizationName: e.target.value }))}
+                      className="bg-input border-border text-foreground"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-foreground text-sm">Tipo de Tenant</Label>
+                    <Select
+                      value={newUser.organizationType}
+                      onValueChange={(v) =>
+                        setNewUser((p) => ({
+                          ...p,
+                          organizationType: v as 'hogar' | 'grupo' | 'comunidad' | 'inmobiliaria',
+                        }))
+                      }
+                    >
+                      <SelectTrigger className="bg-input border-border text-foreground">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="hogar">Hogar (1 edificio)</SelectItem>
+                        <SelectItem value="grupo">Grupo (2-5 edificios)</SelectItem>
+                        <SelectItem value="comunidad">Comunidad</SelectItem>
+                        <SelectItem value="inmobiliaria">Inmobiliaria (N edificios)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
+              )}
             </div>
           </div>
           <DialogFooter>
@@ -697,7 +756,12 @@ export function UsersPanel({ users: propUsers, buildings: propBuildings, onRefre
             </Button>
             <Button
               onClick={handleCreateUser}
-              disabled={saving || !newUser.name || !newUser.email || !newUser.buildingId}
+              disabled={
+                saving ||
+                !newUser.name ||
+                !newUser.email ||
+                (newUser.role === 'vigilante' && !newUser.buildingId)
+              }
             >
               <Plus className="mr-2 h-4 w-4" />
               {saving ? 'Creando…' : 'Crear usuario'}

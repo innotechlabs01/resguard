@@ -93,8 +93,15 @@ interface PaymentLink {
   paymentId: string
 }
 
-export function PaymentsPanel({ payments: propPayments }: { payments?: Payment[] } = {}) {
+export function PaymentsPanel({
+  payments: propPayments,
+  buildingId: propBuildingId,
+}: {
+  payments?: Payment[]
+  buildingId?: string
+} = {}) {
   const { user, isAuthenticated } = useAuth()
+  const buildingId = propBuildingId || user?.buildingId
   const [search, setSearch] = useState('')
   const [dbPayments, setDbPayments] = useState<any[]>([])
   const [loadingDb, setLoadingDb] = useState(false)
@@ -117,12 +124,12 @@ export function PaymentsPanel({ payments: propPayments }: { payments?: Payment[]
   const allPayments = propPayments || dbPayments
 
   useEffect(() => {
-    if (!isAuthenticated || !user?.buildingId || propPayments) return
+    if (!isAuthenticated || !buildingId || propPayments) return
 
     setLoadingDb(true)
     const controller = new AbortController()
 
-    fetch(`/api/payments?buildingId=${user.buildingId}`, { signal: controller.signal })
+    fetch(`/api/payments?buildingId=${buildingId}`, { signal: controller.signal })
       .then(res => res.json())
       .then(data => {
         if (data.payments) {
@@ -136,14 +143,14 @@ export function PaymentsPanel({ payments: propPayments }: { payments?: Payment[]
       .finally(() => setLoadingDb(false))
 
     return () => controller.abort()
-  }, [isAuthenticated, user?.buildingId, propPayments])
+  }, [isAuthenticated, buildingId, propPayments])
 
   const buildingPayments = allPayments.filter(
-    (p) => p.buildingId === user?.buildingId || p.buildingId === '11111111-1111-4111-8111-111111111111'
+    (p) => p.buildingId === buildingId || p.buildingId === '11111111-1111-4111-8111-111111111111'
   )
 
   const handleAddPayment = async () => {
-    if (!newPayment.description || !newPayment.amount || !newPayment.residentUnit || !user?.buildingId) return
+    if (!newPayment.description || !newPayment.amount || !newPayment.residentUnit || !buildingId) return
 
     setCreating(true)
     try {
@@ -156,7 +163,7 @@ export function PaymentsPanel({ payments: propPayments }: { payments?: Payment[]
           description: newPayment.description,
           residentEmail: newPayment.residentEmail || undefined,
           residentUnit: newPayment.residentUnit,
-          buildingId: user.buildingId,
+          buildingId,
           paymentType: newPayment.type,
         }),
       })
@@ -168,8 +175,8 @@ export function PaymentsPanel({ payments: propPayments }: { payments?: Payment[]
       await response.json()
 
       // Refresh from the API after success
-      if (user.buildingId) {
-        const res = await fetch(`/api/payments?buildingId=${user.buildingId}`)
+      if (buildingId) {
+        const res = await fetch(`/api/payments?buildingId=${buildingId}`)
         const data = await res.json()
         if (data.payments) {
           setDbPayments(data.payments)
@@ -186,7 +193,7 @@ export function PaymentsPanel({ payments: propPayments }: { payments?: Payment[]
   }
 
   const handleCreatePaymentLink = async () => {
-    if (!newPayment.description || !newPayment.residentUnit || !user?.buildingId) return
+    if (!newPayment.description || !newPayment.residentUnit || !buildingId) return
     
     setSendingLink(true)
     try {
@@ -199,8 +206,8 @@ export function PaymentsPanel({ payments: propPayments }: { payments?: Payment[]
           description: newPayment.description,
           residentUnit: newPayment.residentUnit,
           residentEmail: newPayment.residentEmail || undefined,
-          buildingId: user.buildingId,
-          buildingName: user.buildingId,
+          buildingId,
+          buildingName: buildingId,
           paymentType: newPayment.type,
         }),
       })
@@ -216,8 +223,8 @@ export function PaymentsPanel({ payments: propPayments }: { payments?: Payment[]
         
         setDbPayments(prev => [{
           id: data.paymentId,
-          buildingId: user.buildingId,
-          buildingName: user.buildingId || 'Edificio',
+          buildingId,
+          buildingName: buildingId || 'Edificio',
           amount: parseInt(newPayment.amount) || 0,
           currency: 'COP',
           status: 'pending',

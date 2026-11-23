@@ -80,8 +80,9 @@ const statusConfig = {
   cancelled: { icon: XCircle, label: 'Cancelada', className: 'bg-destructive/10 text-destructive' },
 }
 
-export function AssemblyPanel() {
+export function AssemblyPanel({ buildingId: propBuildingId }: { buildingId?: string } = {}) {
   const { user } = useAuth()
+  const buildingId = propBuildingId || user?.buildingId
   const [assemblies, setAssemblies] = useState<Assembly[]>([])
   const [agendaItems, setAgendaItems] = useState<Record<string, AgendaItem[]>>({})
   const [loading, setLoading] = useState(true)
@@ -108,15 +109,15 @@ export function AssemblyPanel() {
   })
 
   useEffect(() => {
-    if (user?.buildingId) {
+    if (buildingId) {
       fetchAssemblies()
     }
-  }, [user?.buildingId])
+  }, [buildingId])
 
   const fetchAssemblies = async () => {
-    if (!user?.buildingId) return
+    if (!buildingId) return
     try {
-      const res = await fetch(`/api/assemblies?buildingId=${user.buildingId}`)
+      const res = await fetch(`/api/assemblies?buildingId=${buildingId}`)
       const data = await res.json()
       setAssemblies(data.assemblies || [])
     } catch (error) {
@@ -137,14 +138,14 @@ export function AssemblyPanel() {
   }
 
   const handleCreateAssembly = async () => {
-    if (!user?.buildingId || !newAssembly.title || !newAssembly.date || !newAssembly.time) return
+    if (!buildingId || !newAssembly.title || !newAssembly.date || !newAssembly.time) return
     
     try {
       const res = await fetch('/api/assemblies', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          buildingId: user.buildingId,
+          buildingId,
           ...newAssembly,
         }),
       })
